@@ -393,36 +393,48 @@ WHEEL_TS_READ = (0x625b6c, 0x0320f809)
 # (player_playlist, used nowhere else); the Library's plural categories; settings rows in title case
 # and plain words; the Lock screen help; and Baidu without its (BETA).
 LABELS = tuple((k.encode(), o.encode(), n.encode()) for k, o, n in (
-    ('msg_playlistfull', 'Playlist Is Full', 'Could not create playlist'),
-    ('player_playlist', 'Playlists', 'Queue'), ('system_powermanager', 'Idle', 'Power'),
-    ('powerm_deep_off', 'standby/shutdown', 'Standby'),
-    ('local_songer', 'Artist', 'Artists'), ('local_album', 'Album', 'Albums'),
-    ('local_allsongs', 'All Songs', 'Songs'), ('local_playlist', 'Playlist', 'Playlists'),
-    ('playset_bootvol', 'Default Vol', 'Default Volume'),
-    ('playset_covermode', 'Enlarged album art(10s wait)', 'Enlarged Album Art'),
-    ('playset_filter', 'Digital filters', 'Digital Filters'),
-    ('playset_memplay', 'Memory playback', 'Memory Playback'),
-    ('replaygain_track', 'Audio', 'Song'),
-    ('small_playset', 'Playback Setting', 'Playback'), ('small_sysset', 'System Setting', 'System'),
-    ('system_wifiset', 'Wireless Setting', 'Wireless'), ('system_display', 'Display setting', 'Display'),
-    ('system_netservice', 'Network Service', 'Network'), ('system_time', 'Date and time', 'Date & Time'),
-    ('system_keylock', 'Buttons lock', 'Buttons Lock'), ('system_keytone', 'Key tone', 'Key Tone'),
-    ('system_carmode', 'In-Vehicle mode', 'In-Vehicle Mode'), ('system_reset', 'Reset settings', 'Reset Settings'),
-    ('reset_initset', 'Reset only settings', 'Reset Settings Only'),
-    ('reset_factory', 'Full factory reset', 'Full Factory Reset'),
-    ('display_lighttime', 'Screen off time', 'Screen Off Time'), ('display_screenlock', 'Lock screen', 'Lock Screen'),
-    ('screenlock_timeshow', 'Lockscreen Time Display', 'Show Time'),
-    ('screenlock_about', 'Custom lock screen', 'Custom Lock Screen'),
-    ('screenlock_info1', '1.Custom lock screen:Images must be stored in "lockscreenimage" folder,located in root folder of micro SD card;',
-     '1. Put the pictures in a folder named "lockscreenimage" at the top of the card.'),
-    ('screenlock_info2', '2.Supports PNG and JPG，resolution exactly 375 x 320，under 1MB;',
-     '2. PNG or JPG, exactly 375 x 320 pixels, under 1 MB each.'),
-    ('screenlock_info3', '3.Maximum of 5 images in folder.', '3. Up to 5 pictures.'),
-    ('about_sn', 'Serial number', 'Serial Number'), ('about_version', 'FW. Version', 'Version'),
-    ('list_baidu', 'Baidu Netdisk(BETA)', 'Baidu Netdisk'), ('msg_poweroff', 'Confirm Shutdown?', 'Shut Down?'),
-    ('system_prove', '技术证明', 'Certification'),  # About's regulatory row, Chinese in stock's English
-    ('genre', 'Genres', 'Genre'), ('player_era', 'Era', 'Year'), ('batch_addplaylist', 'Add to playlist', 'Add to Playlist'),
-    ('scan_startscan', 'Scanning', 'Scan')))  # Scan specified folders' button; wifi_scan keeps its "Scanning"
+    ('msg_playlistfull', 'Playlist Is Full', '播放列表已满'),
+    ('player_playlist', 'Playlists', '播放队列'),
+    ('system_powermanager', 'Idle', '电源'),
+    ('powerm_deep_off', 'standby/shutdown', '待机'),
+    ('local_songer', 'Artist', '表演者'),
+    ('local_album', 'Album', '专辑'),
+    ('local_allsongs', 'All Songs', '歌曲'),
+    ('local_playlist', 'Playlist', '播放列表'),
+    ('playset_bootvol', 'Default Vol', '启动音量'),
+    ('playset_covermode', 'Enlarged album art(10s wait)', '放大专辑插图'),
+    ('playset_filter', 'Digital filters', '数字滤波器'),
+    ('playset_memplay', 'Memory playback', '记忆播放'),
+    ('replaygain_track', 'Audio', '歌曲'),
+    ('small_playset', 'Playback Setting', '播放设置'),
+    ('small_sysset', 'System Setting', '系统设置'),
+    ('system_wifiset', 'Wireless Setting', '无线'),
+    ('system_display', 'Display setting', '显示'),
+    ('system_netservice', 'Network Service', '网络'),
+    ('system_time', 'Date and time', '日期与时间'),
+    ('system_keylock', 'Buttons lock', '按键锁定'),
+    ('system_keytone', 'Key tone', '按键音'),
+    ('system_carmode', 'In-Vehicle mode', '车载模式'),
+    ('system_reset', 'Reset settings', '还原设置'),
+    ('reset_initset', 'Reset only settings', '仅还原设置'),
+    ('reset_factory', 'Full factory reset', '恢复出厂设置'),
+    ('display_lighttime', 'Screen off time', '背光灯'),
+    ('display_screenlock', 'Lock screen', '锁定屏幕'),
+    ('screenlock_timeshow', 'Lockscreen Time Display', '显示时间'),
+    ('screenlock_about', 'Custom lock screen', '自定锁定屏幕'),
+    ('screenlock_info1', '1.Custom lock screen:Images must be stored in "lockscreenimage" folder,located in root folder of micro SD card;', '1. 将图片放入存储卡根目录的 lockscreenimage 文件夹。'),
+    ('screenlock_info2', '2.Supports PNG and JPG，resolution exactly 375 x 320，under 1MB;', '2. PNG 或 JPG，375 x 320 像素，每张小于 1 MB。'),
+    ('screenlock_info3', '3.Maximum of 5 images in folder.', '3. 最多 5 张图片。'),
+    ('about_sn', 'Serial number', '序列号'),
+    ('about_version', 'FW. Version', '版本'),
+    ('list_baidu', 'Baidu Netdisk(BETA)', '百度网盘'),
+    ('msg_poweroff', 'Confirm Shutdown?', '关机？'),
+    ('system_prove', '技术证明', '认证信息'),
+    ('genre', 'Genres', '流派'),
+    ('player_era', 'Era', '年份'),
+    ('batch_addplaylist', 'Add to playlist', '添加到播放列表'),
+    ('scan_startscan', 'Scanning', '扫描'),
+))
 
 # Wi-Fi transfer's web page (stock thttpd on :8888): in English, an Upload Folder button, and a folder,
 # picked or dropped, keeps its tree: each file's folders are made with stock's create (a plain mkdir) before
@@ -591,25 +603,24 @@ ENGLISH_IN = {'testmode/test_key.bin': {'中': 'Centre'}, 'kb_default_t9.bin': {
               'systemset/screensaver_about.bin': {}}
 
 def english_ui(rel, data):
-    """rel's widgets' Chinese text in English, and the T9 keyboard's Chinese page out of reach."""
+    """Keep the stock Chinese keyboard and normalize visible literals for this local Chinese build.
+
+    The historical function name stays stable for asset validation and callers; unlike upstream,
+    this build must not replace every Chinese UI label with English.
+    """
     from ipod import decode, encode, walk
     root = decode(data)
     check(encode(root) == data, f'{rel}: UI round trip differs')
-    upper = {id(n) for page in walk(root) if page[2].get('name') == 'upper' for n in walk(page)}
-    for n in walk(root):
-        props = n[2]
-        if rel == 'kb_default_t9.bin' and props.get('name') == 'page:chinese':  # EN: the case toggle
-            props['name'], props['text'] = ('page:lower', 'abc') if id(n) in upper else ('page:upper', 'ABC')
-        if rel == 'kb_default_t9.bin' and props.get('name') == 'opt:《》':
-            props['name'] = 'opt:«»'
+    words = {'本地音乐': '音乐', '歌手': '表演者', '风格': '流派', '年代': '年份',
+             '单曲': '歌曲', '确认': '确定', '导入歌单': '导入播放列表',
+             '导出歌单': '导出播放列表', '测试歌单': '播放列表',
+             '自动扫描音乐': '自动扫描音乐', '立即更新曲库': '立即更新音乐资料库',
+             '指定文件夹扫描': '扫描文件夹'}
+    for node in walk(root):
+        props = node[2]
         text = props.get('text', '')
-        if not CJK.search(text):
-            continue
-        if rel == 'systemset/screensaver_about.bin':  # Polish, with a full-width comma
-            props['text'] = text.replace('，', ', ')
-        else:
-            props['text'] = ENGLISH_IN.get(rel, {}).get(text) or ENGLISH[text]
-    check(not any(CJK.search(n[2].get('text', '')) for n in walk(root)), f'Chinese left in {rel}')
+        if text in words:
+            props['text'] = words[text]
     return encode(root)
 
 # The stock font (Arial merged with a CJK font) gives curly quotes the CJK em advance, a wide gap
