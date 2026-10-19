@@ -118,27 +118,27 @@ static void show(const char *text) {
 
 static int wait_done(const void *unused) {
     static const char *const said[] = {
-        [NU_LATEST] = "Latest firmware installed", [NU_NET] = "Can't reach GitHub",
-        [NU_MISSING] = "No update for this build", [NU_CARD] = "Can't write to the card",
-        [NU_CANCELLED] = "Download cancelled",
+        [NU_LATEST] = "已是最新上游版本", [NU_NET] = "无法连接 GitHub",
+        [NU_MISSING] = "此版本暂无更新", [NU_CARD] = "无法写入存储卡",
+        [NU_CANCELLED] = "已取消下载",
     };
     char s[32];
     if (nu.state == NU_RUNNING) {
         reset_poweroptions_timer(1, 1, 0); /* standby, auto power-off; not the screen's */
-        tk_snprintf(s, sizeof s, "Downloading %d%%", nu.percent);
-        show(nu.cancel ? "Cancelling…" : nu.percent ? s : "Checking…");
+        tk_snprintf(s, sizeof s, "正在下载 %d%%", nu.percent);
+        show(nu.cancel ? "正在取消…" : nu.percent ? s : "正在检查…");
         return 8; /* RET_REPEAT */
     }
     pthread_join(nu.thread, 0);
     int state = nu.state;
     nu.state = NU_IDLE;
-    if (nu.label) widget_set_tr_text(nu.label, "update_online");
+    if (nu.label) show("上游英文固件更新");
     if (state != NU_DONE)
         toast(said[state]);
     else if (nu.label)
         fwupdate_tf(); /* stock's TF card update: its battery check and confirm */
     else
-        toast("Update downloaded: use TF card update");
+        toast("上游英文固件已下载，请使用 TF 卡升级");
     return 0;
 }
 
@@ -146,19 +146,19 @@ static int wait_done(const void *unused) {
 static int online_click(void *ctx, void *event) {
     if (nu.state == NU_RUNNING) {
         nu.cancel = 1;
-        show("Cancelling…");
+        show("正在取消…");
     } else if (nu.state != NU_IDLE) {
         /* ended, not yet joined by wait_done */
     } else if (get_wifisignal() <= 0) {
-        toast("Connect to Wi-Fi first");
+        toast("请先连接 Wi-Fi");
     } else {
         nu.cancel = nu.percent = 0;
         nu.state = NU_RUNNING;
         if (pthread_create(&nu.thread, 0, worker, 0)) {
             nu.state = NU_IDLE;
-            toast("Can't start the download");
+            toast("无法开始下载");
         } else {
-            show("Checking…");
+            show("正在检查…");
             timer_add(wait_done, (void *)0, 500);
         }
     }
@@ -183,7 +183,7 @@ int ringnav_fwupdate(void *win, void *ctx) {
         widget_on(button, EVT_CLICK, online_click, 0);
         nu.label = widget_get_child(button, 0);
         widget_on(nu.label, EVT_DESTROY, label_gone, nu.label);
-        if (nu.state == NU_RUNNING) show("Downloading…");
+        show(nu.state == NU_RUNNING ? "正在下载…" : "上游英文固件更新");
     }
     return result;
 }
