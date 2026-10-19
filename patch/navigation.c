@@ -1319,7 +1319,7 @@ static int pull_event(void *page, void *event) {
         }
     }
     if (prompt) {
-        widget_set_text_utf8(prompt, ready ? "Release to search" : "Pull to search");
+        widget_set_text_utf8(prompt, ready ? "松开搜索" : "下拉搜索");
         widget_set_visible(prompt, dy > 0, 0);
     }
     return STOP;
@@ -1399,8 +1399,8 @@ unsigned mix(unsigned from, unsigned to, int j, int n) {
  * accent: its drawing takes Graphite's greys and its fills MINIMAL_FILL; Classic (1) the accent. */
 static const unsigned accents[][5] = { ACCENTS };
 #define ACCENT_N (int)(sizeof accents / sizeof *accents)
-static const char *const accent_names[] = { "Accent: Graphite", "Accent: Crimson", "Accent: Tidal",
-                                            "Accent: Champagne" };
+static const char *const accent_names[] = { "强调色：石墨", "强调色：绯红", "强调色：潮汐",
+                                            "强调色：香槟" };
 _Static_assert(sizeof accent_names / sizeof *accent_names == ACCENT_N, "one name per ACCENTS row");
 /* The Display rows' settings, by ringnav_display's index: 0 Accent, 1 Home, 2 Battery, 3 Theme. */
 static const char *const setting_keys[] = { "ACCENT", "HOME", "BATTERY", "THEME", "SHORTCUT" };
@@ -1440,8 +1440,8 @@ int ipod_home_rockbox(void) {
     return shortcut() || st.home_rockbox;
 }
 const char *ipod_home_shortcut(void) {
-    static const char *const names[] = { "Rockbox",   "Artists",      "Albums",
-                                         "Favorites", "Rated Albums", "Shuffle" };
+    static const char *const names[] = { "Rockbox",   "表演者",      "专辑",
+                                         "收藏", "已评价专辑", "随机播放" };
     return names[shortcut()];
 }
 extern int rockbox_open(void *, void *);
@@ -1975,7 +1975,7 @@ void *list_row(void *view, const char *icon, int (*click)(void *, void *), void 
 
 /* Stock modes, only with the screen off: 1 locks wheel volume, 2 the buttons, 3 both.
  * KEY_LOCKOUT is the separate, temporary debounce after a button press. */
-static const char *const lock_names[] = { "Off", "Everything", "Buttons only", "Volume only" };
+static const char *const lock_names[] = { "关闭", "全部锁定", "仅按键", "仅音量" };
 static int lock_choice(void) {
     if (g_keylock_flag && (g_keylock_mode < 1 || g_keylock_mode > 3)) {
         g_keylock_mode = 3; /* an unknown mode locks Everything */
@@ -2236,20 +2236,20 @@ int ringnav_bt_connect_start(int pause) {
 }
 static void pod_text(int i) {
     static const char *const names[][4] = {
-        { "Charge Limit: Off", "Charge Limit: " STR(CHARGE_STOP) "%" },
-        { "Low Power: Off", "Low Power: On" },
-        { "Wake: Single Press", "Wake: Double Press" },
-        { "Artist Albums: Grid", "Artist Albums: Coverflow", "Artist Albums: List" },
-        { "Year Order: Newest First", "Year Order: Oldest First" },
-        { "Artists: Artist", "Artists: Album Artist" },
-        { "Resume on Connect: Off", "Resume on Connect: On" },
-        { "Clock: Standard", "Clock: Large" },
-        { "Artist Album Order: Year", "Artist Album Order: A–Z" },
-        { "Volume Guard: Off", "Volume Guard: On" },
-        { "Hold Return: Recent", "Hold Return: Home" },
-        { "Standby Limit: Off", "Standby Limit: " STR(STANDBY_LIMIT_1) " h",
-          "Standby Limit: " STR(STANDBY_LIMIT_2) " h",
-          "Standby Limit: " STR(STANDBY_LIMIT_3) " h" },
+        { "充电上限：关闭", "充电上限：" STR(CHARGE_STOP) "%" },
+        { "低功耗模式：关闭", "低功耗模式：打开" },
+        { "唤醒：单击", "唤醒：双击" },
+        { "表演者专辑：网格", "表演者专辑：Cover Flow", "表演者专辑：列表" },
+        { "年份顺序：从新到旧", "年份顺序：从旧到新" },
+        { "表演者分类：曲目表演者", "表演者分类：专辑表演者" },
+        { "连接后续播：关闭", "连接后续播：打开" },
+        { "时钟：标准", "时钟：大字" },
+        { "表演者专辑排序：年份", "表演者专辑排序：名称" },
+        { "音量防误触：关闭", "音量防误触：打开" },
+        { "长按返回：最近页面", "长按返回：主菜单" },
+        { "待机时限：关闭", "待机时限：" STR(STANDBY_LIMIT_1) " 小时",
+          "待机时限：" STR(STANDBY_LIMIT_2) " 小时",
+          "待机时限：" STR(STANDBY_LIMIT_3) " 小时" },
     };
     _Static_assert(sizeof names / sizeof *names == POD_COUNT, "a names entry per row");
     int v = i != POD_ARTISTS ? *pod_values[i] : I(artist_type, 0) == 1;
@@ -2377,7 +2377,7 @@ static int root_dir(char *path) {
 }
 static void root_text(const char *name) {
     char t[280];
-    tk_snprintf(t, sizeof t, "Folder Root: %s", name[0] ? name : "Card");
+    tk_snprintf(t, sizeof t, "文件夹起点：%s", name[0] ? name : "存储卡");
     widget_set_text_utf8(st.root_label, t);
 }
 /* Centre or tap: the next root, saved; Folder opens there from its next visit. */
@@ -2692,7 +2692,7 @@ static void np_sync(void *top) {
                             sizeof pos);
     if (h != st.np_hash) {
         st.np_hash = h;
-        if (r) tk_snprintf(s, sizeof s, "%d of %d", at + 1, n);
+        if (r) tk_snprintf(s, sizeof s, "%d / %d", at + 1, n);
         widget_set_text_utf8(st.np_pos, s);
         widget_set_text_utf8(st.np_album, album ? album : "");
         st.np_off = 0;
@@ -3035,8 +3035,8 @@ static void vol_paint(void *top, void *canvas) {
     st.vol_dialog = top;
     st.vol_drawn = level;
     if (!st.vol_timer) st.vol_timer = timer_add(vol_poll, (void *)0, VOL_POLL_MS);
-    unsigned fill = (unsigned)I(lcd, LCD_FILL_COLOR), s[12] = { 'V', 'o', 'l', 'u', 'm', 'e', ' ' },
-             k = np ? 7 : 0;
+    unsigned fill = (unsigned)I(lcd, LCD_FILL_COLOR), s[12] = { 0x97f3, 0x91cf, ' ' },
+             k = np ? 3 : 0;
     int w = max > 0 ? bar.w * clamp_step(0, max, level) / max : 0;
     if (np) {
         canvas_set_fill_color(canvas, RGBA(0));
@@ -3386,17 +3386,17 @@ int ringnav_image_add(void *manager, const char *name, void *bitmap) {
 }
 
 static void setting_text(int i) {
-    static const char *const home[] = { "Home: Split", "Home: Full" },
-                             *const battery[] = { "Battery: Icon", "Battery: Percent",
-                                                  "Battery: Icon + Percent",
-                                                  "Battery: Percent Inside" },
-                             *const theme[] = { "Theme: Minimal", "Theme: Classic" };
+    static const char *const home[] = { "主菜单：分栏", "主菜单：全屏" },
+                             *const battery[] = { "电池显示：图标", "电池显示：百分比",
+                                                  "电池显示：图标与百分比",
+                                                  "电池显示：图标内百分比" },
+                             *const theme[] = { "主题：简约", "主题：经典" };
     accent(); /* reads the settings */
     const char *const names[] = { accent_names[st.accent], home[st.home_full], battery[st.battery],
                                   theme[st.classic] };
     char shortcut[64];
     if (i == 4) {
-        tk_snprintf(shortcut, sizeof shortcut, "Shortcut: %s", ipod_home_shortcut());
+        tk_snprintf(shortcut, sizeof shortcut, "快捷入口：%s", ipod_home_shortcut());
         widget_set_text_utf8(st.setting_label[i], shortcut);
         return;
     }
@@ -3548,17 +3548,17 @@ void toast(const char *text);
 #define BOOT_TARGET "/mnt/data/boot-target"
 static int boot_rockbox __attribute__((section(".scratch")));
 static void boot_text(void *label) {
-    widget_set_text_utf8(label, boot_rockbox ? "Boot to: Rockbox" : "Boot to: Q2 Pod");
+    widget_set_text_utf8(label, boot_rockbox ? "默认启动：Rockbox" : "默认启动：Q2 Pod");
 }
 static int boot_click(void *label, void *event) {
     if (!rockbox_available()) {
-        toast("Rockbox is not on the card");
+        toast("卡内未安装 Rockbox");
         return 0;
     }
     const char *value = boot_rockbox ? "q2pod" : "rockbox";
     if (!blob_io(BOOT_TARGET, BOOT_TARGET ".tmp", (void *)value, strlen(value), 1)) {
         unlink(BOOT_TARGET ".tmp");
-        toast("Could not save boot choice");
+        toast("无法保存启动选项");
         return 0;
     }
     boot_rockbox = !boot_rockbox;
@@ -4300,7 +4300,7 @@ int ringnav_art_header(char *buf, unsigned size, const char *fmt, const char *al
 }
 
 static int empty_toast(const void *unused) {
-    static const char *const none[] = { "No albums", "No artists", "No composers", "No genres" };
+    static const char *const none[] = { "暂无专辑", "暂无表演者", "暂无作曲家", "暂无流派" };
     toast(none[st.empty_kind]);
     return 0;
 }
@@ -4506,7 +4506,7 @@ static int shuffle_play(void *all) {
 static int shuffle_songs(void *ctx, void *event) {
     int n;
     void *all = staged(songs_unsorted, (void *)1, &n);
-    if (!shuffle_play(all)) toast("Update Local Music first");
+    if (!shuffle_play(all)) toast("请先更新本地音乐库");
     deque_destroy(all);
     return 0;
 }
@@ -4515,7 +4515,7 @@ static int shuffle_groups(void *ctx, void *event) {
     int n;
     void *all = staged(songs_unsorted, (void *)1, &n);
     if (!playback_groups(all, (int)(long)ctx))
-        toast(deque_size(all) ? "Too many songs to shuffle" : "Update Local Music first");
+        toast(deque_size(all) ? "歌曲过多，无法随机播放" : "请先更新本地音乐库");
     deque_destroy(all);
     return 0;
 }
@@ -4561,14 +4561,14 @@ static int sp_pick(void *ctx, void *event) {
 
 static int shuffle_menu(void *ctx, void *event) {
     if (st.sp_page || !(st.sp_page = page_open("shuffle_page", page_closed, page_keyup))) return 0;
-    void *view = page_list(st.sp_page, st.sp_page, 0, "Shuffle", 3, 48);
-    page_row_detail(view, 0, "Shuffle Songs", 0, sp_pick);
-    page_row_detail(view, 1, "Shuffle Albums", 0, sp_pick);
-    page_row_detail(view, 2, "Shuffle Folders", 0, sp_pick);
+    void *view = page_list(st.sp_page, st.sp_page, 0, "随机播放", 3, 48);
+    page_row_detail(view, 0, "随机播放歌曲", 0, sp_pick);
+    page_row_detail(view, 1, "随机播放专辑", 0, sp_pick);
+    page_row_detail(view, 2, "随机播放文件夹", 0, sp_pick);
     void *note = text(st.sp_page, 20, 200, 335, 24);
     widget_set_prop_int(note, "style:normal:text_color", (int)0xffaaaaaau);
     widget_set_prop_int(note, "style:normal:font_size", 16);
-    widget_set_text_utf8(note, "Albums and folders take a moment to shuffle");
+    widget_set_text_utf8(note, "专辑和文件夹随机排序需要片刻");
     return 0;
 }
 
@@ -4673,14 +4673,14 @@ static int most_played(void *ctx, void *event) {
     deque_destroy(from);
     st.mp_list = ranked;
     void *view =
-        page_list(st.mp_page, st.mp_page, 0, top ? "Most Played" : "No plays yet", top, 64);
+        page_list(st.mp_page, st.mp_page, 0, top ? "播放最多" : "暂无播放记录", top, 64);
     char name[512], detail[300];
     for (int i = 0; i < top; i++) { /* the artist, if tagged, and the play count, under the title */
         void *t = deque_at(st.mp_list, (unsigned)i);
         const char *artist = P(t, REC_ARTIST);
         unsigned plays = (score[i] - 1) / PLAYS_SLOTS, a = artist && *artist;
-        tk_snprintf(detail, sizeof detail, a ? "%s · %u play%s" : "%s%u play%s", a ? artist : "",
-                    plays, plays == 1 ? "" : "s");
+        tk_snprintf(detail, sizeof detail, a ? "%s · 播放 %u 次" : "%s播放 %u 次", a ? artist : "",
+                    plays);
         page_row_detail(view, i, track_name(name, sizeof name, t), detail, mp_play);
     }
     return 0;
@@ -4702,7 +4702,7 @@ static void up_next(void) {
     if (st.un_page || !(st.un_page = page_open("upnext_page", page_closed, page_keyup))) return;
     void *q = P(mcl_pdeqplaylist, 0);
     unsigned *idx = st.un_idx, n = playback_upcoming(idx, UP_NEXT_ROWS);
-    void *view = page_list(st.un_page, st.un_page, 0, n ? "Up Next" : "Nothing Up Next", n, 64);
+    void *view = page_list(st.un_page, st.un_page, 0, n ? "即将播放" : "暂无待播歌曲", n, 64);
     char name[512];
     for (unsigned i = 0; i < n; i++) { /* the title over the artist, if tagged */
         void *t = deque_at(q, idx[i]);
@@ -4747,7 +4747,7 @@ static int tidal_downloads(void *ctx, void *event) {
     free(v);
     deque_destroy(rows);
     void *view =
-        page_list(st.td_page, st.td_page, 0, n ? "Tidal Downloads" : "No downloads yet", n, 48);
+        page_list(st.td_page, st.td_page, 0, n ? "Tidal 下载" : "暂无下载", n, 48);
     char name[256];
     for (int i = 0; i < n;
          i++) { /* tidal_name's label: the name after "<id>-<quality> ", less its extension */
@@ -4782,7 +4782,7 @@ int stream_cache(int spotify) {
 static void sc_text(int i) {
     static const char *const sizes[] = { "512 MB", "1 GB", "2 GB", "4 GB", "8 GB" };
     char s[40];
-    tk_snprintf(s, sizeof s, "%s Cache: %s", i ? "Spotify" : "Tidal", sizes[stream_cache(i)]);
+    tk_snprintf(s, sizeof s, "%s 缓存：%s", i ? "Spotify" : "Tidal", sizes[stream_cache(i)]);
     widget_set_text_utf8(widget_get_child(st.sc_row[i], 0), s);
 }
 
@@ -4797,7 +4797,7 @@ static int sc_click(void *ctx, void *event) {
         spot_stop();
         radio_stop();
         if (type != 1 && (type & 0xf000) != 0xf000 && mclGetPlayStatus() != 1) player_stop();
-        toast("Streaming stopped");
+        toast("已停止流媒体服务");
         return 0;
     }
     char path[48], tmp[52], s[8];
@@ -4805,7 +4805,7 @@ static int sc_click(void *ctx, void *event) {
     tk_snprintf(path, sizeof path, "%s/.cache-size", sc_dirs[i]);
     tk_snprintf(tmp, sizeof tmp, "%s.tmp", path);
     mkdir(sc_dirs[i], 0755);
-    if (!blob_io(path, tmp, s, (unsigned)n, 1)) toast("Could not save setting");
+    if (!blob_io(path, tmp, s, (unsigned)n, 1)) toast("无法保存设置");
     sc_text(i);
     return 0;
 }
@@ -4813,10 +4813,10 @@ static int sc_click(void *ctx, void *event) {
 static int stream_config(void *ctx, void *event) {
     if (st.sc_page || !(st.sc_page = page_open("streamconf_page", page_closed, page_keyup)))
         return 0;
-    void *view = page_list(st.sc_page, st.sc_page, 0, "Configuration", 3, 48);
+    void *view = page_list(st.sc_page, st.sc_page, 0, "流媒体设置", 3, 48);
     for (int i = 0; i < 2; ++i)
         st.sc_row[i] = page_row_detail(view, i, "", 0, sc_click), sc_text(i);
-    page_row_detail(view, 2, "Stop Streaming Services", 0, sc_click);
+    page_row_detail(view, 2, "停止流媒体服务", 0, sc_click);
     return 0;
 }
 
@@ -4874,7 +4874,7 @@ static int rate_keep(int album, unsigned key, int n) {
 
 /* The toast for rate_keep's result k: done (if any) on success. */
 static int rate_saved(int k, const char *done) {
-    if (k <= 0 || done) toast(k > 0 ? done : k ? "Rating not saved" : "Ratings are full");
+    if (k <= 0 || done) toast(k > 0 ? done : k ? "评价未保存" : "评价记录已满");
     return k > 0;
 }
 
@@ -4944,11 +4944,11 @@ static void *rate_panel(void *win) {
 /* The picker's hearts and caption for rate_pick. */
 static void rate_paint(void) {
     void *panel = rate_panel(st.rate_on);
-    char t[24] = "Unrated";
+    char t[24] = "未评价";
     for (int i = 0; i < 5; i++)
         image_base_set_image(widget_get_child(panel, (unsigned)i + 1),
                              i < st.rate_pick ? "play_fav" : "play_unfav");
-    if (st.rate_pick) tk_snprintf(t, sizeof t, "%d of 5", st.rate_pick);
+    if (st.rate_pick) tk_snprintf(t, sizeof t, "%d / 5", st.rate_pick);
     widget_set_text_utf8(widget_get_child(panel, 0), t);
 }
 
@@ -4963,14 +4963,14 @@ static void rate_close(int save) {
     widget_set_visible(panel, 0, 0);
     widget_set_sensitive(panel, 0); /* stock's hit test skips only the insensitive, hidden or not */
     int n = st.rate_pick;
-    char hs[16], done[40];
+    char hs[16], done[64];
     if (save && st.rate_album) { /* the menu's album, still on its page */
         void *a = window_manager_get_top_window(window_manager()) == win ? qm_record() : (void *)0;
         if (!a || qm_album_id(a) != st.rate_album) {
-            toast("Album changed");
+            toast("专辑已变更");
             return;
         }
-        tk_snprintf(done, sizeof done, n ? "Album rated  %s" : "Album unrated", hearts_text(hs, n));
+        tk_snprintf(done, sizeof done, n ? "专辑评价  %s" : "已清除专辑评价", hearts_text(hs, n));
         rate_saved(rate_keep(1, st.rate_album, n), done);
         return;
     }
@@ -5122,7 +5122,7 @@ static void rate_all(void *songs, unsigned char *h) {
 
 /* Top Rated (4-5 hearts), Loved (5), All Rated (1-5) and Disliked (1): most hearts first, then
  * the library's title order, each row's hearts under its title. */
-static const char *const rt_names[] = { "Top Rated", "Loved", "All Rated", "Disliked" };
+static const char *const rt_names[] = { "最高评价", "最爱歌曲", "全部已评价", "不喜欢" };
 #define RT_ALBUMS 2 /* the Ratings menu's Albums row, after Loved */
 static int rated_open(void *ctx, void *event) {
     static const unsigned char lo[] = { 4, 5, 1, 1 }, hi[] = { 5, 5, 5, 1 };
@@ -5153,7 +5153,7 @@ static int rated_open(void *ctx, void *event) {
         page_row_detail(view, i, track_name(name, sizeof name, t), detail, rt_play);
     }
     if (!count)
-        page_row_detail(view, 0, "No songs yet", "Hold the heart on Now Playing to rate", 0);
+        page_row_detail(view, 0, "暂无歌曲", "长按“正在播放”中的爱心以评价", 0);
     free(h);
     free(of);
     return 0;
@@ -5163,16 +5163,16 @@ static int rated_open(void *ctx, void *event) {
 extern int coverflow_rated(int (*hearts)(void *));
 static int album_hearts(void *r) { return rate_kept(1, album_id(r)); }
 static int rated_albums(void *ctx, void *event) {
-    if (!coverflow_rated(album_hearts)) toast("No rated albums yet");
+    if (!coverflow_rated(album_hearts)) toast("暂无已评价专辑");
     return 0;
 }
 
 /* The songs' best first, then the albums, then the songs' lists to tidy. */
 static int ratings_menu(void *ctx, void *event) {
     if (st.rt_menu || !(st.rt_menu = page_open("ratings_page", page_closed, page_keyup))) return 0;
-    void *view = page_list(st.rt_menu, st.rt_menu, 0, "Ratings", 5, 48);
+    void *view = page_list(st.rt_menu, st.rt_menu, 0, "评价", 5, 48);
     for (int i = 0; i < 5; i++)
-        page_row_into(view, i, i == RT_ALBUMS ? "Albums" : rt_names[i - (i > RT_ALBUMS)],
+        page_row_into(view, i, i == RT_ALBUMS ? "专辑" : rt_names[i - (i > RT_ALBUMS)],
                       i == RT_ALBUMS ? rated_albums : rated_open);
     return 0;
 }
@@ -5295,7 +5295,7 @@ static void ls_show(void) {
     if (n) qsort(v, n, sizeof *v, by_length);
     for (unsigned i = 0; i < n; i++) _deque_push_back(list, deque_at(songs, v[i].key));
     st.rt_list = list;
-    void *view = page_list(st.rt_page, st.rt_page, 0, "Long Songs", n ? (int)n : 1, 64);
+    void *view = page_list(st.rt_page, st.rt_page, 0, "长曲目", n ? (int)n : 1, 64);
     char name[512], detail[300], t[16];
     for (unsigned i = 0; i < n; i++) {
         void *r = deque_at(list, i);
@@ -5305,7 +5305,7 @@ static void ls_show(void) {
                     artist && *artist ? artist : "", t);
         page_row_detail(view, (int)i, track_name(name, sizeof name, r), detail, rt_play);
     }
-    if (!n) page_row_detail(view, 0, "No songs over 10 minutes", 0, 0);
+    if (!n) page_row_detail(view, 0, "暂无超过十分钟的歌曲", 0, 0);
     free(v);
     deque_destroy(songs);
     ls.songs = 0;
@@ -5333,7 +5333,7 @@ static int ls_cancel(void *ctx, void *event) {
 static int ls_poll(const void *unused) {
     if (ls.done >= ls.total || ls.cancel) return ls_done(0);
     char t[64];
-    tk_snprintf(t, sizeof t, "Measuring songs\xe2\x80\xa6 %d/%d", ls.done, ls.total);
+    tk_snprintf(t, sizeof t, "正在检测时长… %d/%d", ls.done, ls.total);
     widget_set_text_utf8(ls.title, t);
     return 8; /* RET_REPEAT */
 }
@@ -5358,8 +5358,8 @@ static int long_songs(void *ctx, void *event) {
     if (ls.total && !pthread_create(&ls.thread, 0, ls_worker, 0)) {
         ls.running = 1;
         page_row_detail(
-            page_list(st.rt_page, st.rt_page, &ls.title, "Measuring songs\xe2\x80\xa6", 1, 48), 0,
-            "Cancel", 0, ls_cancel);
+            page_list(st.rt_page, st.rt_page, &ls.title, "正在检测时长…", 1, 48), 0,
+            "取消", 0, ls_cancel);
         ls.timer = timer_add(ls_poll, (void *)0, 250);
     } else {
         ls_stop();
@@ -5373,18 +5373,18 @@ static int upload_wait(const void *unused) {
     int sent = 0, done = scrobble_poll(&sent);
     if (!done) return 8; /* RET_REPEAT */
     char s[48];
-    tk_snprintf(s, sizeof s, done < 0 ? "Upload failed, %d sent" : "Scrobbles sent: %d", sent);
-    toast(done > 0 && !sent ? "Nothing to upload" : s);
+    tk_snprintf(s, sizeof s, done < 0 ? "上传失败，已发送 %d 条" : "已上传 %d 条听歌记录", sent);
+    toast(done > 0 && !sent ? "没有待上传记录" : s);
     return 0;
 }
 
 static int upload_scrobbles(void *ctx, void *event) {
     int started = get_wifisignal() > 0 ? scrobble_start() : -2;
     if (started > 0) timer_add(upload_wait, (void *)0, 500);
-    toast(started > 0     ? "Uploading scrobbles"
-          : !started      ? "Already uploading"
-          : started == -2 ? "Connect to Wi-Fi first"
-                          : "Upload failed");
+    toast(started > 0     ? "正在上传听歌记录"
+          : !started      ? "正在上传中"
+          : started == -2 ? "请先连接 Wi-Fi"
+                          : "上传失败");
     return 0;
 }
 
@@ -5393,6 +5393,7 @@ static int upload_scrobbles(void *ctx, void *event) {
  * Books and Videos books.c. */
 enum { PODCASTS = 1, AUDIOBOOKS, PHOTOS, BOOKS, VIDEOS };
 static const char *const MEDIA[] = { "Podcasts", "Audiobooks", "Photos", "Books", "Videos" };
+static const char *const MEDIA_LABELS[] = { "播客", "有声读物", "照片", "图书", "视频" };
 
 /* 1 + the MEDIA folder s names (up to its end or a '/'), 0 for none. MEDIA is letters only. */
 static int media_kind(const char *s) {
@@ -5551,20 +5552,20 @@ int ringnav_localmusic(void *win, void *ctx) {
     void *stock[L_STOCK];
     for (int i = 0; i < L_STOCK; i++) stock[i] = widget_get_child(view, i);
     unsigned n = 0; /* each row moves to n as it comes, so Update Local Music, left, ends last */
-    widget_restack(library_into(view, "local_shuffle", shuffle_menu, 0, "Shuffle"), n++);
+    widget_restack(library_into(view, "local_shuffle", shuffle_menu, 0, "随机播放"), n++);
     static const unsigned char middle[] = { L_ARTISTS,   L_ALBUMS, L_SONGS, L_GENRES,
                                             L_PLAYLISTS, L_FAV,    L_ADDED, L_RECENT };
     for (unsigned i = 0; i < sizeof middle; i++)
         if (middle[i] == L_FAV) { /* My Fav is Ratings' Loved, its row kept hidden */
-            widget_restack(library_into(view, "local_fav", ratings_menu, 0, "Ratings"), n++);
+            widget_restack(library_into(view, "local_fav", ratings_menu, 0, "评价"), n++);
             widget_set_visible(stock[L_FAV], 0, 0);
             widget_restack(stock[L_FAV], n++);
         } else
             widget_restack(stock[middle[i]], n++);
-    widget_restack(library_row(view, "local_frequentplay", most_played, 0, "Most Played"), n++);
+    widget_restack(library_row(view, "local_frequentplay", most_played, 0, "播放最多"), n++);
     widget_restack(stock[L_FREQUENT], n++);
     widget_restack(stock[L_HIRES], n++);
-    widget_restack(library_row(view, "local_longsongs", long_songs, 0, "Long Songs"), n++);
+    widget_restack(library_row(view, "local_longsongs", long_songs, 0, "长曲目"), n++);
     /* Podcasts, Audiobooks, Photos, Books and Videos, each only with its folder. */
     static const char *const icons[] = { "local_podcasts", "local_audiobooks", "local_photos",
                                          "local_books", "local_videos" };
@@ -5572,9 +5573,9 @@ int ringnav_localmusic(void *win, void *ctx) {
     for (int k = 0; k < VIDEOS; k++)
         if (media_find(k + 1, path))
             widget_restack(
-                library_row(view, icons[k], media_click, (void *)(long)(k + 1), MEDIA[k]), n++);
+                library_row(view, icons[k], media_click, (void *)(long)(k + 1), MEDIA_LABELS[k]), n++);
     if (scrobble_ready())
-        widget_restack(library_row(view, "local_scrobble", upload_scrobbles, 0, "Upload Scrobbles"),
+        widget_restack(library_row(view, "local_scrobble", upload_scrobbles, 0, "上传听歌记录"),
                        n++);
     return result;
 }
@@ -5594,10 +5595,10 @@ int ringnav_stream(void *win, void *ctx) {
     void *view = win ? widget_lookup(win, "scroll_view_streamsset", 1) : (void *)0;
     if (view) {
         library_into(view, "stream_spotify", spot_open, 0, "Spotify");
-        library_into(view, "list_tidal", tidal_downloads, 0, "Tidal Downloads");
-        library_into(view, "stream_radio", radio_open, 0, "Internet Radio");
+        library_into(view, "list_tidal", tidal_downloads, 0, "Tidal 下载");
+        library_into(view, "stream_radio", radio_open, 0, "网络电台");
         library_into(view, "stream_airplay", airplay_open, 0, "AirPlay");
-        library_into(view, "stream_config", stream_config, 0, "Configuration");
+        library_into(view, "stream_config", stream_config, 0, "流媒体设置");
     }
     return result;
 }
@@ -5633,7 +5634,7 @@ int ringnav_about(void *win, void *ctx) {
         widget_set_text_utf8(widget_get_child(widget_get_child(widget_get_child(view, 1), 0), 1),
                              STOCK_VERSION);
         void *button = list_button(view);
-        about_label(button, 10, 166, "s_scrlabel_white24l", "CFW. Version");
+        about_label(button, 10, 166, "s_scrlabel_white24l", "自制固件版本");
         about_label(button, 176, 149, "s_scrlabel_white20r", Q2POD_VERSION);
         widget_restack(P(button, W_PARENT), 2);
     }
@@ -5681,7 +5682,7 @@ static void qm_select(void) {
 #define PLAYLIST_PICK ((int (*)(void *, void *))0x4b1d24)
 static int qm_playlist_pick(void *ctx, void *event) {
     if (!qm_record()) {
-        toast("Queue unchanged");
+        toast("队列未更改");
         return 0; /* a STOP would leave the list's scroll_view holding its grab */
     }
     qm_select();
@@ -5726,19 +5727,19 @@ static int qm_run(const void *unused) {
     int a = st.qm_action, cls = st.qm_kind == QM_COVERFLOW ? 0xf001 : (int)st.qm_cls;
     unsigned aid = r ? qm_album_id(r) : 0; /* an album's own Favourites and Rate */
     if (r && a >= 100) {
-        if (!playback_set(st.qm_choice - 1, a - 100)) toast("Queue unchanged");
+        if (!playback_set(st.qm_choice - 1, a - 100)) toast("队列未更改");
         st.qm_choice = 0;
     } else if (r && a == QA_QUEUE) {
         navigator_to("playerqueue_page");
     } else if (r && a == QA_UP_NEXT) {
         up_next();
     } else if (r && (a == QA_NEXT_GROUP || a == QA_PREV_GROUP)) {
-        if (!playback_group_skip(a == QA_NEXT_GROUP)) toast("No other group");
+        if (!playback_group_skip(a == QA_NEXT_GROUP)) toast("没有其他分组");
     } else if (aid && a == QA_RATE) {
         rate_show(window_manager_get_top_window(window_manager()), rate_kept(1, aid), aid);
     } else if (aid && (a == QA_FAV || a == QA_UNFAV)) {
         rate_saved(rate_keep(1, aid, a == QA_FAV ? 5 : 0),
-                   a == QA_FAV ? "Added to Favourites" : "Removed from Favourites");
+                   a == QA_FAV ? "已加入收藏" : "已取消收藏");
     } else if (r && a == QA_RATE) {
         rate_open();
     } else if (r && a >= QA_ADV_SHUFFLE && a <= QA_GROUP) {
@@ -5747,12 +5748,12 @@ static int qm_run(const void *unused) {
     } else if (r && a == QA_FAV) { /* tags a folder file as batch-select's Add to My Fav does */
         qm_select();
         batch_add_file(cls, 0xf00a, qm_list(), P(p_vector_select_record, 0), 0);
-        toast("Added to Favourites");
+        toast("已加入收藏");
     } else if (r && a == QA_UNFAV) {
         deleteMusicFromFav(r);
         if (cls == 0xf00a)
             g_delete_flag = 1; /* My Fav reloads, as Now Playing's heart (0x52b2e8) */
-        toast("Removed from Favourites");
+        toast("已取消收藏");
     } else if (r && a == QA_PLAYLIST) { /* the playlist page's add mode adds the selected row */
         qm_select();
         navigator_to_with_context(
@@ -5779,15 +5780,15 @@ static int qm_run(const void *unused) {
             play_folder(songs, at, 0xf001);
             deque_destroy(songs);
         } else
-            toast("Queue unchanged");
+            toast("队列未更改");
     } else if (r && a >= QA_ALBUM)
         qm_goto(r, a == QA_ALBUM);
     else {
         void *add = r ? qm_collect(r) : (void *)0;
         if (!add || !(a == QA_SHUFFLE ? shuffle_play(add) : qm_apply(add, a == QA_NEXT)))
-            toast("Queue unchanged");
+            toast("队列未更改");
         else if (a != QA_SHUFFLE) /* as Favourites confirms; Shuffle answers by playing */
-            toast(a == QA_NEXT ? "Playing Next" : "Added to Queue");
+            toast(a == QA_NEXT ? "将于下一首播放" : "已加入队列");
         if (add) deque_destroy(add);
     }
     return 0;
@@ -5832,15 +5833,15 @@ static int qm_open(const void *unused) {
     if (st.qm_choice) {
         /* stock's play modes, its category named as Group by sets it (album or folder) */
         static const char *const shuffle[2][5] = {
-            { "Off", "All Songs", "Songs in Album", "Albums", "Albums and Songs" },
-            { "Off", "All Songs", "Songs in Folder", "Folders", "Folders and Songs" }
+            { "关闭", "全部歌曲", "专辑内歌曲", "专辑", "专辑及歌曲" },
+            { "关闭", "全部歌曲", "文件夹内歌曲", "文件夹", "文件夹及歌曲" }
         };
-        static const char *const repeat[2][6] = { { "Play One Song", "Play One Album", "Play All",
-                                                    "Repeat Song", "Repeat Album", "Repeat All" },
-                                                  { "Play One Song", "Play One Folder", "Play All",
-                                                    "Repeat Song", "Repeat Folder",
-                                                    "Repeat All" } };
-        static const char *const groups[] = { "Album", "Folder" };
+        static const char *const repeat[2][6] = { { "播放单曲", "播放单张专辑", "顺序播放",
+                                                    "单曲循环", "专辑循环", "全部循环" },
+                                                  { "播放单曲", "播放单个文件夹", "顺序播放",
+                                                    "单曲循环", "文件夹循环",
+                                                    "全部循环" } };
+        static const char *const groups[] = { "专辑", "文件夹" };
         int kind = st.qm_choice - 1,
             count = kind == 0   ? 5
                     : kind == 1 ? 6
@@ -5849,9 +5850,9 @@ static int qm_open(const void *unused) {
         const char *const *names = kind == 0   ? shuffle[folder]
                                    : kind == 1 ? repeat[folder]
                                                : groups;
-        widget_set_text_utf8(widget_lookup(dialog, "scrlabel_title", 1), kind == 0   ? "Shuffle"
-                                                                         : kind == 1 ? "Repeat"
-                                                                                     : "Group by");
+        widget_set_text_utf8(widget_lookup(dialog, "scrlabel_title", 1), kind == 0   ? "随机播放"
+                                                                         : kind == 1 ? "重复播放"
+                                                                                     : "分组方式");
         widget_destroy_children(view);
         for (int i = 0; i < count; ++i) {
             void *item = list_item_create(view, 0, i * QM_ROW, 375, QM_ROW);
@@ -5917,24 +5918,24 @@ static int qm_open(const void *unused) {
         acts[n++] = QA_GROUP;
         if (!group_first && st.rate_win) acts[n++] = QA_RATE;
     }
-    static const char *const rows[] = { "Play Next",
-                                        "Add to Queue",
-                                        "Shuffle",
-                                        "Add to Favourites",
-                                        "Remove from Favourites",
-                                        "Add to Playlist",
-                                        "Go to Album",
-                                        "Go to Artist",
-                                        "Shuffle",
-                                        "Repeat",
-                                        "Group by",
-                                        "Next Album",
-                                        "Previous Album",
-                                        "Rate",
-                                        "Resume",
-                                        "View Queue",
-                                        "Up Next" };
-    char rated[32];
+    static const char *const rows[] = { "下一首播放",
+                                        "加入播放队列",
+                                        "随机播放",
+                                        "加入收藏",
+                                        "取消收藏",
+                                        "加入播放列表",
+                                        "前往专辑",
+                                        "前往表演者",
+                                        "随机播放",
+                                        "重复播放",
+                                        "分组方式",
+                                        "下一张专辑",
+                                        "上一张专辑",
+                                        "评价",
+                                        "继续播放",
+                                        "查看队列",
+                                        "即将播放" };
+    char rated[64];
     /* stock sortselect row styles */
     for (int i = 0; i < n; ++i) {
         void *item = list_item_create(view, 0, i * QM_ROW, 375, QM_ROW);
@@ -5943,16 +5944,16 @@ static int qm_open(const void *unused) {
         widget_use_style(label, "s_scrlabel_white24l");
         if (acts[i] == QA_RATE) {
             int h = aid ? album_hearts : checkFavExist(r) ? 5 : rate_kept(0, listen_key(r));
-            const char *row = aid ? "Rate Album" : "Rate";
+            const char *row = aid ? "专辑评价" : "评价";
             char hs[16];
             tk_snprintf(rated, sizeof rated, h ? "%s  %s" : "%s", row, hearts_text(hs, h));
         }
         widget_set_text_utf8(label,
                              acts[i] == QA_RATE ? rated
                              : acts[i] == QA_GROUP
-                                 ? (playback_option(2) ? "Group by: Folder" : "Group by: Album")
-                             : acts[i] == QA_NEXT_GROUP && playback_option(2) ? "Next Folder"
-                             : acts[i] == QA_PREV_GROUP && playback_option(2) ? "Previous Folder"
+                                 ? (playback_option(2) ? "分组：文件夹" : "分组：专辑")
+                             : acts[i] == QA_NEXT_GROUP && playback_option(2) ? "下一个文件夹"
+                             : acts[i] == QA_PREV_GROUP && playback_option(2) ? "上一个文件夹"
                                                                               : rows[acts[i] - 1]);
         widget_on(item, EVT_CLICK, qm_pick, (void *)(long)acts[i]);
     }
@@ -6444,7 +6445,7 @@ static unsigned jpeg_size(const unsigned char *b, unsigned n) {
 static void *logo_sync(void *unused) {
     unsigned n = 0, old_n;
     unsigned char *b = 0, *old = 0;
-    const char *err = "Boot logo must be a 320x375 JPEG";
+    const char *err = "开机图须为 320x375 JPEG";
     if (access(LOGO_SRC, 0))
         unlink(LOGO_DST), err = 0;
     else if ((b = read_all(LOGO_SRC, LOGO_MAX, &n)) && jpeg_size(b, n) == (375u << 16 | 320)) {
@@ -6467,7 +6468,7 @@ static void *logo_sync(void *unused) {
             blob_io(LOGO_DST, LOGO_DST ".tmp", b, n, 1))
             err = 0; /* the same bytes are not written again each boot */
         else
-            unlink(LOGO_DST ".tmp"), err = "Could not save boot logo";
+            unlink(LOGO_DST ".tmp"), err = "无法保存开机图";
     }
     free(b), free(old);
     st.logo_err = err;
@@ -6519,7 +6520,7 @@ static void power_poll(void) {
 int rockbox_open(void *ctx, void *event) {
     void *flag = !rockbox_available() ? (void *)0 : fopen(ROCKBOX_FLAG, "w");
     if (!flag) {
-        toast("Rockbox is not on the card");
+        toast("卡内未安装 Rockbox");
         return 0;
     }
     fclose(flag);
