@@ -370,13 +370,13 @@ static void spot_refresh(void) {
     widget_set_visible(ui.info, track, 0);
     widget_set_visible(ui.msg, !track, 0);
     if (!track) {
-        const char *note = "Loading…", *sub = "Waiting for Spotify";
-        if (!installed) note = "Spotify isn't on the card", sub = "See the Q2 Pod guide to add it";
-        else if (sp.auth < 0) note = "Open Spotify on your phone", sub = "and choose Q2";
-        else if (sp.loading == 2) note = "Playback didn't start", sub = "Go back and try again";
-        else if (sp.loading) sub = "Starting playback";
-        else if (sp.old) note = "Update Spotify on the card", sub = "See the Q2 Pod guide";
-        else if (sp.auth > 0) note = "Nothing playing", sub = "Choose music in Spotify";
+        const char *note = "加载中…", *sub = "正在等待 Spotify";
+        if (!installed) note = "存储卡未安装 Spotify", sub = "请参照 Q2 Pod 指南安装";
+        else if (sp.auth < 0) note = "请在手机上打开 Spotify", sub = "并选择 Q2";
+        else if (sp.loading == 2) note = "播放未能开始", sub = "请返回重试";
+        else if (sp.loading) sub = "正在开始播放";
+        else if (sp.old) note = "请更新卡上的 Spotify", sub = "请参照 Q2 Pod 指南";
+        else if (sp.auth > 0) note = "暂无播放内容", sub = "请在 Spotify 中选择音乐";
         widget_set_text_utf8(ui.note, note);
         widget_set_text_utf8(ui.sub, sub);
         return;
@@ -570,9 +570,9 @@ static int browsing(void) { return br.page != 0; }
 static level_t *top(void) { return &br.lv[br.depth - 1]; }
 static const char *cell(const level_t *l, int i, int k) { return l->f[4 + 6 * i + k]; }
 static int has_track(void) { return sp.track[0] && strcmp(sp.state, "none"); }
-static const char *const MENU[] = { "Now Playing", "Liked Songs", "Playlists", "Albums", "Artists",
-                                    "Search", "Queue", "Playback Settings", "Account", "Downloaded Tracks", "Downloads" };
-static const char *const CATS[] = { "Tracks", "Albums", "Artists", "Playlists" };
+static const char *const MENU[] = { "正在播放", "喜欢的歌曲", "歌单", "专辑", "艺人",
+                                    "搜索", "播放队列", "播放设置", "账号", "已下载歌曲", "下载管理" };
+static const char *const CATS[] = { "歌曲", "专辑", "艺人", "歌单" };
 
 /* "\t" and s escaped appended to out (size bytes); 0 when it doesn't fit. */
 static int put(char *out, unsigned size, const char *s) {
@@ -676,19 +676,19 @@ static void show(void) {
     if (l->state == S_LOAD && !((wk.running || wk.done) && br.act == A_FETCH && wk.id == l->id))
         fetch(l);
     if (l->state == S_LOAD || l->state == S_WAIT) {
-        page_list(br.page, br.page, 0, "Loading…", 0, 48);
+        page_list(br.page, br.page, 0, "加载中…", 0, 48);
         return;
     }
     if (l->state == S_ERROR) {
         br.view = page_list(br.page, br.page, 0, l->note, n = l->retry, 48);
-        if (n) row(0, "Retry", 0);
+        if (n) row(0, "重试", 0);
     } else if (l->state == S_PAIR) {
         br.view = page_list(br.page, br.page, 0, "Spotify", n = 1, 64);
-        row(0, "Open Spotify on your phone and choose Q2", "Both on the same Wi-Fi");
+        row(0, "手机打开 Spotify 并选择 Q2", "两台设备需连接同一 Wi-Fi");
     } else if (l->state == S_OLD) {
         br.view = page_list(br.page, br.page, 0, "Spotify", n = 2, 64);
-        row(0, "Now Playing", "");
-        row(1, "Update Spotify on the card", "to browse on the Q2");
+        row(0, "正在播放", "");
+        row(1, "请更新卡上的 Spotify", "即可在 Q2 上浏览");
     } else if (l->kind == L_BASE) {
         br.playing = has_track();
         for (int r = M_PLAYING; r <= M_DOWNLOADS; ++r)
@@ -703,13 +703,13 @@ static void show(void) {
         br.view = page_list(br.page, br.page, 0, l->title, n = 4, 48);
         for (int i = 0; i < n; ++i) page_row_into(br.view, i, CATS[i], clicked);
     } else if (l->kind == L_CONFIRM) {
-        br.view = page_list(br.page, br.page, 0, "Sign Out of Spotify?", n = 2, 48);
-        row(0, "Cancel", 0);
-        row(1, "Sign Out", 0);
+        br.view = page_list(br.page, br.page, 0, "退出 Spotify 账号？", n = 2, 48);
+        row(0, "取消", 0);
+        row(1, "退出账号", 0);
     } else {
         int download = !strcmp(l->op, "playlist");
         if (!(n = l->n + more(l) + download)) {
-            page_list(br.page, br.page, 0, "Nothing here", 0, 48);
+            page_list(br.page, br.page, 0, "暂无内容", 0, 48);
             return;
         }
         br.view = page_list(br.page, br.page, 0, l->title, n, 64);
@@ -718,11 +718,11 @@ static void show(void) {
             if (strcmp(cell(l, i, 0), "setting"))
                 row(i, v, cell(l, i, 3));
             else
-                row(i, strcmp(cell(l, i, 1), "shuffle") ? "Repeat" : "Shuffle",
-                    !strcmp(v, "on") ? "On" : !strcmp(v, "context") ? "All" : !strcmp(v, "track") ? "One" : "Off");
+                row(i, strcmp(cell(l, i, 1), "shuffle") ? "重复播放" : "随机播放",
+                    !strcmp(v, "on") ? "打开" : !strcmp(v, "context") ? "全部" : !strcmp(v, "track") ? "单曲" : "关闭");
         }
-        if (more(l)) row(l->n, l->f[3][0] ? "More…" : "Sign Out", "");
-        if (download) row(n - 1, "Download Playlist", "For offline listening");
+        if (more(l)) row(l->n, l->f[3][0] ? "更多…" : "退出账号", "");
+        if (download) row(n - 1, "下载歌单", "供离线收听");
     }
     if (n) ringnav_select(br.view, l->sel < n ? l->sel : n - 1, n);
 }
@@ -788,9 +788,9 @@ static void got(void) {
     tk_snprintf(id, sizeof id, "%u", wk.id);
     if (n >= 0 && strcmp(f[0], id)) n = -1;
     const char *status = n < 0 ? "error" : f[1];
-    const char *msg = wk.fail == W_NOSOCK      ? "Spotify isn't running"
+    const char *msg = wk.fail == W_NOSOCK      ? "Spotify 未运行"
                       : n >= 0 && f[2][0] ? f[2]
-                                               : "Spotify didn't answer";
+                                               : "Spotify 未响应";
     int ok = !strcmp(status, "ok"), login = !strcmp(status, "login");
     if (login || (ok && act == A_SIGNOUT)) {
         sp.auth = -1;
@@ -815,7 +815,7 @@ static void got(void) {
             spot_np();
         }
         else if (!ok || act == A_ENQUEUE || act == A_DOWNLOAD)
-            toast(ok && act == A_ENQUEUE ? "Added to Queue" : msg);
+            toast(ok && act == A_ENQUEUE ? "已加入播放队列" : msg);
     } else if (l->id != wk.id) {
     } else if (wk.fail == W_NOSOCK && (int)(br.until - time_now_ms()) > 0) {
         if (l->state != S_PAIR) l->state = S_WAIT, show(); /* librespot starting */
@@ -891,7 +891,7 @@ static int go(const void *unused) {
             l->sel = widget_get_prop_int(br.view, "_ringnav_index", 0);
             widget_destroy_children(br.page), br.view = 0; /* the box alone: the keyboard leaves no room for the rows */
             br.edit = edit_create(br.page, "text", 2, 26);
-            widget_set_prop_str(br.edit, "tips", "Search Spotify");
+            widget_set_prop_str(br.edit, "tips", "搜索 Spotify");
             widget_on(br.edit, EVT_VALUE_CHANGED, searched, 0);
             widget_on(br.edit, EVT_IM_ACTION, searched, 0);
             widget_on(br.edit, EVT_BLUR, search_left, 0);

@@ -328,7 +328,7 @@ void *widget_factory_create_widget(void *f, const char *type, void *p, int x, in
 /* The curve's vgcanvas drawing (peq_paint) is checked on the device; here it only has to link. Filled
    rectangles land in screen and captions in texts, for 3EQ's captures. */
 static unsigned fill_color, screen[290 * 375];
-static struct { int r[4]; unsigned px, color; char s[32]; } texts[64];
+static struct { int r[4]; unsigned px, color, n, codepoints[16]; char s[65]; } texts[64];
 static int ntexts;
 int canvas_set_fill_color(void *c, unsigned v) { fill_color = v; return 0; }
 int canvas_fill_rect(void *c, int x, int y, int ww, int h) {
@@ -353,7 +353,20 @@ void draw_centred(void *canvas, const unsigned *s, unsigned n, const void *r, un
     if (ntexts == 64) return;
     memcpy(texts[ntexts].r, r, sizeof texts[ntexts].r);
     texts[ntexts].px = px, texts[ntexts].color = color;
-    for (unsigned i = 0; i < n && i < 31; ++i) texts[ntexts].s[i] = (char)s[i], texts[ntexts].s[i + 1] = 0;
+    if (n > 16) abort(); /* caption's fixed Unicode buffer, not a byte count */
+    texts[ntexts].n = n;
+    memcpy(texts[ntexts].codepoints, s, n * sizeof *s);
+    unsigned at = 0;
+    for (unsigned i = 0; i < n; ++i) {
+        unsigned c = s[i];
+        if (c < 0x80) texts[ntexts].s[at++] = (char)c;
+        else {
+            unsigned extra = c < 0x800 ? 1 : c < 0x10000 ? 2 : 3;
+            texts[ntexts].s[at++] = (char)((extra == 1 ? 0xc0 : extra == 2 ? 0xe0 : 0xf0) | (c >> (6 * extra)));
+            for (unsigned j = extra; j; --j) texts[ntexts].s[at++] = (char)(0x80 | ((c >> (6 * (j - 1))) & 63));
+        }
+    }
+    texts[ntexts].s[at] = 0;
     ++ntexts;
 }
 /* iPod builds' theme: Classic's Graphite light tone, or Minimal's fill. */
@@ -509,6 +522,14 @@ const unsigned *shim_e3_paint(void) {
     peq_paint((void *)(long)child(1), canvas); /* the tabs, at the page's origin as the view is */
     return screen;
 }
+void caption(void *, const char *, int, int, int, int, unsigned, unsigned);
+unsigned shim_caption(const char *s, unsigned *out) {
+    ntexts = 0;
+    caption(0, s, 1, 2, 3, 4, 20, 0xffffffffu);
+    if (ntexts != 1) abort();
+    memcpy(out, texts[0].codepoints, texts[0].n * sizeof *out);
+    return texts[0].n;
+}
 int shim_texts(void) { return ntexts; }
 const char *shim_text(int i, int *r, unsigned *px, unsigned *color) {
     memcpy(r, texts[i].r, sizeof texts[i].r); *px = texts[i].px; *color = texts[i].color; return texts[i].s;
@@ -518,6 +539,29 @@ int shim_screen_off(void) { return screen_off; }
 unsigned shim_list_bg(void) { return (unsigned)w[2].bg; }
 """
 
+def caption_check(ui):
+    """Real caption decoding: Unicode scalars, malformed bytes and the 16-code-point cap."""
+    ui.shim_caption.argtypes = [C.c_char_p, C.POINTER(C.c_uint)]
+    ui.shim_caption.restype = C.c_uint
+    def check(data, want):
+        out = (C.c_uint * 18)(*([0xdeadbeef] * 18))
+        n = ui.shim_caption(data, C.cast(C.byref(out, C.sizeof(C.c_uint)), C.POINTER(C.c_uint)))
+        assert n == len(want) and list(out)[1:1+n] == want, (data, n, list(out))
+        assert out[0] == out[17] == 0xdeadbeef
+        assert all(v == 0xdeadbeef for v in list(out)[1+n:17])
+    for text in ('', 'ASCII 1k +3 dB', '简单：开启', '频谱', 'aé中😀', '中' * 16, '中' * 17,
+                 'a' * 15 + '中😀', '\u0080\u07ff\u0800\ud7ff\ue000\uffff\U00010000\U0010ffff'):
+        check(text.encode(), list(map(ord, text[:16])))
+    for bad in (b'\x80', b'\xc0', b'\xc1', b'\xf5', b'\xff', b'\xc2', b'\xe4\xb8', b'\xf0\x9f\x98',
+                b'\xc0\xaf', b'\xe0\x80\xaf', b'\xed\xa0\x80', b'\xf0\x80\x80\xaf', b'\xf4\x90\x80\x80'):
+        # Invalid sequences consume one byte at a time; an ASCII suffix remains intact.
+        check(bad, [0xfffd] * len(bad))
+        check(bad + b'A', [0xfffd] * len(bad) + [ord('A')])
+    check(b'\xe4A', [0xfffd, ord('A')])
+    check(b'a' * 16 + b'\xf0', [ord('a')] * 16)
+    check(b'A\0' + '中'.encode(), [ord('A')])
+    print('Caption: Chinese and mixed UTF-8, invalid/truncated scalars, NUL and 16-code-point boundaries passed.')
+
 def editor_check(lib, tmp):
     """The editor's promises, driven through its real click and render paths."""
     (tmp/'shim.h').write_text(SHIM_H)
@@ -525,6 +569,7 @@ def editor_check(lib, tmp):
     ui = compile_host(tmp, 'peq_ui.so', ROOT/'patch/peq_ui.c', ROOT/'patch/peq.c', tmp/'shim.c',
                       '-I', ROOT/'patch', '-include', tmp/'shim.h')
     ui.shim_title.restype = C.c_char_p
+    caption_check(ui)
     data, saved = tmp/'root/mnt/data', tmp/'root/mnt/data/peq-presets'
     saved.mkdir(parents=True); (tmp/'root/mnt/mmc/EQ').mkdir(parents=True)
     active = data/'peq-active'
@@ -538,7 +583,7 @@ def editor_check(lib, tmp):
     title = lambda: ui.shim_title().decode()
     def advanced():  # the EQ page opens on Simple; its tab bar's right half is Advanced
         r = ui.shim_open(); assert ui.shim_tab_touch(300); return r
-    named = lambda name: ui.shim_click(b'Presets ' + name.encode(), 2)  # the draft's preset, on its row
+    named = lambda name: ui.shim_click('预设 '.encode() + name.encode(), 2)  # the draft's preset, on its row
 
     assert lib.peq_save(bytes(active), C.byref(preset(enabled=1)), 1) == 1
     # With the stock flag clear no filter runs, so the saved ON reads OFF.
@@ -547,18 +592,18 @@ def editor_check(lib, tmp):
     ui.shim_close(); ui.peq_attach(); assert read().bypass == 1 and ui.shim_flag() == 0; advanced()
     assert lib.peq_save(bytes(active), C.byref(preset(enabled=1)), 1) == 1
     # The switch writes the stock config key, so boot restores it; the flag follows the preset.
-    click('Advanced Off'); assert ui.shim_eqflag() == 1 and ui.shim_flag() == 1
-    click('Advanced On'); assert ui.shim_eqflag() == 0 and ui.shim_flag() == 0
-    ui.shim_close(); assert advanced() == 0; click('Advanced Off')
+    click('高级 关闭'); assert ui.shim_eqflag() == 1 and ui.shim_flag() == 1
+    click('高级 打开'); assert ui.shim_eqflag() == 0 and ui.shim_flag() == 0
+    ui.shim_close(); assert advanced() == 0; click('高级 关闭')
     full = ui.shim_list_height()
     # iPod rows are transparent, so the list itself must paint black, not the theme's light card.
     ui.shim_list_bg.restype = C.c_uint; assert ui.shim_list_bg() == 0xff000000
     # Bypass switches at once but keeps unapplied band edits out of the active preset.
-    click('1  '); click('Gain +0.0 dB'); assert title() == 'Band 1 Gain'; click('+1.0 dB'); ui.shim_return()
-    click('Advanced On')
+    click('1  '); click('增益 +0.0 dB'); assert title() == '频段 1 增益'; click('+1.0 dB'); ui.shim_return()
+    click('高级 打开')
     assert read().bypass == 1 and read().bands[0].gain == 0 and ui.shim_flag() == 0
-    click('Apply changes')
-    assert read().bands[0].gain == 1 and read().bypass == 1 and title() == 'Applied'
+    click('应用更改')
+    assert read().bands[0].gain == 1 and read().bypass == 1 and title() == '已应用'
     # A band edit sets the preamp to minus the combined response's peak: here the one +1 dB band.
     assert abs(read().preamp + 1) < 0.01, read().preamp
     # A message takes the title bar; the list keeps every row.
@@ -566,21 +611,21 @@ def editor_check(lib, tmp):
     # Loading into the editor does not activate it.
     assert lib.peq_save(bytes(saved/'HD650.peq'), C.byref(preset(enabled=1, gain=-3.0)), 1) == 1
     before = active.read_bytes()
-    click('Presets'); click('HD650.peq')
-    assert active.read_bytes() == before and title() == 'Preset loaded; choose Apply to activate'
-    click('Advanced Off'); click('Advanced On')  # any action clears the message
+    click('预设'); click('HD650.peq')
+    assert active.read_bytes() == before and title() == '预设已载入，请选择应用以启用'
+    click('高级 关闭'); click('高级 打开')  # any action clears the message
     assert named('HD650') and read().bands[0].gain == 1  # the draft's name; still the applied preset
     # A failed apply or switch leaves the active preset untouched.
     before = active.read_bytes()
     (data/'peq-active.tmp').mkdir()
-    click('Apply changes')
-    assert title() == 'Apply failed; active EQ unchanged' and active.read_bytes() == before
-    click('Advanced Off')
-    assert title() == 'Switch failed; EQ unchanged' and active.read_bytes() == before
+    click('应用更改')
+    assert title() == '应用失败，当前均衡器未变' and active.read_bytes() == before
+    click('高级 关闭')
+    assert title() == '切换失败，均衡器未变' and active.read_bytes() == before
     (data/'peq-active.tmp').rmdir()
-    click('Apply changes'); assert read().bands[0].gain == -3
+    click('应用更改'); assert read().bands[0].gain == -3
     # Closing cancels the pending render.
-    assert ui.shim_click(b'Presets', 0) and ui.shim_pending()
+    assert ui.shim_click('预设'.encode(), 0) and ui.shim_pending()
     removed = ui.shim_removed()
     ui.shim_close()
     assert not ui.shim_pending() and ui.shim_removed() == removed + 1
@@ -588,49 +633,49 @@ def editor_check(lib, tmp):
     assert named('HD650')  # the applied preset's name survives the page
     # Deleting asks first, removes only the saved copy and leaves the active EQ alone.
     before = active.read_bytes()
-    click('Presets'); click('Delete a preset'); click('HD650.peq'); click('Cancel')
+    click('预设'); click('删除预设'); click('HD650.peq'); click('取消')
     assert (saved/'HD650.peq').exists()
-    click('HD650.peq'); click('Delete HD650.peq? Confirm')
+    click('HD650.peq'); click('删除 HD650.peq？确认')
     assert not (saved/'HD650.peq').exists() and active.read_bytes() == before
-    assert title() == 'Deleted HD650.peq; active EQ unchanged' and not ui.shim_click(b'HD650.peq', 0)
+    assert title() == '已删除 HD650.peq，当前均衡器未变' and not ui.shim_click(b'HD650.peq', 0)
     # Stock presets are built in: picking one loads stock's curve, writes nothing until Apply.
     files, before = sorted(saved.iterdir()), active.read_bytes()
-    ui.shim_return(); click('Stock presets'); click('Rock')
-    assert title() == 'Preset loaded; choose Apply to activate' and active.read_bytes() == before
+    ui.shim_return(); click('内置预设'); click('摇滚')
+    assert title() == '预设已载入，请选择应用以启用' and active.read_bytes() == before
     assert sorted(saved.iterdir()) == files
-    click('Apply changes'); p = read()
+    click('应用更改'); p = read()
     assert [p.bands[k].gain for k in range(10)] == [-2, 0, 2, 4, -2, -2, 0, 0, 4, 4]
     assert [p.bands[k].enabled for k in range(10)] == [1, 0, 1, 1, 1, 1, 0, 0, 1, 1] and p.preamp < -4
     # Overlapping boosts add up (+6.5 and +6 dB at 1 kHz); cuts alone leave 0 dB.
     p = preset(enabled=1, gain=6.0); p.count = 2; p.bands[1] = p.bands[0]; p.preamp = -1
     assert lib.peq_save(bytes(active), C.byref(p), 1) == 1
-    ui.shim_close(); advanced(); click('1  '); click('Gain +6.0 dB'); click('+6.5 dB'); ui.shim_return(); click('Apply changes')
+    ui.shim_close(); advanced(); click('1  '); click('增益 +6.0 dB'); click('+6.5 dB'); ui.shim_return(); click('应用更改')
     assert read().preamp == -1, read().preamp  # a preamp off Auto (here the preset's) sticks through band edits
-    click('Preamp -1.0 dB'); assert title() == 'Preamp' and ui.shim_selection() == 27  # opens on -1.0
-    click('Auto (-12.5 dB)'); click('Apply changes')
+    click('前级增益 -1.0 dB'); assert title() == '前级增益' and ui.shim_selection() == 27  # opens on -1.0
+    click('自动 (-12.5 dB)'); click('应用更改')
     assert abs(read().preamp + 12.5) < 0.05, read().preamp
-    click('1  '); click('Band On'); ui.shim_return(); click('2  '); click('Band On'); ui.shim_return(); click('Apply changes')
+    click('1  '); click('频段 打开'); ui.shim_return(); click('2  '); click('频段 打开'); ui.shim_return(); click('应用更改')
     assert math.copysign(1, read().preamp) == 1 and read().preamp == 0, read().preamp  # +0: shown as 0.0
     # Channels cycle on enabled bands; headroom takes the louder side, balance only turns one down.
-    click('1  Peaking 31 Hz Off'); click('Gain +6.5 dB'); click('+7.5 dB'); click('Channels Both')  # picking a gain turns the band on
-    assert title() == 'Band 1'
-    click('Channels Left'); ui.shim_return()
+    click('1  峰值 31 Hz 关闭'); click('增益 +6.5 dB'); click('+7.5 dB'); click('声道 双声道')  # picking a gain turns the band on
+    assert title() == '频段 1'
+    click('声道 左声道'); ui.shim_return()
     # Balance one row opens a picker, L 12 to R 12 dB in 0.5 dB steps, on the current value.
-    click('Balance Centre'); assert title() == 'Balance'
+    click('声道平衡 居中'); assert title() == '声道平衡'
     assert (ui.shim_selection(), ui.shim_offset()) == (24, 24 * 48 - 96)  # 5 rows of 48 shown
-    click('R 12.0 dB'); assert title() == ''; click('Balance R 12.0 dB')
+    click('R 12.0 dB'); assert title() == ''; click('声道平衡 R 12.0 dB')
     assert (ui.shim_selection(), ui.shim_offset()) == (48, 49 * 48 - 240)  # clamped to the end
-    ui.shim_return(); assert title() == ''; click('Balance R 12.0 dB'); click('L 0.5 dB'); click('Apply changes')
+    ui.shim_return(); assert title() == ''; click('声道平衡 R 12.0 dB'); click('L 0.5 dB'); click('应用更改')
     r = read(); assert (r.bands[0].enabled, r.balance) == (3, -0.5) and abs(r.preamp + 7.5) < 0.05, (r.bands[0].enabled, r.balance)
-    assert ui.shim_click(b'1  Peaking 31 Hz R +7.5 dB', 0) and ui.shim_click(b'Balance L 0.5 dB', 0)
+    assert ui.shim_click('1  峰值 31 Hz R +7.5 dB'.encode(), 0) and ui.shim_click('声道平衡 L 0.5 dB'.encode(), 0)
     # Frequency and Q open a value menu: an edit with the value (keyboard on tap or centre), then Raise/Lower.
     ui.shim_edit.restype = ui.shim_keyboard.restype = C.c_char_p
     edit = lambda: ui.shim_edit().decode()
-    ui.shim_close(); advanced(); click('1  Peaking 31 Hz R'); click('Frequency 31 Hz')
-    assert title() == 'Band 1 Frequency (Hz)' and edit() == '31' and ui.shim_keyboard() == b'kb_default_t9'
-    click('Lower 1 Hz'); click('Lower 1 Hz'); assert edit() == '29'
-    click('Step 1 Hz'); click('Lower 10 Hz'); assert edit() == '20'  # clamped at 20 Hz
-    click('Step 10 Hz'); click('Raise 100 Hz'); assert edit() == '120'
+    ui.shim_close(); advanced(); click('1  峰值 31 Hz R'); click('频率 31 Hz')
+    assert title() == '频段 1 频率 (Hz)' and edit() == '31' and ui.shim_keyboard() == b'kb_default_t9'
+    click('减少 1 Hz'); click('减少 1 Hz'); assert edit() == '29'
+    click('步长 1 Hz'); click('减少 10 Hz'); assert edit() == '20'  # clamped at 20 Hz
+    click('步长 10 Hz'); click('增加 100 Hz'); assert edit() == '120'
     ui.shim_page.restype = C.c_char_p
     assert not ui.shim_focused(); click('120'); assert ui.shim_focused()  # the centre button opens the keyboard
     assert ui.shim_page() == b'symnum'  # on its number keys
@@ -640,11 +685,11 @@ def editor_check(lib, tmp):
     ui.shim_type(b'9'*16); assert edit() == '2500'    # stock conversion refuses a value that cannot fit
     ui.shim_type(b'99999'); assert edit() == '20000'   # clamped like Raise
     ui.shim_type(b'1000.5'); assert edit() == '1000'   # kept exactly, shown whole
-    ui.shim_return(); assert title() == 'Band 1'
-    click('Q 1.41'); assert title() == 'Band 1 Q' and edit() == '1.41'
-    click('Raise 0.05'); assert edit() == '1.46'
+    ui.shim_return(); assert title() == '频段 1'
+    click('Q 1.41'); assert title() == '频段 1 Q' and edit() == '1.41'
+    click('增加 0.05'); assert edit() == '1.46'
     ui.shim_type(b'0.7'); assert edit() == '0.70'
-    ui.shim_return(); ui.shim_return(); click('Apply changes')
+    ui.shim_return(); ui.shim_return(); click('应用更改')
     r = read(); assert (r.bands[0].frequency, round(r.bands[0].q, 9)) == (1000.5, 0.7), (r.bands[0].frequency, r.bands[0].q)
     print('EQ Advanced tab: bypass, apply, auto preamp, channels, balance, frequency and Q, load, failed saves, delete and close passed.')
     eq3_editor_check(lib, ui, tmp)
@@ -777,7 +822,7 @@ def eq3_editor_check(lib, ui, tmp):
         for x in k: assert ui.shim_e3_key(x)
     # PEQ playing; opening 3EQ changes nothing.
     ui.shim_close(); ui.shim_open(); assert ui.shim_tab_touch(300)
-    if ui.shim_flag() == 0: assert ui.shim_click(b'Advanced Off', 1)
+    if ui.shim_flag() == 0: assert ui.shim_click('高级 关闭'.encode(), 1)
     ui.shim_close()
     before = active.read_bytes(); peq = bytes(state().peq)
     assert state().mode == EQ_PEQ and ui.shim_flag() == 1
@@ -825,9 +870,9 @@ def eq3_editor_check(lib, ui, tmp):
     # A failed save says so and keeps the last good record; the next one writes the pending gains.
     good = active.read_bytes(); (active.parent/'peq-active.tmp').mkdir()
     keys(NEXT, CENTRE, NEXT, CENTRE)
-    assert title() == 'Save failed; EQ unchanged' and active.read_bytes() == good
+    assert title() == '保存失败，均衡器未变' and active.read_bytes() == good
     ui.shim_tab_touch(300)
-    assert title() == 'Save failed; EQ unchanged' and active.read_bytes() == good
+    assert title() == '保存失败，均衡器未变' and active.read_bytes() == good
     (active.parent/'peq-active.tmp').rmdir()
     keys(CENTRE, CENTRE); assert gains() == [0.5, 0, 0] and title() == ''
     # Return leaves; leaving with Off held lets the preamp go.
@@ -836,7 +881,7 @@ def eq3_editor_check(lib, ui, tmp):
     ui.shim_e3_close(); s = state(); assert (s.mode, s.hold) == (EQ_OFF, 0)
     assert lib.peq_load_active(C.byref(e)) and e.bypass == 1 and ui.shim_flag() == 0
     # PEQ's switch selects PEQ again; the 3EQ settings stay.
-    ui.shim_open(); assert ui.shim_tab_touch(300) and ui.shim_click(b'Advanced Off', 1); s = state()
+    ui.shim_open(); assert ui.shim_tab_touch(300) and ui.shim_click('高级 关闭'.encode(), 1); s = state()
     assert s.mode == EQ_PEQ and bytes(s.peq) == peq and gains(s) == [0.5, 0, 0] and ui.shim_flag() == 1
     ui.shim_e3_open(); assert ui.shim_e3_touch(0x100, 50, 70) == 0 and state().mode == EQ_3  # and back
     ui.shim_e3_close(); assert state().mode == EQ_3 and ui.shim_flag() == 1
@@ -844,11 +889,11 @@ def eq3_editor_check(lib, ui, tmp):
     # still on the bar; past it the list's first row, and back. Neither tab changes what plays.
     before = active.read_bytes()
     ui.shim_e3_open(); keys(PREV, PREV, CENTRE); ui.shim_run()
-    assert ui.shim_click(b'Advanced Off', 2) and ui.shim_selection() == -1 and title() == ''
+    assert ui.shim_click('高级 关闭'.encode(), 2) and ui.shim_selection() == -1 and title() == ''
     keys(NEXT); assert ui.shim_selection() == 0
     assert not ui.shim_e3_key(NEXT)  # the list's own
     keys(PREV); assert ui.shim_selection() == -1
-    keys(CENTRE); ui.shim_run(); assert not ui.shim_click(b'Advanced', 2)  # Simple: no list
+    keys(CENTRE); ui.shim_run(); assert not ui.shim_click('高级'.encode(), 2)  # Simple: no list
     keys(NEXT, CENTRE); assert state().mode == EQ_OFF; keys(CENTRE)  # the switch, from the bar
     assert active.read_bytes() == before and state().mode == EQ_3
     ui.shim_e3_close()

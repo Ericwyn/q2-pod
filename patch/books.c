@@ -548,7 +548,7 @@ static void info(void) {
     unsigned pct = bk.pos / (bk.size / 100 + 1); /* how far in, 0-99 */
     if (bk.state)
         tk_snprintf(caption, sizeof caption, "%s",
-                    bk.state == BAD ? "Can't open this book" : "Preparing\xe2\x80\xa6");
+                    bk.state == BAD ? "无法打开此书籍" : "准备中…");
     else
         tk_snprintf(caption, sizeof caption, "%u%%  %s", pct, title(bk.path[bk.current], name));
     if (tk_strcmp(widget_get_prop_str(bk.info, "text", ""), caption)) {
@@ -895,7 +895,7 @@ void books_open(const char *root, int videos) {
     if (bk.buf && bk.path) scan(root, 1, videos);
     if (bk.n) qsort(bk.path, (unsigned)bk.n, sizeof *bk.path, by_string);
     bk.view = page_list(page, bk.list, 0,
-                        videos ? bk.n ? "Videos" : "No videos" : bk.n ? "Books" : "No books", bk.n, 48);
+                        videos ? bk.n ? "视频" : "暂无视频" : bk.n ? "书籍" : "暂无书籍", bk.n, 48);
     char name[256];
     for (int k = 0; k < bk.n; ++k)
         page_row_detail(bk.view, k, title(bk.path[k], name), 0,

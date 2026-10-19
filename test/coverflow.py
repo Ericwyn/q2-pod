@@ -872,7 +872,7 @@ static void artist_only(void) {
     row->click(row->ctx, 0); run();
     assert(!strcmp(title(), "B"));
     key(KEY_RETURN); /* tracks return to the text list */
-    assert(!strcmp(title(), "Albums") && loads == before);
+    assert(!strcmp(title(), "专辑") && loads == before);
     close_page();
     artist_view = 0;
 }
@@ -1131,7 +1131,7 @@ int main(void) {
 
     /* An empty library, or one being scanned, shows the message and builds nothing. */
     open_page();
-    assert(!strcmp(title(), "Update Local Music first") && !slide() && queries == 1);
+    assert(!strcmp(title(), "请先更新本地音乐") && !slide() && queries == 1);
     /* Every list (message, progress, tracks) comes from list(): iPod rows are transparent, so its
        list_view paints black itself rather than the theme's light card. */
     int lists = 0;
@@ -1141,7 +1141,7 @@ int main(void) {
     album("Cover", "cover.jpg");
     *(volatile int *)SCAN_THREAD = 1;
     open_page();
-    assert(!strcmp(title(), "Update Local Music first") && queries == 1 && !calls);
+    assert(!strcmp(title(), "请先更新本地音乐") && queries == 1 && !calls);
     close_page();
     *(volatile int *)SCAN_DONE = 1;
 
@@ -1192,7 +1192,7 @@ int main(void) {
     page = &w[nw + 1];
     home.click(home.ctx, 0);
     while (!blocked) usleep(1000);
-    assert(!strncmp(title(), "Preparing artwork", 17));
+    assert(!strncmp(title(), "正在准备封面", strlen("正在准备封面")));
     int e[16] = {0}; e[EVENT_KEY / 4] = KEY_RETURN;
     w[8190].click(0, e);
     pthread_t t;
