@@ -101,8 +101,8 @@ HOOKS = {
     'mclNextSong': (0x5adbbc, 'ringnav_next', 'next'),
     # Lyrics: a local track without a .lrc takes its LYRICS tag (lyrics.c ringnav_lyric)
     'mclLoadExLyric': (0x5aac90, 'ringnav_lyric', 'lyric'),
-    # Now Playing's lyrics match (patch/onlinematch.c): LRCLIB alone, in place of stock's Kugou search
-    'kugou_obtainlyric': (0x510744, 'ringnav_lyric_search', None),
+    # Now Playing's lyrics match: LRCLIB first, then stock's Kugou search on failure or no match.
+    'kugou_obtainlyric': (0x510744, 'ringnav_lyric_search', 'kugoulyric'),
     # its ⋯ page: Download Album Lyrics under stock's Download Cover & Lyrics (onlinematch.c)
     'playermore_page_init': (0x528c14, 'ringnav_playermore', 'playermore'),
     # any Tidal track asked for, from a queue or Now Playing, wakes its stream thread (tidal.c)
@@ -371,11 +371,10 @@ LDAC_HQ = ((0x4f033c, 0x00042080, 0x00041880),   # sll $3,$4,2
 # check_mem_thd (platform_init's detached thread) returns NULL on entry: it never opens drop_caches,
 # writes 3 to it or wakes each second. lui/addiu $gp -> jr $ra; move $v0,$zero.
 DROP_CACHES = ((0x512050, 0x3c1c0051, 0x03e00008), (0x512054, 0x279c4c70, 0x00001025))
-# Two threads started at boot polled a start flag with usleep(10000) for the life of the player: Baidu
-# Pan's (baidu_pthread_playurl) and Tidal's URL worker (after tidalGetFavoritesIdsThd). Each poll call
-# (jalr $25) becomes jal to its payload function (tidal.c), which parks the thread: Tidal's wakes once
-# per track URL asked for, Baidu's never.
-STREAM_POLL_CALLS = ((0x47f824, 'ringnav_baidu_poll'), (0x486404, 'ringnav_tidal_poll'))
+# Tidal's URL worker polls a start flag with usleep(10000). Replace only its poll with a
+# semaphore wait, woken per track by ringnav_tidal_track. Baidu's baidu_pthread_playurl
+# poll at 0x47f824 stays stock: its native streaming row needs that worker to keep running.
+STREAM_POLL_CALLS = ((0x486404, 'ringnav_tidal_poll'),)
 # The jalr usleep (lw $t9,-0x59c($gp)) of mclSyncPlayerStatus' 200 ms loop becomes jal ringnav_dark_usleep
 # (its argument set in the delay slot): at least DARK_POLL_US while ringnav_sleep finds the Q2 dark, quiet and
 # the DAC off, else stock's. parse_albumcovertask_thd's 50 ms and player_parsecover_thd's 100 ms waits become
@@ -1172,7 +1171,7 @@ def compile_payload(out, ipod):
     run('ld.lld','-m','elf32ltsmip','--gc-sections','-T',ROOT/'patch/link.ld','-e','ringnav',
         *[f'--undefined={name}' for _, name, _ in hooks(ipod).values()], *[f'--undefined={IPOD_LEAF[2]}'] * ipod, '--undefined=ringnav_lrc_open',
         f'--undefined={WM_PAINT_LEAF[2]}', '--undefined=ringnav_audio_extension', '--undefined=ringnav_lyric_save', '--undefined=ringnav_bootmode', '--undefined=lockscreen_access','--undefined=ringnav_ts_read',
-        '--undefined=ringnav_baidu_poll', '--undefined=ringnav_tidal_poll',
+        '--undefined=ringnav_tidal_poll',
         '--undefined=coverflow_player_cover', '--undefined=coverflow_grid_cover', '--undefined=coverflow_album_cover', '--undefined=headset_bt_init',
         '--undefined=headset_status_register', '--undefined=headset_bt_autolink',
         out/'navigation.o',out/'trampoline.o',*extra,'-o',out/'patch.elf')

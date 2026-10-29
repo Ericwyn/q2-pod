@@ -9928,14 +9928,12 @@ m.row(0); m.code=0; m.worker(); assert m.labels()==['电台目录不可用'] and
 m.back(); assert m.labels()==['国家','Taiwan, Republic Of China','Germany']
 m.back(); m.calls=[]; m.back(); assert 'navigator_back' in [c[0] for c in m.calls]; m.close(); passed()
 
-# Download Cover & Lyrics' lyrics (onlinematch.c ringnav_lyric_search, at kugou_obtainlyric's entry): LRCLIB
-# alone. keyinfo's title and artist are searched; the first result with synced lyrics goes to out with a BOM,
-# less its opening credits. None found, the names without accents are searched, if that changes them; a busy
-# reply is asked again, three requests in all. Found or not, it returns 1, so online_lyricthd skips NetEase,
-# and Kugou's own search (past the entry's jump) never runs. demo's cJSON is stood in for by Python's json.
+# Download Cover & Lyrics: try LRCLIB, then resume stock's Kugou with the original arguments when
+# no synced lyrics are saved (no match, busy, offline or missing title). A successful LRCLIB search
+# skips Kugou; Kugou's result is propagated so stock can still try NetEase on failure.
 class LyricSearchMachine(RadioMachine):
     def __init__(self):
-        super().__init__(); self.written={}; self.json={}
+        super().__init__(); self.written={}; self.json={}; self.kugou_result=1; self.kugou_args=None; self.fail_open=False; self.fail_close=False
         for n in ('fopen@GLIBC_2.2','fputs@GLIBC_2.0','fclose@GLIBC_2.2','cJSON_Parse','cJSON_GetArraySize',
                   'cJSON_GetArrayItem','cJSON_GetObjectItem','cJSON_Delete'):
             self.handlers[syms[n]]='ls:'+n
@@ -9949,9 +9947,14 @@ class LyricSearchMachine(RadioMachine):
         if name=='r:curl_easy_perform': self.reply=self.replies.pop(0) if self.replies else b'[]'; self.urls.append(self.opts[10002])
         if not name.startswith('ls:'): return super().hook(u,address,size,unused)
         name=name[3:].split('@')[0]; a,b,c,d=[u.reg_read(r) for r in REGS]; ret=0
-        if name=='fopen': self.fpath=self.text(a); self.written[self.fpath]=b''; ret=0x2000100
+        if name=='kugou': self.kugou_args=(self.text(a),self.text(b)); ret=self.kugou_result
+        elif name=='fopen':
+            if not self.fail_open: self.fpath=self.text(a); self.written[self.fpath]=b''; ret=0x2000100
+        elif name=='fclose': ret=int(self.fail_close)
         elif name=='fputs': self.written[self.fpath]+=self.raw(a)
-        elif name=='cJSON_Parse': ret=self.item(json.loads(self.text(a)))
+        elif name=='cJSON_Parse':
+            try: ret=self.item(json.loads(self.text(a)))
+            except ValueError: ret=0
         elif name=='cJSON_GetArraySize': ret=len(self.json[a])
         elif name=='cJSON_GetArrayItem': ret=self.item(self.json[a][b])
         elif name=='cJSON_GetObjectItem': v=self.json[a]; key=self.text(b); ret=self.item(v[key]) if isinstance(v,dict) and key in v else 0
@@ -9962,6 +9965,7 @@ class LyricSearchMachine(RadioMachine):
         key=0xa40424  # stock's keyinfo: file name, title (+0x200), album (+0x400), artist (+0x500)
         self.u.mem_write(key,bytes(0x600)); self.u.mem_write(key+0x200,title.encode()); self.u.mem_write(key+0x500,artist.encode())
         self.replies,self.code,self.written,self.calls,self.urls=list(replies),code,{},[],[]
+        self.kugou_args=None
         # Each request's 512 KB reply buffer is freed, but the mock's free keeps it: start over, zeroed as calloc's.
         self.u.mem_write(BIG,bytes(self.big-BIG)); self.big=BIG
         return self.call(address=HOOKS['kugou_obtainlyric'][0],args=(self.string(f'{title}/{artist}'),self.string('/tmp/oslyric_7'),0,0),gap=0,count=5_000_000)
@@ -9972,20 +9976,39 @@ stars='﻿[00:12.00]Look at the stars'.encode()  # the first synced result, its 
 LRCLIB='https://lrclib.net/api/search?track_name=%s&artist_name=%s'
 busy=b'{"message":"The server is busy, please retry in a moment","name":"ServerOverloaded","statusCode":503}'
 def kugou(): return 'kugou' in [c[0] for c in m.calls]
-assert m.search('Yellow','Coldplay',found)==1 and m.urls==[LRCLIB%('Yellow','Coldplay')] and m.written=={'/tmp/oslyric_7':stars}
-assert m.search('Yellow','Coldplay',b'[]')==1 and len(m.urls)==1 and not m.written and not kugou()  # nothing to fold
+assert m.search('Yellow','Coldplay',found)==1 and m.urls==[LRCLIB%('Yellow','Coldplay')] and m.written=={'/tmp/oslyric_7':stars} and not kugou()
+assert m.search('Yellow','Coldplay',b'[]')==1 and len(m.urls)==1 and not m.written and kugou()  # nothing to fold
 # Hataałii: none under its own name, so its folded one, Hataalii; an instrumental counts as none.
 plain=LRCLIB%('Rains%20Over%20Dzil','Hataalii')
 assert m.search('Rains Over Dził','Hataałii',b'[]',found)==1 and m.urls[1:]==[plain] and m.written=={'/tmp/oslyric_7':stars}
 assert m.urls[0]==LRCLIB%('Rains%20Over%20Dzi%C5%82','Hataa%C5%82ii')
 for none in (b'[]',json.dumps([{'syncedLyrics':None,'instrumental':True}]).encode()):
-    assert m.search('Rains Over Dził','Hataałii',none,none)==1 and len(m.urls)==2 and not m.written and not kugou()
+    assert m.search('Rains Over Dził','Hataałii',none,none)==1 and len(m.urls)==2 and not m.written and kugou()
 # Busy: asked again, three requests at most, the fold only after an answer; offline: one request.
 assert m.search('Yellow','Coldplay',busy,found)==1 and len(m.urls)==2 and m.written=={'/tmp/oslyric_7':stars}
 assert m.search('Rains Over Dził','Hataałii',b'[]',busy,b'[]',found)==1 and m.urls[1::2]==[plain,plain] and m.written
-assert m.search('Yellow','Coldplay',busy,busy,busy,found)==1 and len(m.urls)==3 and not m.written and not kugou()
-assert m.search('Yellow','Coldplay',found,code=0)==1 and len(m.urls)==1 and not m.written and not kugou()
-assert m.search('','Coldplay',found)==1 and not m.written and not m.urls; passed()  # no title: no request
+assert m.search('Yellow','Coldplay',busy,busy,busy,found)==1 and len(m.urls)==3 and not m.written and kugou()
+assert m.search('Yellow','Coldplay',found,code=0)==1 and len(m.urls)==1 and not m.written and kugou()
+assert m.search('','Coldplay',found)==1 and not m.written and not m.urls and kugou()  # no title: use stock's keyword search
+assert m.kugou_args==('/Coldplay','/tmp/oslyric_7')
+
+
+# Preserve the original Chinese keyword and filename; propagate Kugou failure for NetEase fallback.
+assert m.search('晴天','周杰伦',b'[]')==1 and kugou()
+assert m.kugou_args==('晴天/周杰伦','/tmp/oslyric_7')
+m.kugou_result=0
+assert m.search('晴天','周杰伦',b'[]')==0 and kugou()
+assert m.search('Yellow','Coldplay',found)==1 and not kugou()
+m.kugou_result=1
+# Plain-only, invalid JSON and output failures must not be reported as LRCLIB success.
+for reply in (b'[invalid]',b'[',b'[{}]','[格]'.encode(),b'[1]',json.dumps([{'plainLyrics':'words'}]).encode()):
+    assert m.search('Yellow','Coldplay',reply)==1 and kugou()
+m.fail_open=True
+assert m.search('Yellow','Coldplay',found)==1 and kugou()
+m.fail_open=False; m.fail_close=True
+assert m.search('Yellow','Coldplay',found)==1 and kugou()
+m.fail_close=False
+passed()
 
 # Its accept (onlinematch.c ringnav_lyric_save, at LYRIC_SAVE_CALL): stock's snprintf of cp -rf /tmp/oslyric_N
 # "/mnt/mmc/.downpic/<name>" for system() becomes a copy beside the song, through .part, as Download Album Lyrics
@@ -12495,8 +12518,7 @@ for polls in (0,1,2):  # before first resume poll, during settling, or with a re
     assert m.seeks==[0], (polls,m.seeks); passed()
 
 # Stream threads (tidal.c): Tidal's poll always parks on its gate, lit or dark, whatever the queue;
-# a Tidal track asked for posts it once stock's get_tidal_trackurl has run. Baidu's poll only ever
-# waits, so it never wakes.
+# a Tidal track asked for posts it once stock's get_tidal_trackurl has run. Baidu is not hooked.
 m=Machine(); m.mock('usleep@GLIBC_2.0','sem_wait@GLIBC_2.2','sem_post@GLIBC_2.2')
 m.handlers[payload_syms['stock_tidaltrack_trampoline']]='stock_tidaltrack'
 def stream_calls(name,*args):
@@ -12506,7 +12528,13 @@ for lit,queue in ((1,0x20),(0,0xf001),(0,0x20)):
     m.byte(syms['g_backlight_status'],lit); m.word(O['MCL_TYPE'],queue)
     assert stream_calls('ringnav_tidal_poll',196608)==['sem_wait']
 assert stream_calls('ringnav_tidal_track')==['stock_tidaltrack','sem_post']
-assert stream_calls('ringnav_baidu_poll',10000)==['sem_wait']
+assert 'ringnav_baidu_poll' not in payload_syms
+# Execute Baidu's actual stock poll call from the patched demo, including its delay slot.
+m.calls=[]; m.u.reg_write(UC_MIPS_REG_T9,syms['usleep@GLIBC_2.0'])
+m.u.reg_write(UC_MIPS_REG_A0,0)
+m.u.emu_start(0x47f824,0x47f82c,count=100)
+assert m.u.reg_read(UC_MIPS_REG_PC)==0x47f82c
+assert [c[0].split('@')[0] for c in m.calls]==['usleep'] and m.calls[0][1]==10000
 passed()
 
 print(f'{checks} MIPS execution scenarios passed; toolkit services mocked, stock lock filter executed.')

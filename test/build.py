@@ -32,6 +32,8 @@ tags = [dev_tag(n, 'I') for n in range(1, 36**3)]
 assert tags[:2] == ['V001i', 'V002i'] and tags[35] == 'V010i' and tags[-1] == 'VZZZi'
 assert len(set(tags)) == len(tags) and all(len(t) == 5 for t in tags) and VERSIONS['ipod'] not in tags
 assert dev_tag(36**3, 'S') == 'V001s'
+# A freshly built 1.5.5 dev image can replace both the release and the previous local dev image.
+assert dev_tag(10, 'I') == 'V00Ai' and dev_tag(10, 'I') not in ('V155I', 'V009i')
 print('Dev build tag checks passed.')
 
 def boot_check():
@@ -317,11 +319,15 @@ def validate_assets(directory):
     for address, word, patched in DROP_CACHES:
         off = fileoff(stock, address)
         assert struct.unpack_from('<I', stock, off)[0] == word and struct.unpack_from('<I', demo, off)[0] == patched
-    # The stream threads' idle polls (usleep, jalr $25) park in tidal.c instead, which is the only way out of them.
+    # Only Tidal's idle poll parks in tidal.c; Baidu must keep its stock playback URL worker.
     for address, name in STREAM_POLL_CALLS:
         off = fileoff(stock, address)
         assert struct.unpack_from('<I', stock, off)[0] == 0x0320f809
         assert struct.unpack_from('<I', demo, off)[0] == jal(symbols(directory/'patch.elf')[name])
+    off = fileoff(stock, 0x47f824)
+    assert struct.unpack_from('<I', stock, off)[0] == 0x0320f809
+    assert demo[off:off+8] == stock[off:off+8], 'Baidu URL worker must keep its stock usleep call and delay slot'
+    assert 'ringnav_baidu_poll' not in symbols(directory/'patch.elf')
     # Stock's status sync and cover pollers sleep through the dark usleeps (navigation.c).
     for address, name in DARK_POLLS:
         off = fileoff(stock, address)

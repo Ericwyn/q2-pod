@@ -255,15 +255,13 @@ int tidal_play(const char *url, const char *id) {
     return stock_tidal_trampoline(url);
 }
 
-/* Stock's stream thread (docs/internals.md#tidal-cache) and Baidu's both polled a flag every 10 ms
- * from power-on. Now each parks on a semaphore with no timer: only get_tidal_trackurl sets Tidal's
- * flag, and ringnav_tidal_track posts once it has, so the thread wakes per track asked for and parks
- * again after it. A post never gets lost (it counts), so one made mid-fetch only adds a pass.
- * Baidu's is never posted, so it parks for good. A zeroed sem_t is a semaphore at 0. */
-static unsigned stream_gate[8], baidu_gate[8];
+/* Stock's Tidal stream thread (docs/internals.md#tidal-cache) polled a flag every 10 ms
+ * from power-on. It now parks on a semaphore: ringnav_tidal_track posts after stock sets the flag.
+ * A post never gets lost (it counts), so one made mid-fetch only adds a pass. Baidu's worker keeps
+ * its stock poll, since its native streaming entry is available in the Chinese build. */
+static unsigned stream_gate[8];
 
 int ringnav_tidal_poll(unsigned us) { return sem_wait(stream_gate); }
-int ringnav_baidu_poll(unsigned us) { return sem_wait(baidu_gate); }
 
 /* Tidal track lists (docs/internals.md#tidal-track-lists): stock's playlist, album and favourite-tracks
  * threads each fetch one page of stTidalTracks (total, limit 50, offset, deque) into
