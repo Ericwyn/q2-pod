@@ -122,8 +122,8 @@ HOOKS = {
     'mclLoadExLyric': (0x5bd384, 'ringnav_lyric', 'lyric'),
     # its .lrc's UTF-8 test, which read 6 bytes and no 4-byte character (lyrics.c ringnav_lrc_utf8)
     'mclIsUtf8WithoutBOM': (0x5bbc4c, 'ringnav_lrc_utf8', None),
-    # Now Playing's lyrics match (patch/onlinematch.c): LRCLIB alone, in place of stock's Kugou search
-    'kugou_obtainlyric': (0x51b3f4, 'ringnav_lyric_search', None),
+    # Now Playing's lyrics match: LRCLIB first, then stock's Kugou search on failure or no match.
+    'kugou_obtainlyric': (0x51b3f4, 'ringnav_lyric_search', 'kugoulyric'),
     # its ⋯ page: Download Album Lyrics under stock's Download Cover & Lyrics (onlinematch.c)
     'playermore_page_init': (0x539f60, 'ringnav_playermore', 'playermore'),
     # Classic's Search: its tabs' words, after stock's init writes them (navigation.c)
@@ -620,11 +620,10 @@ DROP_CACHES = ((0x51cd00, 0x3c1c0052, 0x03e00008), (0x51cd04, 0x279cdde0, 0x0000
 # that has the sound, so each press would act twice. btinput_thread_run returns NULL on entry, as DROP_CACHES' thread
 # does, which its caller (0x6357b0) takes as no such device: the thread never starts.
 BT_INPUT = ((0x639320, 0x3c1c0040, 0x03e00008), (0x639324, 0x279c17c0, 0x00001025))
-# Two threads started at boot polled a start flag with usleep(10000) for the life of the player: Baidu
-# Pan's (baidu_pthread_playurl) and Tidal's URL worker (after tidalGetFavoritesIdsThd). Each poll call
-# (jalr $25) becomes jal to its payload function (tidal.c), which parks the thread: Tidal's wakes once
-# per track URL asked for, Baidu's never.
-STREAM_POLL_CALLS = ((0x4805b8, 'ringnav_baidu_poll'), (0x4871a4, 'ringnav_tidal_poll'))
+# Tidal's URL worker polls a start flag with usleep(10000). Replace only its poll with a
+# semaphore wait, woken per track by ringnav_tidal_track. Baidu's baidu_pthread_playurl
+# poll at 0x4805b8 stays stock: its native streaming row needs that worker to keep running.
+STREAM_POLL_CALLS = ((0x4871a4, 'ringnav_tidal_poll'),)
 # get_onlineid3info's player_set_coverinfo(REC_COVER, REC_NAME, type) for a 0xf1 record: its jalr, the
 # REC_COVER load in its delay slot, and the stub that adds the record ($s1) for tidal.c app_coverinfo
 COVERINFO_CALL = (0x493708, 0x8e240028, 'app_coverinfo_call')
@@ -1640,7 +1639,7 @@ def compile_payload(out):  # pragma: no mutate block
     run('ld.lld','-m','elf32ltsmip','--gc-sections','-T',ROOT/'patch/link.ld','-e','ringnav',
         *[f'--undefined={name}' for _, name, _ in HOOKS.values()], f'--undefined={GRADIENT_LEAF[2]}', '--undefined=ringnav_lrc_open',
         f'--undefined={WM_PAINT_LEAF[2]}', f'--undefined={QUEUE_LEAF[2]}', '--undefined=ringnav_audio_extension', '--undefined=start_mute', '--undefined=start_sleep', '--undefined=ringnav_genre_copy', '--undefined=ringnav_lyric_save', '--undefined=ringnav_lyric_drop', '--undefined=ringnav_cover_copy','--undefined=ringnav_folder_rm','--undefined=ringnav_bootmode', '--undefined=lockscreen_access','--undefined=ringnav_ts_read',
-        '--undefined=ringnav_baidu_poll', '--undefined=ringnav_tidal_poll', '--undefined=addon_m3u_dir', f'--undefined={COVERINFO_CALL[2]}',
+        '--undefined=ringnav_tidal_poll', '--undefined=addon_m3u_dir', f'--undefined={COVERINFO_CALL[2]}',
         '--undefined=coverflow_player_cover', '--undefined=coverflow_grid_cover', '--undefined=coverflow_album_cover', '--undefined=coverflow_folder_cover', '--undefined=headset_bt_init',
         '--undefined=headset_status_register', '--undefined=headset_bt_autolink',
         *nav,out/'trampoline.o',*extra,'-o',out/'patch.elf')

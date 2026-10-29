@@ -1301,10 +1301,9 @@ def test_a_track_asked_for_wakes_the_stream_thread_once_after_stock_set_its_flag
     track = fw.fn('ringnav_tidal_track', C.c_int, C.c_void_p, C.c_void_p, C.c_void_p, C.c_void_p)
     assert track(1, 2, 3, 4) == 7
     fw.fn('ringnav_tidal_poll', C.c_int, C.c_uint)(10000)
-    fw.fn('ringnav_baidu_poll', C.c_int, C.c_uint)(10000)
-    (_, stream), (_, wait), (_, baidu) = order[1:]
-    assert order[0] == ('track', (1, 2, 3, 4)) and [k for k, _ in order] == ['track', 'post', 'wait', 'wait']
-    assert stream == wait and baidu != stream  # Baidu's gate is never posted
+    (_, stream), (_, wait) = order[1:]
+    assert order[0] == ('track', (1, 2, 3, 4)) and [k for k, _ in order] == ['track', 'post', 'wait']
+    assert stream == wait
 
 
 # Track lists, paged whole.

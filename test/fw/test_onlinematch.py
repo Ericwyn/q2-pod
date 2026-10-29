@@ -720,18 +720,32 @@ def keyinfo(title=b'', album=b'', artist=b''):
     return fill
 
 
-def test_the_lyric_search_asks_again_while_busy(fw):
+def test_the_lyric_search_asks_again_while_busy_then_falls_back_to_kugou(fw):
     net = Net(fw, {LRCLIB: b'{"code":503}'})
     fw.mock('online_getkeyword_info', keyinfo(b'T', b'', b'A'))
-    assert fw.fn('ringnav_lyric_search', C.c_int, C.c_char_p, C.c_char_p)(b'kw', b'/tmp/out') == 1
+    fw.mock('stock_kugoulyric_trampoline', lambda *_: 2)
+    assert fw.fn('ringnav_lyric_search', C.c_int, C.c_char_p, C.c_char_p)(b'kw', b'/tmp/out') == 2
     assert len(net.urls) == 3 and [c[1][0] for c in fw.calls('fw_usleep')] == [2000000, 2000000]
+    assert [c[1][:2] for c in fw.calls('stock_kugoulyric_trampoline')] == [(b'kw', b'/tmp/out')]
 
 
-def test_the_lyric_search_stops_at_an_answer(fw):
+def test_the_lyric_search_falls_back_to_kugou_when_lrclib_finds_nothing(fw):
     net = Net(fw, {LRCLIB: b'[]'})
+    Written(fw)
     fw.mock('online_getkeyword_info', keyinfo(b'T', b'', b'A'))
-    fw.fn('ringnav_lyric_search', C.c_int, C.c_char_p, C.c_char_p)(b'kw', b'/tmp/out')
+    fw.mock('stock_kugoulyric_trampoline', lambda *_: 1)
+    assert fw.fn('ringnav_lyric_search', C.c_int, C.c_char_p, C.c_char_p)(b'kw', b'/tmp/out') == 1
     assert len(net.urls) == 1 and not fw.calls('fw_usleep')
+    assert len(fw.calls('stock_kugoulyric_trampoline')) == 1
+
+
+def test_the_lyric_search_does_not_ask_kugou_when_lrclib_saves(fw):
+    Net(fw, {LRCLIB: results('[00:01.00] Sung\n')})
+    Written(fw)
+    fw.mock('online_getkeyword_info', keyinfo(b'T', b'', b'A'))
+    fw.mock('stock_kugoulyric_trampoline', lambda *_: 0)
+    assert fw.fn('ringnav_lyric_search', C.c_int, C.c_char_p, C.c_char_p)(b'kw', b'/tmp/out') == 1
+    assert not fw.calls('stock_kugoulyric_trampoline')
 
 
 class Covers:
