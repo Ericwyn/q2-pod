@@ -1,6 +1,6 @@
 /* Online match (docs/internals.md#lyrics-search, #cover-search): Now Playing's ⋯ lyrics match asks
- * LRCLIB alone (no Kugou or NetEase), and its cover match MusicBrainz's Cover Art Archive and iTunes
- * before stock's Kugou search. */
+ * LRCLIB first, falling back to stock's Kugou/NetEase. Its cover match asks MusicBrainz's Cover Art
+ * Archive and iTunes before stock's Kugou search. */
 #include "peq.h"
 
 /* part joined into out, the odd ones percent-encoded and, with lucene, a backslash before each " and \
@@ -353,18 +353,19 @@ static int lrclib(const char *title, const char *artist, const char *out, volati
     return lrclib_search(t, a, out, cancel);
 }
 
-/* kugou_obtainlyric(keyword, out), online_lyricthd's first source, in its place: LRCLIB alone, as
- * Kugou's often came back for another song, asked again while busy as Download Album Lyrics does.
- * Nonzero ends the thread's search, so NetEase, its next source, is skipped too (its search asks for
- * a phone-bound account and finds nothing); the page shows whatever out holds. ponytail: LRCLIB's
- * first synced result by title and artist, no duration check. */
+/* kugou_obtainlyric(keyword, out), online_lyricthd's first source: try LRCLIB's synced lyrics,
+ * retrying busy replies as Download Album Lyrics does. If it saves nothing, resume stock's Kugou
+ * search with the original keyword and output path. Its return value still decides whether stock
+ * tries NetEase next. LRCLIB's first synced result has no duration check; Kugou can mismatch too. */
+extern int stock_kugoulyric_trampoline(const char *keyword, const char *out);
 int ringnav_lyric_search(const char *keyword, const char *out) {
     /* stock's keyinfo, copied under its lock: file name, title (+0x200), album, artist (+0x500) */
     char key[0x600];
+    int found;
     online_getkeyword_info(key);
-    for (int k = 1; lrclib(key + 0x200, key + 0x500, out, 0) == LRC_BUSY && k < LJ_BUSY_TRIES; ++k)
+    for (int k = 1; (found = lrclib(key + 0x200, key + 0x500, out, 0)) == LRC_BUSY && k < LJ_BUSY_TRIES; ++k)
         usleep(LJ_RETRY_US);
-    return 1;
+    return found == LRC_SAVED ? 1 : stock_kugoulyric_trampoline(keyword, out);
 }
 
 /* The queue's local song stock names name in .downpic (lrc_name of its REC_NAME), the playing one
