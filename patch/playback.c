@@ -1080,10 +1080,12 @@ static int save_elapsed(int sec) {
     return BLOB_IO(CHECKPOINT_FILE, c, 1);
 }
 void playback_save(void) {
-    /* Without advanced play a local queue (folder or library, as Play Next grows) is kept plain. */
+    /* Without advanced play a local queue (folder or library, as Play Next grows) is kept plain,
+     * while Memory Playback or car mode would restore it (ringnav_memory reads nothing otherwise). */
     int plain = !s.active;
     unsigned type = (unsigned)M(MCL_TYPE), pos = (unsigned)M(MCL_POS);
-    if (plain && (!queue() || (type != 1 && (type & 0xf000) != 0xf000) || airplayGetFlag() == 2)) {
+    if (plain && ((!g_memory_play && !g_carmode) || !queue() ||
+                  (type != 1 && (type & 0xf000) != 0xf000) || airplayGetFlag() == 2)) {
         s.dirty = 0;
         return;
     }

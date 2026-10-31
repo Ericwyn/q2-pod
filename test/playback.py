@@ -434,11 +434,13 @@ for cls,want in ((0xff10,(1,['a2','a1'])),(0xf001,(2,['a2','b1','a1']))):
     r.stock_resume=(cls,rows,2); assert (r.fn('ringnav_memory',out),r.names(out))==want
 checks+=1
 
-# Without advanced play a local queue is kept plain (version 4): an added track, the position and
-# second come back, still without advanced play; a queue edit at the same track rewrites it, and a
-# stream's queue leaves it alone.
+# Without advanced play a local queue is kept plain (version 4) while Memory Playback is on, the only
+# thing that reads it: an added track, the position and second come back, still without advanced
+# play; a queue edit at the same track rewrites it, and a stream's queue leaves it alone.
 m=PlaybackMachine(); m.word(O['MCL_TYPE'],0xff01); q=m.get(syms['mcl_pdeqplaylist'])
 m.items(q).append(m.song('added')); m.fn('playback_insert',7,1,0); m.fn('playback_save')
+assert '/mnt/data/ringnav-queue' not in m.files  # Memory Playback off: nothing written
+m.byte(syms['g_memory_play'],2); m.fn('playback_save')
 saved=struct.unpack_from('<14I',m.files['/mnt/data/ringnav-queue'])
 assert (saved[1],saved[4],saved[5],saved[13])==(4,8,2,0xff01) and m.fn('playback_option',0)==0
 r=PlaybackMachine(m.files); r.byte(syms['g_memory_play'],2); r.library_rows.append(r.song('added'))

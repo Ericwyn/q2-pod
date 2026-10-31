@@ -378,14 +378,14 @@ int xfade_open(void *ctx, void *event) {
      * slider and +/- (#140). */
     widget_set_visible(xf.view, 1, 0);
     widget_set_enable(xf.view, 1);
-    if (mode == 1 || mode == 2) widget_set_visible(xf.sw, 0, 0);
+    xf.ctx = mode;
+    if (!switched()) widget_set_visible(xf.sw, 0, 0);
     slider_set_min(xf.slider, mode == 2 ? RS_MIN - 5 : wheel ? 50 : 0);
     slider_set_max(xf.slider, mode == 3   ? (NS_COOL - NS_WARM) / NS_STEP
                               : mode == 2 ? RS_MAX
                               : wheel     ? 200
                                           : XF_MAX);
     slider_set_step(xf.slider, steps[mode]);
-    xf.ctx = mode;
     xf.page = page;
     refresh(0);
     return 0;
@@ -423,7 +423,7 @@ int xfade_key(void *top, unsigned key) {
 void xfade_poll(int next) {
     void *q = P(mcl_pdeqplaylist, 0);
     unsigned pos = (unsigned)I(MCL_POS, 0), n = q ? deque_size(q) : 0;
-    if (!xf.flag && (next < -1 ? pos >= n : next < 0 || pos >= n)) return; /* nothing playing on: no config read yet */
+    if (!xf.flag && (next == -1 || pos >= n)) return; /* nothing playing on: no config read yet */
     settings();
     if (xf.flag && *xf.flag) peq_chain(); /* the fade runs in the filter, once something plays */
     int in = next >= 0 && pos < n && (unsigned)next < n; /* records, not positions: a new queue */

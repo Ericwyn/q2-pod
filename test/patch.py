@@ -11359,7 +11359,9 @@ names=m.poll(31000); assert paused(names)==1 and unlinked(m)==[SLEEP],(names,unl
 m.files.pop(SLEEP); assert not paused(m.poll(60000)); passed()
 m=pod_sleep(); m.files[SLEEP]=bytearray(b'until 86460\n'); m.poll(); m.files.pop(SLEEP); m.poll()
 assert not paused(m.poll(61000)) and not unlinked(m); passed()  # cancelled by the app
-m=pod_sleep(); m.files[SLEEP]=bytearray(b'until 86000\n'); assert paused(m.poll())==1; passed()  # already due
+m=pod_sleep(); m.files[SLEEP]=bytearray(b'until 86390\n'); assert paused(m.poll())==1; passed()  # already due, 10 s ago
+m=pod_sleep(); m.files[SLEEP]=bytearray(b'until 86000\n'); names=m.poll()  # a minute or more past (a stale file): let go
+assert not paused(names) and unlinked(m)==[SLEEP],(names,unlinked(m)); passed()
 m=pod_sleep(); m.files[SLEEP]=bytearray(b'until 86460\n'); m.poll(); names=m.poll(200000)  # a Standby past it
 assert not paused(names) and unlinked(m)==[SLEEP],(names,unlinked(m)); passed()
 m=pod_sleep(); m.files[SLEEP]=bytearray(b'until 86460\n'); m.poll(); m.jump=86400  # Wi-Fi sets the clock a day on
@@ -12117,8 +12119,8 @@ class ResumeMachine(QueueMachine):
         name=name[2:].split('@')[0]; a,b,c,d=[u.reg_read(r) for r in REGS]; ret=0; self.calls.append((name,a,b,c))
         if name=='fopen':
             path,mode=self.text(a),self.text(b)
-            # the boot logo's lit-only mount poll; dark, any open counts; the queue snapshot is its own
-            self.opens+=(path!='/proc/mounts' or not self.u.mem_read(syms['g_backlight_status'],1)[0]) and 'ringnav-queue' not in path
+            # the boot logo's lit-only mount poll; dark, any open counts
+            self.opens+=path!='/proc/mounts' or not self.u.mem_read(syms['g_backlight_status'],1)[0]
             if mode=='rb' and path not in self.files: ret=0
             else: ret=0x2000000+len(self.calls); self.open[ret]=[path,mode,0,b'' if mode=='wb' else self.files.get(path,b'')]
         elif name=='fread':
@@ -12129,7 +12131,7 @@ class ResumeMachine(QueueMachine):
             if mode in ('wb','ab'): self.files[path]=data
         elif name=='access': ret=0 if self.text(a) in self.files else -1
         elif name=='time': ret=self.epoch
-        elif name=='rename': self.renames+='ringnav-queue' not in self.text(b); self.files[self.text(b)]=self.files.pop(self.text(a))
+        elif name=='rename': self.renames+=1; self.files[self.text(b)]=self.files.pop(self.text(a))
         elif name=='player_playtime_and_length':
             if self.play[1]: self.word(a,self.play[0]); self.word(b,self.play[1]); ret=1
             else: ret=-1
@@ -12871,8 +12873,9 @@ assert turn()==[(1,*N),(4900,*K)] and texts()[-1]=='Night Shift: 4900K'; passed(
 # pixels drawn in its rect (alpha not 0xfe): red kept, green and blue scaled, alpha 0xfe; one
 # already warmed, and any outside the rect, stay. Rows not w pixels long, a layout stock's lcd never
 # has, are left as drawn. Off gives stock's end_frame back.
-def tint_machine(config,w=8,h=4,row=None,mode=0,fmt=3):
+def tint_machine(config,w=8,h=4,row=None,mode=0,fmt=3,clock=None):  # clock: the mock's at boot
     m=QueueMachine(); m.config.update(config); m.handlers[payload_syms['peq_boot']]='stock_peq_boot'
+    if clock: m.clock=clock
     m.call(address=payload_syms['ringnav_bootmode'],args=(3,0,0,0),gap=0)  # config_init's: boot reads the setting
     fb=m.alloc(4*w*h+64); end=syms['widget_invalidate_force']  # stock's end_frame, as a recorded call
     for off,v in ((0xb0,w),(0xb4,h),(0x124,4*(row or w)),(0x128,fmt),(0xcc,mode),(0x110,fb),(0x7c,end),
@@ -12908,6 +12911,24 @@ passed()
 for config,kw in (({},{}),({'NIGHTSHIFT':'1'},{'mode':4}),({'NIGHTSHIFT':'1'},{'fmt':5})):  # off; an offline canvas; not BGRA
     m,fb,end=tint_machine(config,**kw); m.call(address=payload_syms['night_paint'],args=(m.canvas,0,0,0),gap=0)
     assert m.get(m.lcd+0x7c)==end,(config,kw)
+passed()
+# Auto (NIGHTSHIFT 2) warms the screen in Light Mode's dark hours, 19:00 to 7:00. Booted by day (the mock's
+# clock is 18:14) a paint leaves the lcd alone; the crossing (clock_show's night_clock) repaints the screen and
+# the next paint takes it, warmed as On's; the same hour again changes nothing, and day gives stock's
+# end_frame back. Booted in the dark hours it starts warm; off while the clock can't be read.
+m,fb,end=tint_machine({'NIGHTSHIFT':'2'}); before=pixels(m,fb,32)
+m.call(address=payload_syms['night_paint'],args=(m.canvas,0,0,0),gap=0); assert m.get(m.lcd+0x7c)==end
+m.calls=[]; m.call(address=payload_syms['night_clock'],args=(1,0,0,0),gap=0)
+assert [c[1:3] for c in m.calls if c[0]=='widget_invalidate_force']==[(m.wm,0)]
+m.call(address=payload_syms['night_paint'],args=(m.canvas,0,0,0),gap=0)
+assert m.get(m.lcd+0x7c)==payload_syms['night_end'] and tint_frame(m)==[m.lcd]
+assert pixels(m,fb,32)==[warmed(c) if i in inside else c for i,c in enumerate(before)]
+m.calls=[]; m.call(address=payload_syms['night_clock'],args=(1,0,0,0),gap=0)
+assert m.get(m.lcd+0x7c)==payload_syms['night_end'] and not m.calls
+m.call(address=payload_syms['night_clock'],args=(0,0,0,0),gap=0); assert m.get(m.lcd+0x7c)==end; passed()
+for clock,hooked in (((22,0),True),((6,59),True),((7,0),False),('localtime',False)):
+    m,fb,end=tint_machine({'NIGHTSHIFT':'2'},clock=clock); m.call(address=payload_syms['night_paint'],args=(m.canvas,0,0,0),gap=0)
+    assert (m.get(m.lcd+0x7c)==payload_syms['night_end'])==hooked,clock
 passed()
 # Bluetooth's list (btmenu_rows, rebuilt on every search) gains Resume on connect and Control Device Volume
 # with Bluetooth on, right after its fourth row, Bluetooth Headset Volume Control, as stock's rows: no icon,

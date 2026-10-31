@@ -5441,11 +5441,15 @@ static int hold_released(void) {
     return held;
 }
 
-static unsigned rec_hash(void *r) {
+/* A record's fields from REC_NAME to last, and its CUE range: to REC_PATH its identity, to
+ * REC_ARTIST its tags too. */
+static unsigned rec_hash_to(void *r, int last) {
     unsigned h = FNV_SEED;
-    for (int o = REC_NAME; o <= REC_ARTIST; o += 4) h = fnv(h, P(r, o));
+    for (int o = REC_NAME; o <= last; o += 4) h = fnv(h, P(r, o));
     return hash_bytes(h, (const unsigned char *)r + REC_CUE_START, 8);
 }
+/* The row a hold menu is on: an album row (a cover's) or a playlist's is told apart by its tags. */
+static unsigned rec_hash(void *r) { return rec_hash_to(r, REC_ARTIST); }
 
 /* Everything a row's tracks are resolved from; a change while the menu is open cancels it. */
 static unsigned browse_hash(void) { return local_hash(hash_bytes(FNV_SEED, g_folder_path, 1024)); }
@@ -5458,10 +5462,12 @@ static void *page_tracks(void *page) {
                                 : coverflow_tracks(page);
 }
 
+/* A queue's identity: its records' names, paths and CUE ranges, not their tags, which card_tags
+ * fills as a song starts (the queue is not changed by that). */
 unsigned queue_hash(void *q) {
     unsigned h = FNV_SEED;
     for (unsigned i = 0, n = deque_size(q); i < n; ++i) {
-        unsigned r = rec_hash(deque_at(q, i));
+        unsigned r = rec_hash_to(deque_at(q, i), REC_PATH);
         h = hash_bytes(h, (const unsigned char *)&r, sizeof r);
     }
     return h;

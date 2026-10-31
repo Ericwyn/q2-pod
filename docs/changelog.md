@@ -2,7 +2,7 @@
 
 - **1.6.0**:
   - Scrobbling: `PERCENT=` in `.scrobble.ini`'s `[SCROBBLE]` section, from 1 to 100, scrobbles a song only once you've heard that share of it, as phone scrobblers offer. Without it a song scrobbles at half its length or four minutes, as before.
-  - Resume: the queue you left comes back after turning the Q2 off and on, as you left it: songs added with **Play Next** or **Add to Queue**, several albums of an artist, or a folder. With Memory Playback on, it came back as your whole library at the same song, unless an advanced play mode (Shuffle Albums, a Repeat) was on.
+  - Resume: with Memory Playback or In-Vehicle Mode on, the queue you left comes back after turning the Q2 off and on, as you left it: songs added with **Play Next** or **Add to Queue**, several albums of an artist, or a folder. It came back as your whole library at the same song, unless an advanced play mode (Shuffle Albums, a Repeat) was on.
   - Display: **Night Shift**, the last row of **System settings → Display**, makes the screen warmer for use at night, from 5000K to 2000K (3400K at first). The switch or Centre turns it on, to Auto and off; Auto warms the screen from 19:00 to 7:00, the hours Light Mode's Auto is dark. Turn the wheel or drag the slider right for warmer. Videos keep their own colours.
   - App Store: **Podcasts** subscribes to shows by their feeds, or finds them in Apple's podcast directory, and downloads their episodes over Wi-Fi, which play from where you stopped.
   - Card apps: songs a card app plays show their title, artist and album in Now Playing, read from their tags. They showed the file name and an unknown artist before.

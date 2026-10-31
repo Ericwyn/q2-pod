@@ -462,7 +462,7 @@ static void sleep_done(void) {
 static long boot_s(void) {
     struct {
         long s, ns;
-    } t;                          /* struct timespec */
+    } t = { 0 };                  /* struct timespec */
     clock_gettime(7, (void *)&t); /* CLOCK_BOOTTIME */
     return t.s;
 }
@@ -497,8 +497,9 @@ static void sleep_read(app_t *a) {
             sleep_done(); /* no time, or none this app could mean: dropped, nothing paused */
             return;
         }
-        if (at <= now) {
-            media_set_playing(0), sleep_done();
+        if (at <= now) { /* due; past by SLEEP_LATE_S (a stale file): let go, as sleep_check does */
+            if (now - at < SLEEP_LATE_S) media_set_playing(0);
+            sleep_done();
             return;
         }
         sl.at = boot_s() + (long)(at - now);
@@ -1189,11 +1190,6 @@ int addon_open(void *ctx, void *event) {
     return 0;
 }
 
-/* Go to Album (album) or Go to Artist on a song in a card app's folder, /mnt/mmc/.<id>/…
- * (navigation.c qm_goto): when its manifest says goto=1, its page opens at op "goto" ("album" or
- * "artist", then the song's path), the level the app answers with, titled title; Back leaves it
- * for the page under it. Its page already open (the song played from it) is closed first, as
- * Coverflow's scoped page is: one page's state. 1 when it opened. */
 /* Whether path is in an app's folder, CARD/.<id>/, and id the app's. */
 static int card_id(const char *path, char *id) {
     const char *p = path && tk_str_start_with(path, CARD "/.") ? path + sizeof CARD "/." - 1 : 0;
@@ -1220,6 +1216,11 @@ int addon_goes(const char *path) {
     return !card_id(path, id) || goto_app(path);
 }
 
+/* Go to Album (album) or Go to Artist on a song in a card app's folder, /mnt/mmc/.<id>/…
+ * (navigation.c qm_goto): when its manifest says goto=1, its page opens at op "goto" ("album" or
+ * "artist", then the song's path), the level the app answers with, titled title; Back leaves it
+ * for the page under it. Its page already open (the song played from it) is closed first, as
+ * Coverflow's scoped page is: one page's state. 1 when it opened. */
 int addon_goto(const char *path, const char *title, int album) {
     char args[sizeof pg.lv->args] = "";
     app_t *a = goto_app(path);

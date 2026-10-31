@@ -514,9 +514,11 @@ static inline int arc_out(int r, int y) {
 /* One row per album, as album_cmp tells them apart (coverflow.c; navigation.c's Era). */
 /* An album group's art track: its lowest disc then track then path, as Coverflow lists it. A bare
  * fileurl would be whichever row SQLite saw last, so an album whose tracks carry different covers
- * showed a random one. */
+ * showed a random one. Each number is clamped to 0-9999 so its prefix stays four digits (a date as
+ * the track, or -1, would cut the path). */
 #define ALBUM_TRACK \
-    "substr(min(substr(10000+ifnull(cd_num,0),2)||substr(10000+ifnull(track,0),2)||fileurl),9)"
+    "substr(min(substr(10000+min(max(ifnull(cd_num,0),0),9999),2)||" \
+    "substr(10000+min(max(ifnull(track,0),0),9999),2)||fileurl),9)"
 #define ALBUM_GROUP " group by album COLLATE NOCASE," \
     "ifnull(albumsonger,'') COLLATE NOCASE,case ifnull(albumsonger,'') when '' then rtrim(fileurl,replace(fileurl,'/','')) end"
 #define CLASS_ARTIST_ALBUMS 0xff01 /* an artist's albums (load_localclass_list 0xff11) */

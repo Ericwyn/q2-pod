@@ -1655,6 +1655,13 @@ def main():
         assert art() == album + 'z.flac'
         db.execute("update songtable set track=NULL where id=21")
         assert art() == album + 'd1t3.flac'
+        # A number outside 0-9999 (a date as the track, or -1) takes its bound: the path stays whole.
+        db.execute("update songtable set track=-1 where id=21")
+        assert art() == album + 'd1t3.flac'
+        db.execute("update songtable set track=20231015 where id=21")
+        assert art() == album + 'z.flac'
+        db.execute("update songtable set cd_num=-1 where id=20")
+        assert art() == album + 'd2t1.flac'
 
     with tempfile.TemporaryDirectory(prefix='q2-coverflow-check-') as directory:
         tmp = pathlib.Path(directory)
