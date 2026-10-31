@@ -58,7 +58,7 @@ canvas_get_clip_rect canvas_set_clip_rect widget_set_sensitive widget_get_type t
 timer_add timer_remove navigator_back_to_home navigator_back window_manager_close_window_force navigator_to_with_context bitmap_create_ex bitmap_destroy bitmap_unlock_buffer
 bitmap_lock_buffer_for_read bitmap_lock_buffer_for_write bitmap_get_line_length
 canvas_draw_image slide_menu_set_spacer window_manager window_manager_get_top_window window_manager_is_animating time_now_ms
-widget_to_local widget_animator_pause window_manager_get_pointer_pressed image_manager image_manager_unload_bitmap_by_name
+widget_to_local widget_animator_pause window_manager_get_pointer_pressed image_manager image_manager_unload_bitmap_by_name image_manager_unload_all
 """.split() for r, a in [PROTOTYPES[n]]) + r"""
 void *shim_calloc(size_t, size_t);
 #define calloc shim_calloc
@@ -148,6 +148,8 @@ int widget_unload_image(void *x, void *b) { ++unloads; return 0; }
 static char dropped[600]; /* the last cached bitmap dropped by name */
 void *image_manager(void) { return (void *)8; }
 int image_manager_unload_bitmap_by_name(void *m, const char *name) { snprintf(dropped, sizeof dropped, "%s", name); return 0; }
+static int drops; /* image_manager_unload_all calls */
+int image_manager_unload_all(void *m) { ++drops; return 0; }
 void set_hscroll_label_attribute(void *x) { assert(!strcmp(W(x)->type, "hscroll_label")); }
 int slide_menu_set_value(void *x, int value) { *(int *)(W(x)->raw + SLIDE_INDEX) = value; return 0; }
 int widget_set_name(void *x, const char *s) { snprintf(W(x)->type, 32, "%s", s); return 0; }
@@ -1394,11 +1396,15 @@ int main(void) {
     assert(size("C") == 9 && !strcmp(made[calls - 1], "cover.jpg"));
 
     /* Display settings' Refresh Coverflow (coverflow_refresh_art) clears the cache and, at the next
-       open, queries the albums again and rebuilds every one. */
-    int before = calls, q = queries;
+       open, queries the albums again and rebuilds every one. Stock's Library covers go too, with
+       AWTK's cached bitmaps, as the same names are written again. */
+    int before = calls, q = queries, d = drops;
     close_page();
+    mkdir(PEQ_ROOT "/mnt/mmc/.sldp", 0755);
+    fclose(fopen(PEQ_ROOT "/mnt/mmc/.sldp/x0.jpg", "w"));
     coverflow_refresh_art();
     assert(size("Cover") == -1 && size("None") == -1);
+    assert(access(PEQ_ROOT "/mnt/mmc/.sldp/x0.jpg", F_OK) && drops == d + 1);
     open_page();
     run();
     assert(calls == before + albums - 2 && size("None") == 0 && size("Embedded") == 0 && size("Cover") == 9);
@@ -1637,6 +1643,18 @@ def main():
         for path in ('/mnt/mmc/Discovery Extra/01.flac', '/mnt/mmc/Music/Discovery/01.flac'):
             db.execute('update songtable set fileurl=? where id=10', (path,))
             assert db.execute(sql).fetchone()[:2] == (-1, 'Unknown Album')
+        # An album's art track (ALBUM_TRACK): its lowest disc, then track, then path, whatever order its
+        # rows went in (the order the files were copied); no track number counts as 0.
+        db.execute('delete from songtable')
+        album = '/mnt/mmc/Music/Album/'
+        for i, (name, track, disc) in enumerate((('d2t1.flac', 1, 2), ('d1t3.flac', 3, 1), ('z.flac', 2, 1), ('a.flac', 2, 1))):
+            db.execute('insert into songtable(id,album,songer,fileurl,albumsonger,track,cd_num) values (?,"Album","Artist",?,"Artist",?,?)', (20 + i, album + name, track, disc))
+        art = lambda: db.execute(sql).fetchone()[3]
+        assert art() == album + 'a.flac'
+        db.execute("update songtable set track=1 where id=22")
+        assert art() == album + 'z.flac'
+        db.execute("update songtable set track=NULL where id=21")
+        assert art() == album + 'd1t3.flac'
 
     with tempfile.TemporaryDirectory(prefix='q2-coverflow-check-') as directory:
         tmp = pathlib.Path(directory)

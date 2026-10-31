@@ -268,6 +268,43 @@ int coverflow_album_cover(const char *track, const char *dst, int w, int h) {
     return grid_cover(track, dst, w, h, 1);
 }
 
+/* Folder view's folder row: stock tries the folder's songs in directory order, the order they
+ * were copied to the card, and keeps the first one's embedded art, so an album copied out of
+ * order showed a later song's cover. The folder's first song by name, as Folder view lists it,
+ * is tried first (not a dot file: a Mac's ._ copies sort first). Stock calls once a song until
+ * one has art, so the folder's first song, and whether it had none, are kept for the walk's
+ * next call; a hit ends the walk, and the next one lists the folder again. ponytail: only songs
+ * with the extension of stock's are compared, by strcasecmp rather than the list's own
+ * comparator; a folder with no art at all keeps its listing until another folder is shown. */
+int coverflow_folder_cover(const char *track, const char *dst, int w, int h) {
+    static struct {
+        char dir[512], first[512];
+        int bare; /* first has no art */
+    } *f __attribute__((section(".scratch")));
+    const char *slash = strrchr(track, '/'), *ext = strrchr(track, '.');
+    unsigned n = slash ? (unsigned)(slash - track) : 0;
+    if (!f) f = calloc(1, sizeof *f); /* heap, as the scratch page is nearly full */
+    if (!f || !n || n >= sizeof f->dir || !ext || ext < slash) return grid_cover(track, dst, w, h, 0);
+    if (memcmp(f->dir, track, n) || f->dir[n]) {
+        char low[256] = "";
+        memcpy(f->dir, track, n), f->dir[n] = 0, f->first[0] = 0, f->bare = 0;
+        void *d = opendir(f->dir);
+        for (struct dirent *e; d && (e = readdir(d));) {
+            const char *x = strrchr(e->d_name, '.');
+            if ((e->d_type == 8 || !e->d_type) && e->d_name[0] != '.' && x && !strcasecmp(x, ext) &&
+                (!low[0] || strcasecmp(e->d_name, low) < 0))
+                tk_snprintf(low, sizeof low, "%s", e->d_name);
+        }
+        if (d) closedir(d);
+        if (low[0] && tk_snprintf(f->first, sizeof f->first, "%s/%s", f->dir, low) >= (int)sizeof f->first)
+            f->first[0] = 0; /* too long: stock's song alone */
+    }
+    if (f->first[0] && !f->bare && grid_cover(f->first, dst, w, h, 0)) return f->dir[0] = 0, 1;
+    f->bare = 1;
+    if (!strcmp(f->first, track) || !grid_cover(track, dst, w, h, 0)) return 0;
+    return f->dir[0] = 0, 1;
+}
+
 /* One album: embedded art, then beside_art, then ffmpeg's read of the embedded art, last as it
  * costs a process for every album without art; written to .tmp and renamed. An empty file marks
  * "no art", so the placeholder shows and the album is not retried until Refresh Coverflow. */
@@ -2082,16 +2119,23 @@ static int play_all(const void *unused) {
 }
 
 /* Display settings' Refresh Coverflow (navigation.c): the art cache emptied and the albums queried
- * again, both at Coverflow's next open (a page open under Settings keeps what it shows). The
- * library generation's step is a songtable write's, which Most Played reads again too. */
+ * again, both at Coverflow's next open (a page open under Settings keeps what it shows). Stock's
+ * Library covers (.sldp, made once per album name, which only a settings reset clears) go too,
+ * and AWTK's cached bitmaps with them, as the cover thread writes them again at the same names as
+ * rows show. The library generation's step is a songtable write's, which Most Played reads
+ * again too. */
 void coverflow_refresh_art(void) {
-    void *dir = opendir(ART_DIR);
-    for (struct dirent *e; dir && (e = readdir(dir));) {
-        char path[600];
-        snprintf(path, sizeof(path), ART_DIR "/%s", e->d_name);
-        unlink(path); /* "." and ".." fail harmlessly */
+    static const char *const dirs[] = { ART_DIR, PEQ_ROOT "/mnt/mmc/.sldp" };
+    for (unsigned i = 0; i < 2; ++i) {
+        void *dir = opendir(dirs[i]);
+        for (struct dirent *e; dir && (e = readdir(dir));) {
+            char path[600];
+            snprintf(path, sizeof(path), "%s/%s", dirs[i], e->d_name);
+            unlink(path); /* "." and ".." fail harmlessly */
+        }
+        if (dir) closedir(dir);
     }
-    if (dir) closedir(dir);
+    image_manager_unload_all(image_manager());
     ++library_gen;
 }
 

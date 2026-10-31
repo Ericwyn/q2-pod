@@ -7367,6 +7367,39 @@ assert m.seen.index('pthread_mutex_unlock')<m.seen.index('fork')<m.seen.index('p
 assert m.cover('04.opus','coverflow_album_cover',extern=1)==1 and m.seen==['toolsGetAlbumCover','toolsGetExternCover']
 assert m.cover('05.opus','coverflow_album_cover',extern=0)==1 and 'fork' in m.seen
 passed()
+# Folder view's folder row (coverflow_folder_cover): stock asks for each song in directory order (the order
+# they were copied) until one has art; the folder's first song by name, as Folder view lists it, is tried
+# first: a regular file (or one of unknown type) with the extension of stock's, whatever its case, and no
+# dot file (a Mac's ._ copies). Through the walk the folder isn't listed again and its first song, without
+# art, isn't tried twice; a hit ends the walk, and the next one lists the folder again. A path too long to
+# keep, or with no extension, goes to stock as it is.
+class FolderCoverMachine(GridCoverMachine):
+    def hook(self,u,address,size,unused):
+        if self.handlers.get(address)!='toolsGetAlbumCover': return super().hook(u,address,size,unused)
+        track=self.text(u.reg_read(REGS[0])); self.tried.append(track); self.returns(int(track in self.art),clobber=True)
+    def folder(self,track):
+        self.tried=[]; self.seen=[]
+        dst=self.string('/mnt/mmc/.downpic/fd_x.jpg')
+        return self.call(address=payload_syms['coverflow_folder_cover'],args=(self.string(track),dst,80,80),gap=0)
+m=FolderCoverMachine(); A='/mnt/mmc/Музыка/Альбом'
+m.scope_tree={A:[('05 Five.flac',8),('04 Four.flac',8),('cover.jpg',8),('00 Intro.mp3',8),('CD2',4),
+                 ('._01 One.flac',0),('01 One.FLAC',0),('02 Two.flac',8)]}
+m.art={A+'/01 One.FLAC',A+'/04 Four.flac'}
+assert m.folder(A+'/05 Five.flac')==1 and m.tried==[A+'/01 One.FLAC'],m.tried
+m.scope_tree[A].append(('00 Zero.flac',8)); m.art.add(A+'/00 Zero.flac')
+assert m.folder(A+'/05 Five.flac')==1 and m.tried==[A+'/00 Zero.flac']  # the next walk lists again
+far='/mnt/mmc/'+'x'*600+'/1.flac'; m.art.add(far)
+assert m.folder(far)==1 and m.tried==[far]  # too long to keep: stock's song alone
+assert m.folder('/mnt/mmc/Vol.2/notes')==0 and m.tried==['/mnt/mmc/Vol.2/notes']
+m.art={A+'/04 Four.flac'}
+assert m.folder(A+'/05 Five.flac')==0 and m.tried==[A+'/00 Zero.flac',A+'/05 Five.flac']
+m.scope_tree[A].append(('0 New.flac',8)); m.art.add(A+'/0 New.flac')
+assert m.folder(A+'/00 Zero.flac')==0 and m.tried==[]  # the same walk: not listed again, the first not tried twice
+assert m.folder(A+'/04 Four.flac')==1 and m.tried==[A+'/04 Four.flac']
+assert m.folder(A+'/05 Five.flac')==1 and m.tried==[A+'/0 New.flac']
+m.art={'/mnt/mmc/Other/9.flac'}
+assert m.folder('/mnt/mmc/Other/9.flac')==1 and m.tried==['/mnt/mmc/Other/9.flac']  # no listing: stock's song
+passed()
 
 # Coverflow depth (docs/internals.md#coverflow-depth): the payload's renderer, run as MIPS, draws
 # byte for byte what the host build of the same source draws (test/coverflow.py checks that
@@ -8062,12 +8095,14 @@ assert [(c[1],m.text(c[2]),m.text(c[3])) for c in m.calls if c[0]=='write_int_co
 m.call(address=f,args=(ctx,m.event,0,0),gap=0); assert m.nodes[cf_label]['text']=='Artist Albums: Grid'
 m.call(address=f,args=(ctx,m.event,0,0),gap=0); assert m.nodes[cf_label]['text']=='Artist Albums: Coverflow'; passed()
 # Coverflow Sort and Refresh Coverflow (coverflow.c), the library Coverflow's Sort and Refresh cards
-# before: no saved order is Album; Refresh empties the art cache for the next open, with a toast.
+# before: no saved order is Album; Refresh empties the art cache for the next open, and stock's Library covers
+# with AWTK's cached bitmaps, with a toast.
 sort_label,refresh_label=(m.nodes[m.nodes[r]['children'][0]]['children'][1] for r in (cf_sort,cf_refresh))
 assert m.nodes[sort_label]['text']=='Coverflow Sort: Album' and m.nodes[refresh_label]['text']=='Refresh Coverflow'
 f,ctx=m.handler(m.nodes[cf_refresh]['children'][0],O['EVT_CLICK']); m.mock('opendir@GLIBC_2.0'); m.calls=[]
 assert m.call(address=f,args=(ctx,m.event,0,0),gap=0)==0 and m.toasts[-1][3]=='Coverflow rebuilds its artwork next time'
-assert [m.text(c[1]) for c in m.calls if c[0]=='opendir@GLIBC_2.0']==['/mnt/mmc/.coverflow'] and m.nodes[refresh_label]['text']=='Refresh Coverflow'; passed()
+assert [m.text(c[1]) for c in m.calls if c[0]=='opendir@GLIBC_2.0']==['/mnt/mmc/.coverflow','/mnt/mmc/.sldp']
+assert did(m,'image_manager_unload_all') and m.nodes[refresh_label]['text']=='Refresh Coverflow'; passed()
 # Shortcut: no key is Rockbox on a card with it, else Favorites.
 for card,first in ((True,'Rockbox'),(False,'Favorites')):
     CONFIG.clear(); d=Machine(); d.rockbox_mode=0o100755 if card else 0
