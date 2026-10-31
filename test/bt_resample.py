@@ -2,9 +2,9 @@
 """Bluetooth's resampler across a gapless change (patch/peq_player.c rs_open): the built player's
 lavcresample and libswresample under Unicorn.
 
-A 220 Hz tone at 96 kHz split across two files comes out of two instances exactly as one instance
-plays it whole when the first ended near its track's end; stock's (and a skip mid-track, a rate
-change or a pause) start the second from a fresh resampler, as stock, which loses the first's tail.
+A tone split across two files comes out of two instances exactly as one instance plays it whole
+at AAC/SBC's 48 kHz and LDAC's 96 kHz. Stock's (and a skip mid-track, a rate change or a pause)
+start the second from a fresh resampler, which loses the first's tail.
 Usage: test/bt_resample.py BUILD_DIR"""
 import math, pathlib, struct, subprocess, sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]/'tools'))
@@ -80,12 +80,12 @@ def call(fn, *args):
     u.emu_start(fn, DONE, count=100_000_000)
     return u.reg_read(UC_MIPS_REG_V0)
 
-def instance(rate, open_fn):
-    """A resampler set up for rate, 16-bit stereo in, 48 kHz out, as af_init's negotiation leaves it."""
+def instance(rate, output_rate, open_fn):
+    """lavcresample uses S16 stereo; LDAC's following format filter converts that to S32."""
     af = alloc(64)
     w(af, INFO)
     assert call(open_fn, af) == 1
-    w(r(af + 0x14) + 8, 48000)
+    w(r(af + 0x14) + 8, output_rate)
     data = alloc(24)
     w(data, 0, 0, rate, 2, 9, 2)
     assert call(r(af + 4), af, 0x10000100, data) == 1
@@ -104,32 +104,34 @@ def play(af, pcm, block=4096):
 
 def tone(rate, frames): return b''.join(struct.pack('<hh', s, s) for s in (int(16000 * math.sin(2 * math.pi * 220 * i / rate)) for i in range(frames)))
 
-def change(first, second, rate2=96000, ending=1, pause=0, open_fn=ps['rs_open']):
+def change(first, second, rate, output_rate, rate2=None, ending=1, pause=0, open_fn=ps['rs_open']):
     """first through one instance, then second through the next one, as at a track change."""
-    old = instance(96000, open_fn)
+    old = instance(rate, output_rate, open_fn)
     got = play(old, first)
     u.mem_write(ps['rs_end'], struct.pack('<q', clock[0] * ending))  # the last block near its end
     call(r(old + 8), old)
-    new = instance(rate2, open_fn)
+    new = instance(rate2 or rate, output_rate, open_fn)
     clock[0] += pause
     return got, play(new, second)
 
-pcm = tone(96000, 16384)
-whole = play(instance(96000, ps['rs_open']), pcm)
-first, second = pcm[:8 * 4096], pcm[8 * 4096:]
-fresh = play(instance(96000, ps['rs_open']), second)
+for rate, output_rate in ((96000, 48000), (44100, 48000), (44100, 96000), (48000, 96000)):
+    pcm = tone(rate, 16384)
+    whole = play(instance(rate, output_rate, ps['rs_open']), pcm)
+    first, second = pcm[:8 * 4096], pcm[8 * 4096:]
+    fresh = play(instance(rate, output_rate, ps['rs_open']), second)
 
-# The fix: a continuous change plays what one instance plays.
-x, y = change(first, second)
-assert x + y == whole, (len(x + y), len(whole))
-# Stock's own open: the first file's tail never plays and the second arrives early.
-x, y = change(first, second, open_fn=RS_OPEN)
-lost = (len(whole) - len(x + y)) // 4
-assert 8 <= lost <= 12 and y == fresh and x == whole[:len(x)], lost
-# A skip mid-track (or a seek), a pause past CARRY_STALE_NS, or another rate starts fresh, as stock.
-assert change(first, second, ending=0)[1] == fresh
-assert change(first, second, pause=4 * 10**9)[1] == fresh
-other = tone(44100, 8192)
-assert change(first, other, rate2=44100)[1] == play(instance(44100, ps['rs_open']), other)
-print(f'Bluetooth resampler: a gapless change is sample-continuous (stock loses {lost} frames at 48 kHz); '
-      'a skip, pause or rate change starts fresh.')
+    # A continuous change plays exactly what one instance plays, including its fractional phase.
+    x, y = change(first, second, rate, output_rate)
+    assert x + y == whole, (rate, output_rate, len(x + y), len(whole))
+    # Stock's own open loses the first file's tail and resets the second file's phase.
+    x, y = change(first, second, rate, output_rate, open_fn=RS_OPEN)
+    lost = (len(whole) - len(x + y)) // 4
+    assert lost > 0 and y == fresh and x == whole[:len(x)], (rate, output_rate, lost)
+    # A skip, a pause past CARRY_STALE_NS, or another input rate starts fresh.
+    assert change(first, second, rate, output_rate, ending=0)[1] == fresh
+    assert change(first, second, rate, output_rate, pause=4 * 10**9)[1] == fresh
+    rate2 = 88200 if rate == 44100 else 44100
+    other = tone(rate2, 8192)
+    assert change(first, other, rate, output_rate, rate2=rate2)[1] == play(instance(rate2, output_rate, ps['rs_open']), other)
+    print(f'Bluetooth resampler {rate}->{output_rate}: continuous samples across a change '
+          f'(stock loses {lost} frames); skip, pause and input-rate change start fresh.')
