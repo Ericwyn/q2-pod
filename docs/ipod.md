@@ -529,7 +529,7 @@ page. Ending without having moved the target does not seek. Paused, the track st
 plays from the target at Play. Outside a scrub a single press turns
 the screen off, as on every other page. With **Single Press Scrub** (below) the two swap: a single
 press starts scrubbing, `DOUBLE_CLICK_MS` later as a row opens, and a double press turns the screen
-off, as on the lists. The jump is stock's key seek, which can pause the player briefly, but only once, when the
+off, as on the lists. The presses work the same while the volume shows over the page; starting a scrub closes it. The jump is stock's key seek, which can pause the player briefly, but only once, when the
 scrub ends, instead of after each pause between ticks. Values are `SCRUB_*` in
 `patch/offsets.inc`; see [internals.md](internals.md#scrub-ipod).
 

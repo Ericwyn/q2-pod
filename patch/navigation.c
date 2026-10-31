@@ -3856,9 +3856,30 @@ static int np_single(const void *info) {
     return 0;
 }
 
-/* Scrub starts from the bar's second; the wheel moves the target until scrub_end. */
+/* The top window if it is stock's volume dialog (vol_paint), else 0. */
+static void *vol_top(void) {
+    void *top = window_manager_get_top_window(window_manager());
+    if (!top || tk_strcmp(widget_get_prop_str(top, "name", ""), "volume_dialog")) return (void *)0;
+    return top;
+}
+
+/* The volume dialog on top with Now Playing directly under it (where vol_paint draws its band,
+ * given the slider and times), else 0. */
+static void *vol_band(void *wm) {
+    void *vol = st.np_win ? vol_top() : (void *)0;
+    unsigned n = vol ? widget_count_children(wm) : 0;
+    return n > 1 && widget_get_child(wm, n - 2) == st.np_win ? vol : (void *)0;
+}
+
+/* Scrub starts from the bar's second; the wheel moves the target until scrub_end. A volume
+ * band over the page closes first, as a tap beside its bar does, so the wheel reaches the scrub
+ * and the bar shows. The close runs the page's foreground handler, which sets the bar to the
+ * player's second and restarts stock's timer: the target is read, and the timer cleared, after
+ * it. */
 static void scrub_start(void) {
     if (st.scrub || !st.np_slider) return;
+    void *vol = vol_band(window_manager());
+    if (vol) window_close(vol);
     st.scrub = 1;
     st.scrub_moved = 0;
     st.scrub_to = widget_get_prop_int(st.np_slider, "value", 0);
@@ -9450,8 +9471,8 @@ static void bt_volume_poll(void) {
     *(volatile signed char *)0xa38c41u = (signed char)v; /* stock responseSetVolume's level */
     device_set_volume(v, 1);
     write_int_config(v, "PLAYSET", "VOLUME");
-    void *top = window_manager_get_top_window(window_manager());
-    if (top && !tk_strcmp(widget_get_prop_str(top, "name", ""), "volume_dialog")) {
+    void *top = vol_top();
+    if (top) {
         void *slider = widget_lookup(top, "slider_vol", 1);
         if (slider) widget_set_prop_int(slider, "value", v);
     }
@@ -10117,13 +10138,15 @@ int ringnav(void *ctx, void *event) {
         return STOP;
     }
 
-    if (top != st.np_win || window_manager_is_animating(wm) ||
-        window_manager_get_pointer_pressed(wm))
+    /* Outside a scrub the volume's band over Now Playing leaves the keys the page's: Centre's
+     * presses as on it, the wheel the volume's, and a pending press survives the ticks */
+    int np = top == st.np_win || (!st.scrub && vol_band(wm));
+    if (!np || window_manager_is_animating(wm) || window_manager_get_pointer_pressed(wm))
         np_cancel();
     else if (key != KEY_CENTER && np_lyrics(key))
         return STOP;
     else if (key == KEY_CENTER || st.scrub)
-        return np_key(top, key);
+        return np_key(st.np_win, key);
     if (!allowed_top(top) && !usb_prompt()) {
         drop_input();
         return result;

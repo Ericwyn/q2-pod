@@ -5918,6 +5918,41 @@ m=scrub_page(); assert m.call(O['KEY_CENTER'])==11; m.now+=DC+1
 assert m.call(O['KEY_CENTER'],gap=0,clear=False)==11 and did(m,'playing_timer_clear')==[m.win] and not m.screens
 keep(m); ended(m,[]); passed()
 del CONFIG['SCRUBSINGLE']
+# Centre over the volume's band on Now Playing is Now Playing's either way: starting the scrub closes
+# the dialog, so the wheel scrubs; without Single Press Scrub a single press still turns the screen off.
+def vol_up(m):
+    m.dlg=m.node('dialog','volume_dialog'); m.word(m.dlg+O['W_PARENT'],m.wm)
+    m.nodes[m.wm]={'children':[m.win,m.dlg]}; m.stack=[m.win,m.dlg]; m.top=m.dlg
+for one in (1,0):
+    if one: CONFIG['SCRUBSINGLE']='1'
+    m=scrub_page(); vol_up(m)
+    if one: assert m.call(O['KEY_CENTER'])==11 and not m.screens; m.advance(DC,clear=False)
+    else: centre(m)
+    assert did(m,'window_close')==[m.dlg] and m.top==m.win and did(m,'playing_timer_clear')==[m.win] and not m.screens
+    keep(m); assert step(m)==11 and m.nodes[m.slider]['value']==105 and step(m,O['KEY_CENTER'])==11
+    step(m,DC+O['SCRUB_MS'],wait=True); assert not m.screens; ended(m,[105],one); passed()
+    CONFIG.pop('SCRUBSINGLE',None)
+m=scrub_page(); vol_up(m); assert m.call(O['KEY_CENTER'])==11 and not m.screens
+m.advance(DC,clear=False); assert m.screens==[0] and not did(m,'window_close'); passed()
+# A tick between the press and its DOUBLE_CLICK_MS stays the volume's and keeps the press, as on the
+# bare page: the scrub still starts (closing the dialog) or the screen still turns off.
+for one in (1,0):
+    if one: CONFIG['SCRUBSINGLE']='1'
+    m=scrub_page(); vol_up(m); assert m.call(O['KEY_CENTER'])==11 and m.call(gap=100,clear=False)==0
+    m.advance(DC,clear=False)
+    if one: assert did(m,'window_close')==[m.dlg] and did(m,'playing_timer_clear')==[m.win] and not m.screens
+    else: assert m.screens==[0] and not did(m,'window_close')
+    passed(); CONFIG.pop('SCRUBSINGLE',None)
+# With Single Press Scrub a double press over the band turns the screen off and leaves the dialog.
+CONFIG['SCRUBSINGLE']='1'
+m=scrub_page(); vol_up(m)
+assert m.call(O['KEY_CENTER'])==11 and m.call(O['KEY_CENTER'],gap=100,clear=False)==11 and m.screens==[0]
+m.advance(DC,clear=False); assert m.screens==[0] and not did(m,'window_close') and not did(m,'playing_timer_clear'); passed()
+del CONFIG['SCRUBSINGLE']
+# Not directly over Now Playing (the panel), Centre is stock's at once and nothing closes.
+m=scrub_page(); vol_up(m); other=m.node('window','home_page'); m.word(other+O['W_PARENT'],m.wm)
+m.nodes[m.wm]['children']=[m.win,other,m.dlg]; assert m.call(O['KEY_CENTER'])==0
+m.advance(DC,clear=False); assert not did(m,'window_close') and not did(m,'playing_timer_clear') and not m.screens; passed()
 # Another window on top ends it with the one commit; the page's destruction drops the target and
 # keeps the timer off.
 m=scrub_page(); centre(m); step(m)
