@@ -434,6 +434,23 @@ for cls,want in ((0xff10,(1,['a2','a1'])),(0xf001,(2,['a2','b1','a1']))):
     r.stock_resume=(cls,rows,2); assert (r.fn('ringnav_memory',out),r.names(out))==want
 checks+=1
 
+# Without advanced play a local queue is kept plain (version 4): an added track, the position and
+# second come back, still without advanced play; a queue edit at the same track rewrites it, and a
+# stream's queue leaves it alone.
+m=PlaybackMachine(); m.word(O['MCL_TYPE'],0xff01); q=m.get(syms['mcl_pdeqplaylist'])
+m.items(q).append(m.song('added')); m.fn('playback_insert',7,1,0); m.fn('playback_save')
+saved=struct.unpack_from('<14I',m.files['/mnt/data/ringnav-queue'])
+assert (saved[1],saved[4],saved[5],saved[13])==(4,8,2,0xff01) and m.fn('playback_option',0)==0
+r=PlaybackMachine(m.files); r.byte(syms['g_memory_play'],2); r.library_rows.append(r.song('added'))
+out=r.deque([]); assert r.fn('ringnav_memory',out)==2 and r.seek==37
+assert r.names()==['a2','b1','a1','cue1','cue2','solo','a1','added'] and r.fn('playback_option',1)==2
+r.fn('ringnav_load',out,2,0xff01); assert r.fn('playback_option',1)==2 and len(r.names())==8
+m.items(q).pop(); m.fn('playback_save')
+assert struct.unpack_from('<I',m.files['/mnt/data/ringnav-queue'],16)[0]==7
+plain=m.files['/mnt/data/ringnav-queue']; m.word(O['MCL_TYPE'],0xf1); m.items(q).pop(); m.fn('playback_save')
+assert m.files['/mnt/data/ringnav-queue']==plain
+checks+=1
+
 # Missing priority files retain the remaining Play Next block and a valid next-boot snapshot.
 m=PlaybackMachine(); m.options(1,5,0)
 q=m.get(syms['mcl_pdeqplaylist']); at=m.current()+1

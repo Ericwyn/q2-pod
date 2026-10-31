@@ -24,6 +24,7 @@ extern int stock_load_trampoline(void *, int, int), stock_next_trampoline(int),
 extern void *staged(int (*)(void *), void *, int *);
 extern int album_before(const void *, const void *), folder_cmp(void *, void *),
     album_only(void *, void *, int);
+extern unsigned queue_hash(void *); /* navigation.c */
 
 typedef struct {
     unsigned index, group, rank;
@@ -33,7 +34,7 @@ typedef struct {
     unsigned n, cursor, npend, hn, stamp;
     unsigned pend[PEND_LIMIT]; /* Play Next: queue indices, the first plays first */
     int saved_elapsed, save_failed, resume_pending, resume_elapsed, resume_wait;
-    unsigned saved_pos, saved_sum;
+    unsigned saved_pos, saved_sum, saved_queue; /* saved_queue: a plain snapshot's queue_hash */
     int next_valid, next_value;
     unsigned next_pos;
     unsigned resume_key, resume_pos;
@@ -421,6 +422,8 @@ static void release(void) {
     s.groups = s.seen = s.history = 0;
     s.n = s.hn = s.cursor = s.npend = 0;
     s.resume_key = s.resume_pending = s.resume_wait = s.save_failed = 0;
+    unlink(QUEUE_FILE);
+    s.dirty = 1; /* the next save writes a plain snapshot whole */
 }
 /* Albums as Coverflow tells them apart (album_cmp: tagged albums first), or folders. */
 static int group_cmp(void *a, void *b) { return s.folder ? folder_cmp(a, b) : album_cmp(a, b); }
@@ -802,7 +805,6 @@ int ringnav_load(void *q, int at, int type) {
         else {
             s.active = 0;
             release();
-            unlink(QUEUE_FILE);
         }
     }
     return result;
@@ -825,7 +827,6 @@ void playback_clear(void) {
     if (s.active) close_preload();
     s.active = 0;
     release();
-    unlink(QUEUE_FILE);
 }
 int ringnav_mode(int mode) {
     /* player_initconfig re-applies the saved mode each time hciplayer connects, after a boot
@@ -980,14 +981,16 @@ int ringnav_preload(void) {
     return mcl_open_preload();
 }
 void playback_insert(unsigned at, unsigned n, int next) {
-    if (!s.active) return;
+    if (!s.active) {
+        s.dirty = 1; /* the plain snapshot, on the next UI pass */
+        return;
+    }
     close_preload();
     /* Remap occurrences before grouping is recomputed. */
     unsigned *seen = calloc(s.n + n + 1, sizeof *seen);
     if (!seen) {
         s.active = 0;
         release();
-        unlink(QUEUE_FILE);
         return;
     }
     for (unsigned i = 0; i < s.n; ++i) seen[i >= at ? i + n : i] = s.seen[i];
@@ -1061,7 +1064,8 @@ int playback_move(unsigned from) {
 
 /* Snapshot fields are little-endian uint32 on this MIPS target, no pointers. Version 3: after the
  * history comes the pending Play Next list, npend indices. Version 2 had one run of it, forced and
- * force_end in the header, and restores as the list. */
+ * force_end in the header, and restores as the list. Version 4 is version 3's layout for a queue
+ * without advanced play (plain): queue order, no history or list, restored without advanced play. */
 typedef struct {
     unsigned magic, version, size, checksum, n, pos, elapsed, shuffle, repeat, folder, cursor, hn,
         npend, type;
@@ -1076,12 +1080,27 @@ static int save_elapsed(int sec) {
     return BLOB_IO(CHECKPOINT_FILE, c, 1);
 }
 void playback_save(void) {
-    if (!s.active) return;
-    if (!s.n || s.n > SAVE_LIMIT) {
-        unlink(QUEUE_FILE);
+    /* Without advanced play a local queue (folder or library, as Play Next grows) is kept plain. */
+    int plain = !s.active;
+    unsigned type = (unsigned)M(MCL_TYPE), pos = (unsigned)M(MCL_POS);
+    if (plain && (!queue() || (type != 1 && (type & 0xf000) != 0xf000) || airplayGetFlag() == 2)) {
         s.dirty = 0;
         return;
     }
+    unsigned n = plain ? deque_size(queue()) : s.n;
+    if (plain && !n) return; /* boot's empty queue, before the snapshot restores */
+    if (!n || n > SAVE_LIMIT) {
+        unlink(QUEUE_FILE);
+        s.dirty = 0;
+        s.saved_queue = 0;
+        return;
+    }
+    if (pos >= n) return; /* no track: the snapshot keeps the last one */
+    /* ponytail: a plain queue is hashed whole each save (every 30 s playing, at most 999 tracks) to
+     * see stock's own edits (View Queue's delete); hook those to drop the hash. */
+    unsigned qsum = plain ? queue_hash(queue()) : 0;
+    if (qsum != s.saved_queue) s.dirty = 1;
+    unsigned hn = plain ? 0 : s.hn, npend = plain ? 0 : s.npend;
     int sec = 0, total = 0;
     mclGetPlayTime(&sec, &total);
     if (!sec && s.resume_wait && s.resume_key && (unsigned)M(MCL_POS) == s.resume_pos)
@@ -1089,17 +1108,17 @@ void playback_save(void) {
     else if (sec > 0)
         s.resume_wait = 0;
     if (sec < 0) sec = 0;
-    if (!s.dirty && !s.save_failed && sec == s.saved_elapsed && (unsigned)M(MCL_POS) == s.saved_pos) return;
+    if (!s.dirty && !s.save_failed && sec == s.saved_elapsed && pos == s.saved_pos) return;
     /* Failed checkpoints stay pending; the UI loop retries at most every five seconds. */
     s.save_failed = 1;
     s.stamp = time_now_ms();
-    if (!s.dirty && (unsigned)M(MCL_POS) == s.saved_pos) {
+    if (!s.dirty && pos == s.saved_pos) {
         if (save_elapsed(sec)) s.saved_elapsed = sec, s.save_failed = 0;
         return;
     }
     s.dirty = 1;
-    unsigned size = sizeof(snapshot) + (s.n * 3 + s.hn + s.npend) * 4;
-    for (unsigned i = 0; i < s.n; ++i) {
+    unsigned size = sizeof(snapshot) + (n * 3 + hn + npend) * 4;
+    for (unsigned i = 0; i < n; ++i) {
         const char *path = P(deque_at(queue(), i), REC_PATH);
         unsigned len = path ? strlen(path) : 0;
         if (!len || len >= 1024) return;
@@ -1108,31 +1127,34 @@ void playback_save(void) {
     unsigned char *buf = calloc(size, 1);
     if (!buf) return;
     snapshot h = { 0x5132524e,
-                   3,
+                   plain ? 4 : 3,
                    size,
                    0,
-                   s.n,
-                   (unsigned)M(MCL_POS),
+                   n,
+                   pos,
                    (unsigned)sec,
-                   (unsigned)s.shuffle,
-                   (unsigned)s.repeat,
-                   (unsigned)s.folder,
-                   s.cursor,
-                   s.hn,
-                   s.npend,
-                   (unsigned)M(MCL_TYPE) };
+                   plain ? 0 : (unsigned)s.shuffle,
+                   plain ? 2 : (unsigned)s.repeat,
+                   plain ? 0 : (unsigned)s.folder,
+                   plain ? pos : s.cursor,
+                   hn,
+                   npend,
+                   type };
     memcpy(buf, &h, sizeof h);
     unsigned char *p = buf + sizeof h;
-    for (unsigned i = 0; i < s.n * 3 + s.hn + s.npend; ++i) {
-        unsigned index = i < s.n              ? s.order[i].index
-                         : i < s.n * 2        ? s.cycle[i - s.n].index
-                         : i < s.n * 3        ? s.seen[i - s.n * 2]
-                         : i < s.n * 3 + s.hn ? s.history[i - s.n * 3]
-                                              : s.pend[i - s.n * 3 - s.hn];
+    for (unsigned i = 0; i < n * 3 + hn + npend; ++i) {
+        /* plain: the queue's order twice, nothing seen */
+        unsigned index = plain && i < n * 2 ? i % n
+                         : plain            ? 0
+                         : i < n            ? s.order[i].index
+                         : i < n * 2        ? s.cycle[i - n].index
+                         : i < n * 3        ? s.seen[i - n * 2]
+                         : i < n * 3 + hn   ? s.history[i - n * 3]
+                                            : s.pend[i - n * 3 - hn];
         memcpy(p, &index, 4);
         p += 4;
     }
-    for (unsigned i = 0; i < s.n; ++i) {
+    for (unsigned i = 0; i < n; ++i) {
         void *r = deque_at(queue(), i);
         const char *path = P(r, REC_PATH);
         unsigned identity[] = { strlen(path) + 1, (unsigned)I(r, REC_CUE_START),
@@ -1147,8 +1169,9 @@ void playback_save(void) {
     free(buf);
     if (ok) {
         s.saved_elapsed = sec;
-        s.saved_pos = (unsigned)M(MCL_POS);
+        s.saved_pos = pos;
         s.saved_sum = sum;
+        s.saved_queue = qsum;
         s.dirty = 0;
         s.save_failed = !save_elapsed(sec);
     }
@@ -1185,10 +1208,10 @@ int ringnav_memory(void *out) {
     void *f = fopen(QUEUE_FILE, "rb");
     if (!f) return stock_memory(out);
     snapshot h = { 0 };
-    /* Raw header words, as the file has them: version 3 ends with npend, type; version 2 with
+    /* Raw header words, as the file has them: version 3 and 4 end with npend, type; version 2 with
      * forced, force_end, type, its one run, which the restore turns into the list. */
     unsigned head[15] = { 0 }, header_size, run = 0, run_end = 0;
-    int ok = fread(head, 48, 1, f) == 1 && head[0] == 0x5132524e && (head[1] == 2 || head[1] == 3);
+    int ok = fread(head, 48, 1, f) == 1 && head[0] == 0x5132524e && head[1] >= 2 && head[1] <= 4;
     header_size = head[1] == 2 ? 60 : 56;
     ok = ok && fread(head + 12, header_size - 48, 1, f) == 1;
     memcpy(&h, head, 48);
@@ -1329,7 +1352,7 @@ int ringnav_memory(void *out) {
         s.shuffle = (int)h.shuffle;
         s.repeat = (int)h.repeat;
         s.folder = (int)h.folder;
-        s.active = rebuild(0);
+        s.active = h.version == 4 ? 0 : rebuild(0);
         if (s.active) {
             unsigned k = 0;
             for (unsigned i = 0; i < h.n; ++i)
@@ -1360,6 +1383,8 @@ int ringnav_memory(void *out) {
                     unsigned at = map[indices[h.n * 3 + h.hn + i]];
                     if (at != ~0u) pend_front(at);
                 }
+        }
+        if (s.active || h.version == 4) {
             deque_assign(out, q);
             I(g_memory_info, 0) = (int)h.type;
             mclSetStartSeekTime(g_memory_play == 2 || g_carmode ? (int)h.elapsed : 0);
@@ -1403,7 +1428,6 @@ void playback_poll(void) {
     xfade_poll(playback_next());
     mono_sync();
     unsigned now = time_now_ms();
-    if (!s.active) return;
     /* playback_save writes only what changed, at most every 5 s. A track that just plays on
      * writes its elapsed second every 30 s instead (a synced flash write each); a new track, a
      * pause or a seek go within 5 s, a failed write retries every 30 s, and power-off saves

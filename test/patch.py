@@ -12082,8 +12082,8 @@ class ResumeMachine(QueueMachine):
         name=name[2:].split('@')[0]; a,b,c,d=[u.reg_read(r) for r in REGS]; ret=0; self.calls.append((name,a,b,c))
         if name=='fopen':
             path,mode=self.text(a),self.text(b)
-            # the boot logo's lit-only mount poll; dark, any open counts
-            self.opens+=path!='/proc/mounts' or not self.u.mem_read(syms['g_backlight_status'],1)[0]
+            # the boot logo's lit-only mount poll; dark, any open counts; the queue snapshot is its own
+            self.opens+=(path!='/proc/mounts' or not self.u.mem_read(syms['g_backlight_status'],1)[0]) and 'ringnav-queue' not in path
             if mode=='rb' and path not in self.files: ret=0
             else: ret=0x2000000+len(self.calls); self.open[ret]=[path,mode,0,b'' if mode=='wb' else self.files.get(path,b'')]
         elif name=='fread':
@@ -12094,7 +12094,7 @@ class ResumeMachine(QueueMachine):
             if mode in ('wb','ab'): self.files[path]=data
         elif name=='access': ret=0 if self.text(a) in self.files else -1
         elif name=='time': ret=self.epoch
-        elif name=='rename': self.renames+=1; self.files[self.text(b)]=self.files.pop(self.text(a))
+        elif name=='rename': self.renames+='ringnav-queue' not in self.text(b); self.files[self.text(b)]=self.files.pop(self.text(a))
         elif name=='player_playtime_and_length':
             if self.play[1]: self.word(a,self.play[0]); self.word(b,self.play[1]); ret=1
             else: ret=-1

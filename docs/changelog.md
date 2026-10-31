@@ -1,6 +1,7 @@
 # Changelog
 
 - **1.6.0**:
+  - Resume: the queue you left comes back after turning the Q2 off and on, as you left it: songs added with **Play Next** or **Add to Queue**, several albums of an artist, or a folder. With Memory Playback on, it came back as your whole library at the same song, unless an advanced play mode (Shuffle Albums, a Repeat) was on.
   - Bluetooth: over LDAC, gapless songs play straight through, in every LDAC quality ([#156](https://github.com/DiamondBond/q2-pod/issues/156)). The Q2's LDAC encoder gave up catching up once a packet took over 50 ms to put together, so the headset ran short at a song change: a short silence, no click. It now catches up as AAC and SBC do, and runs ahead of the screen's work for the new song, as the player already did.
   - Display: **Night Shift**, the last row of **System settings → Display**, makes the screen warmer for use at night, from 5000K to 2000K (3400K at first). The switch or Centre turns it on, to Auto and off; Auto warms the screen from 19:00 to 7:00, the hours Light Mode's Auto is dark. Turn the wheel or drag the slider right for warmer. Videos keep their own colours.
   - App Store: **Podcasts** subscribes to shows by their feeds, or finds them in Apple's podcast directory, and downloads their episodes over Wi-Fi, which play from where you stopped.
