@@ -37,14 +37,14 @@ print('Dev build tag checks passed.')
 def boot_check():
     """S90play's dual boot (build.py BOOT_HOOK) under the host sh, with stand-in programs."""
     import subprocess, tempfile, pathlib
-    from build import BOOT_HOOK, ROCKBOX_FLAG
+    from build import BOOT_HOOK, ROCKBOX_FLAG, MIN_FREE_KB
     with tempfile.TemporaryDirectory(prefix='q2-boot-') as tmp:
         r = pathlib.Path(tmp)
         script = BOOT_HOOK[1].decode().replace(' &\n', '\n')
-        for old in ('/mnt/', '/tmp/mmc_add', ROCKBOX_FLAG, '/usr/bin/q2boot', '/release/bin/demo'):
+        for old in ('/mnt/', '/tmp/mmc_add', ROCKBOX_FLAG, '/usr/bin/q2boot', '/release/bin/demo', '/proc/sys/vm/'):
             script = script.replace(old, f'{r}{old}')
         script = script.replace('usleep 200000', ':')
-        for d in ('mnt/data', 'mnt/mmc/.rockbox', 'tmp', 'usr/bin', 'release/bin'): (r/d).mkdir(parents=True)
+        for d in ('mnt/data', 'mnt/mmc/.rockbox', 'tmp', 'usr/bin', 'release/bin', 'proc/sys/vm'): (r/d).mkdir(parents=True)
         def exe(path, body): (r/path).write_text('#!/bin/sh\n' + body + '\n'); (r/path).chmod(0o755)
         # demo takes Home's Rockbox row (leaves the flag) as many times as the shortcuts file says
         flag, shortcuts = f'{r}{ROCKBOX_FLAG}', r/'shortcuts'
@@ -61,6 +61,7 @@ def boot_check():
             return (r/'ran').read_text().split(), target.exists() and target.read_text().strip()
         rockbox = [str(rb.parent), 'demo']
         assert boot(False, False) == (['demo'], False)          # no Rockbox on the card: Q2 Pod
+        assert (r/'proc/sys/vm/min_free_kbytes').read_text().split() == [str(MIN_FREE_KB)]  # memory headroom (#156)
         assert boot(False, True, 1) == (rockbox, False)         # Rockbox by default; a crash starts Q2 Pod
         assert (r/'mnt/mmc/.rockbox/rockbox.log').read_text() == 'exit 1\n'
         assert boot(False, True) == (rockbox, False)            # Boot stock OS (0x51): Q2 Pod starts, nothing saved

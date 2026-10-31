@@ -183,7 +183,12 @@ BOOT = 'usr/bin/q2boot'
 REMOTE = 'usr/bin/q2remote'
 S90PLAY = 'etc/init.d/S90play'
 ROCKBOX_FLAG = '/tmp/q2pod-rockbox'
-BOOT_HOOK = (b'    /release/bin/demo &\n', f'''    (
+# Memory headroom (docs/internals.md#bluetooth-ldac-catch-up): the Q2 played with under 3 MB of its
+# 118 MB free, at the kernel's low watermark, once DROP_CACHES stopped stock's six-second cache drop;
+# a track change's burst (the next file, the new art) then reclaimed in Bluetooth's send path (#156).
+MIN_FREE_KB = 12288
+BOOT_HOOK = (b'    /release/bin/demo &\n', f'''    echo {MIN_FREE_KB} > /proc/sys/vm/min_free_kbytes
+    (
         rb=/mnt/mmc/.rockbox
         rockbox() {{
             [ -f $rb/rockbox ] || return
