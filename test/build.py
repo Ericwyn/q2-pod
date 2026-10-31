@@ -37,14 +37,14 @@ print('Dev build tag checks passed.')
 def boot_check():
     """S90play's dual boot (build.py BOOT_HOOK) under the host sh, with stand-in programs."""
     import subprocess, tempfile, pathlib
-    from build import BOOT_HOOK, ROCKBOX_FLAG, MIN_FREE_KB
+    from build import BOOT_HOOK, ROCKBOX_FLAG
     with tempfile.TemporaryDirectory(prefix='q2-boot-') as tmp:
         r = pathlib.Path(tmp)
         script = BOOT_HOOK[1].decode().replace(' &\n', '\n')
-        for old in ('/mnt/', '/tmp/mmc_add', ROCKBOX_FLAG, '/usr/bin/q2boot', '/release/bin/demo', '/proc/sys/vm/'):
+        for old in ('/mnt/', '/tmp/mmc_add', ROCKBOX_FLAG, '/usr/bin/q2boot', '/release/bin/demo'):
             script = script.replace(old, f'{r}{old}')
         script = script.replace('usleep 200000', ':')
-        for d in ('mnt/data', 'mnt/mmc/.rockbox', 'tmp', 'usr/bin', 'release/bin', 'proc/sys/vm'): (r/d).mkdir(parents=True)
+        for d in ('mnt/data', 'mnt/mmc/.rockbox', 'tmp', 'usr/bin', 'release/bin'): (r/d).mkdir(parents=True)
         def exe(path, body): (r/path).write_text('#!/bin/sh\n' + body + '\n'); (r/path).chmod(0o755)
         # demo takes Home's Rockbox row (leaves the flag) as many times as the shortcuts file says
         flag, shortcuts = f'{r}{ROCKBOX_FLAG}', r/'shortcuts'
@@ -61,7 +61,6 @@ def boot_check():
             return (r/'ran').read_text().split(), target.exists() and target.read_text().strip()
         rockbox = [str(rb.parent), 'demo']
         assert boot(False, False) == (['demo'], False)          # no Rockbox on the card: Q2 Pod
-        assert (r/'proc/sys/vm/min_free_kbytes').read_text().split() == [str(MIN_FREE_KB)]  # memory headroom (#156)
         assert boot(False, True, 1) == (rockbox, False)         # Rockbox by default; a crash starts Q2 Pod
         assert (r/'mnt/mmc/.rockbox/rockbox.log').read_text() == 'exit 1\n'
         assert boot(False, True) == (rockbox, False)            # Boot stock OS (0x51): Q2 Pod starts, nothing saved
@@ -266,20 +265,17 @@ def validate_assets(directory):
         assert absent.returncode != 0, 'release rootfs contains q2remote'
     assert read('rootfs.squashfs', S90PLAY) == expected_start
     assert read('rootfs.squashfs', S11LOGO) == read('stock.squashfs', S11LOGO).replace(*LOGO_HOOK)  # the card's logo, if saved
-    assert read('rootfs.squashfs', BLUEALSA2) == read('stock.squashfs', BLUEALSA2).replace(*BT_KEEPALIVE)  # keep-alive 5 s, nice -20
-    # bluealsa: AAC capability, the two DROP jumps, the silence sites, LDAC's catch-up, and one appended LOAD payload.
-    from build import BT_DROP, BT_DROP_HANDLER, BT_DROP_PAYLOAD, BT_SILENCE_SITES, BT_LDAC_CATCHUP, patch_bluealsa, segments
+    assert read('rootfs.squashfs', BLUEALSA2) == read('stock.squashfs', BLUEALSA2).replace(*BT_KEEPALIVE)  # keep-alive 5 s
+    # bluealsa: AAC capability, the two DROP jumps, the silence sites, and one appended LOAD payload.
+    from build import BT_DROP, BT_DROP_HANDLER, BT_DROP_PAYLOAD, BT_SILENCE_SITES, patch_bluealsa, segments
     old, new = read('stock.squashfs', BLUEALSA), read('rootfs.squashfs', BLUEALSA)
     header = segments(old)[-1][0]
     allowed = {AAC_44K1, *range(header, header+32)}
-    for address, size in ((BT_DROP, 8), (BT_DROP_HANDLER, 8), *((a, 4) for a, *_ in (*BT_SILENCE_SITES, BT_LDAC_CATCHUP))):
+    for address, size in ((BT_DROP, 8), (BT_DROP_HANDLER, 8), *((a, 4) for a, *_ in BT_SILENCE_SITES)):
         off = fileoff(old, address)
         allowed.update(range(off, off+size))
     assert {i for i in range(len(old)) if old[i] != new[i]} <= allowed
     assert new == patch_bluealsa(old)
-    site, _, _, word = BT_LDAC_CATCHUP  # b 0x41a818: beq $zero, $zero, the stock bnez's offset
-    assert word >> 16 == 0x1000 and (word & 0xffff) == ((0x41a818 - site - 4) >> 2) & 0xffff
-    assert int.from_bytes(new[fileoff(old, site):fileoff(old, site)+4], 'little') == word
     assert segments(new)[-1][1][2] == BT_DROP_PAYLOAD
     assert new[AAC_44K1] == 0 and manifest['bluealsa_sha256'] == sha(new)
     from bluealsa import check as check_bluetooth_drop

@@ -183,12 +183,7 @@ BOOT = 'usr/bin/q2boot'
 REMOTE = 'usr/bin/q2remote'
 S90PLAY = 'etc/init.d/S90play'
 ROCKBOX_FLAG = '/tmp/q2pod-rockbox'
-# Memory headroom (docs/internals.md#bluetooth-ldac-catch-up): the Q2 played with under 3 MB of its
-# 118 MB free, at the kernel's low watermark, once DROP_CACHES stopped stock's six-second cache drop;
-# a track change's burst (the next file, the new art) then reclaimed in Bluetooth's send path (#156).
-MIN_FREE_KB = 12288
-BOOT_HOOK = (b'    /release/bin/demo &\n', f'''    echo {MIN_FREE_KB} > /proc/sys/vm/min_free_kbytes
-    (
+BOOT_HOOK = (b'    /release/bin/demo &\n', f'''    (
         rb=/mnt/mmc/.rockbox
         rockbox() {{
             [ -f $rb/rockbox ] || return
@@ -231,7 +226,7 @@ BLUEALSA = 'usr/bin/bluealsa'
 # Its launcher: keep the A2DP transport open 5 s after hciplayer closes the PCM between songs, so
 # a track change doesn't restart the stream (true-wireless buds started one ear first).
 BLUEALSA2 = 'usr/bin/bluealsa2'
-BT_KEEPALIVE = (b'bluealsa -c LDAC', b'nice -n -20 bluealsa --keep-alive=5 -c LDAC')  # keep-alive, and LDAC's encoder ahead of the UI (#156)
+BT_KEEPALIVE = (b'bluealsa -c LDAC', b'bluealsa --keep-alive=5 -c LDAC')
 SCROBBLE_CA = 'etc/scrobble-ca.pem'
 AAC_44K1 = 0x317b8
 # DROP is acknowledged before the encoder handles its signal. Flush in the control
@@ -254,8 +249,6 @@ BT_SILENCE, BT_SILENCE_SAMPLES = 0x450400, 192000
 BT_SILENCE_SITES = ((0x41465c, 0x8e460030, 'j', 'timeout'), (0x414684, 0x00002825, 'j', 'fill'),
                     (0x414688, 0x0c10c2b0, None, 0x00002825), (0x414754, 0x0c105053, 'jal', 'read'),
                     (0x42d09c, 0x0041463c, None, 0x004147a0))
-# LDAC loop: the over-50 ms packet's bnez becomes b, so a stall is caught up (#156); see docs/internals.md#bluetooth-ldac-catch-up.
-BT_LDAC_CATCHUP = (0x41aa24, 0x1440ff7c, None, 0x1000ff7c)
 # platform_init's crash watchdog forks pgrep every 2 s; 10 s is still quick to reboot a dead UI.
 WATCHDOG = 'usr/bin/checkappprocess.sh'
 WATCHDOG_SLEEP = (b'\tsleep 2\n', b'\tsleep 10\n')
@@ -1309,8 +1302,8 @@ def patch_bluealsa(raw):
                      j(BT_DROP_PAYLOAD), 0)
     # Never flush the new track's FIFO from this asynchronously handled signal.
     struct.pack_into('<2I', image, fileoff(raw, BT_DROP_HANDLER), j(reset), 0)
-    for address, old, op, target in (*BT_SILENCE_SITES, BT_LDAC_CATCHUP):
-        check(struct.unpack_from('<I', raw, fileoff(raw, address))[0] == old, f'Bluetooth site {address:#x} mismatch')
+    for address, old, op, target in BT_SILENCE_SITES:
+        check(struct.unpack_from('<I', raw, fileoff(raw, address))[0] == old, 'Bluetooth silence site mismatch')
         new = {'j': j, 'jal': jal}[op](sym[target]) if op else target
         struct.pack_into('<I', image, fileoff(raw, address), new)
     return bytes(image)
