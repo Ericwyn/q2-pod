@@ -12225,6 +12225,16 @@ m.poll(0,200); playing(m,1,200,n=110); assert m.files['/mnt/mmc/.scrobbler.log']
 m.u.mem_write(id3+O['ID3_ALBUM']+O['MUSIC_INFO_ALBUM_ARTIST'],b'\0'); m.word(r+O['REC_ALBUM_ARTIST'],m.string('RA'))
 m.poll(0,200); playing(m,1,200,n=110); assert m.files['/mnt/mmc/.scrobbler.log'].decode().split('\n')[6].startswith('RA\t'); passed()
 del m.config['ALBUM_ARTIST']
+# PERCENT=25: a quarter of the song scrobbles, while the play count still waits for half; 100 needs
+# all but the last 2 s; out of range keeps half or LISTEN_MAX_S.
+def logged(m): return len(m.files.get('/mnt/mmc/.scrobbler.log',b'').split(b'\n'))-4
+m=ResumeMachine(); m.config['PERCENT']='25'; playing(m,0,200,pos=0,n=45); assert logged(m)==-3
+playing(m,45,200,n=15); assert logged(m)==1 and not counts(m)
+playing(m,60,200,n=50); assert logged(m)==1 and counts(m); passed()
+m=ResumeMachine(); m.config['PERCENT']='100'; playing(m,0,200,pos=0,n=190); assert logged(m)==-3
+playing(m,190,200,n=10); assert logged(m)==1; passed()
+m=ResumeMachine(); m.config['PERCENT']='0'; playing(m,0,200,pos=0,n=90); assert logged(m)==-3
+playing(m,90,200,n=20); assert logged(m)==1; passed()
 m=ResumeMachine(); m.epoch=86400; playing(m,0,200,pos=0,n=110)  # clock never set: counted only
 assert counts(m) and '/mnt/mmc/.scrobbler.log' not in m.files; passed()
 m=ResumeMachine(); r=m.items(m.get(syms['mcl_pdeqplaylist']))[0]  # CUE tracks of one image: apart

@@ -205,7 +205,7 @@ extern void *queue_now(unsigned *pos, unsigned *n);
 extern const char *now_tag(void *r, int field);
 extern unsigned char now_cover(void *r, const char **file);
 extern int scrobble_ready(void), scrobble_start(void), scrobble_poll(int *sent),
-    scrobble_flag(const char *key);
+    scrobble_flag(const char *key), scrobble_value(const char *key);
 extern void scrobble_append(const char *line, unsigned n);
 extern void *staged(int (*query)(void *), void *arg, int *count);
 /* Scope music detail loads too: spoken tracks can share all their tags with music. */
@@ -322,12 +322,13 @@ typedef struct {
     int rs_long, rs_settle, rs_sec, rs_saved, rs_still, rs_pending, rs_cue, rs_end, rs_total, rs_go;
     int rs_spoken; /* under Podcasts or Audiobooks: resumed at any length, never counted */
     /* Play counts by path hash (plays_read once loaded); the playing track's last second, the
-     * seconds of it heard and whether this play has counted. */
+     * seconds of it heard, whether this play has counted and been scrobbled, and .scrobble.ini's
+     * PERCENT (1-100, else 0) as it read when the play began. */
     struct {
         unsigned key, n;
     } plays[PLAYS_SLOTS];
     unsigned plays_read, ls_key;
-    int ls_sec, ls_heard, ls_done;
+    int ls_sec, ls_heard, ls_done, ls_sent, ls_pct;
     /* Most Played's page and its tracks: the last ranking plus the songs counted since, kept across
      * opens while the library is at mp_gen (~library_gen once stale). */
     void *mp_page, *mp_list, *td_page, *td_list;
@@ -8978,21 +8979,28 @@ static void resume_poll(void) {
     else
         st.ch_key = 0;
     /* A listen: half the track or LISTEN_MAX_S heard, seeks and pauses aside; a repeat starts over.
-     */
+     * It scrobbles then too, or with [SCROBBLE] PERCENT once that share of it is heard (of all but
+     * its last 2 s, which a poll a second apart may not see). */
     if (!st.rs_pending && !st.rs_spoken) {
         unsigned lk = listen_key(r);
         if (lk != st.ls_key || (sec < 2 && st.ls_sec > LISTEN_MIN_S)) {
             st.ls_key = lk;
             st.ls_sec = sec;
-            st.ls_heard = st.ls_done = 0;
+            st.ls_heard = st.ls_done = st.ls_sent = 0;
+            int pct = scrobble_value("PERCENT");
+            st.ls_pct = pct >= 1 && pct <= 100 ? pct : 0;
         }
         int d = sec - st.ls_sec;
         if (d > 0 && d <= 2) st.ls_heard += d;
         st.ls_sec = sec;
-        if (!st.ls_done && total > LISTEN_MIN_S &&
-            st.ls_heard >= (total / 2 < LISTEN_MAX_S ? total / 2 : LISTEN_MAX_S)) {
+        int listen = total / 2 < LISTEN_MAX_S ? total / 2 : LISTEN_MAX_S;
+        if (!st.ls_done && total > LISTEN_MIN_S && st.ls_heard >= listen) {
             st.ls_done = 1;
             play_count(r, lk);
+        }
+        if (!st.ls_sent && total > LISTEN_MIN_S &&
+            st.ls_heard >= (st.ls_pct ? (total - 2) * st.ls_pct / 100 : listen)) {
+            st.ls_sent = 1;
             scrobble(r, total, st.ls_heard);
         }
     }

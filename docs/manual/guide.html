@@ -484,6 +484,12 @@ TOKEN=12345678-1234-1234-1234-123456789abc</pre>
 ALBUM_ARTIST=1</pre>
   </div>
   <div class="sub">
+  <h3>How much of a song counts (optional)</h3>
+  <p>To scrobble a song only once you’ve heard a set share of it, add <code>PERCENT=</code> with a number from 1 to 100 to the <code>[SCROBBLE]</code> section, for example 25 or 50. Without it, a song scrobbles at half its length or four minutes, whichever comes first. <b>Most Played</b> keeps counting that way either way.</p>
+  <pre>[SCROBBLE]
+PERCENT=50</pre>
+  </div>
+  <div class="sub">
   <h3>Upload automatically (optional)</h3>
   <p>To have the Q2 upload by itself whenever it’s on Wi-Fi, add <code>AUTO=1</code> to the <code>[SCROBBLE]</code> section (with <code>ALBUM_ARTIST=1</code> too, if you use it). It sends nothing until you’ve listened to something. A single listen goes up within about three hours, and the more you listen, the sooner your listens go, down to hourly. It never turns Wi-Fi on and shows no messages.</p>
   <pre>[SCROBBLE]
@@ -493,7 +499,7 @@ AUTO=1</pre>
     <li>Safely eject the card, put it in the Q2 and reopen <b>Library</b>. <b>Upload Scrobbles</b> appears just above <b>Update Local Music</b> when a ListenBrainz token or all four Last.fm fields are present. If it’s missing, check the filename, section headings and required fields.</li>
     <li>Connect to Wi-Fi, then select <b>Upload Scrobbles</b>. If it says <b>Connect to Wi-Fi first</b>, the Q2 isn’t online yet.</li>
   </ol>
-  <p>A listen is logged when you play a tagged song for at least half its length or four minutes, whichever comes first. Set the Q2’s date, time and timezone correctly before listening: an incorrect device time or timezone can prevent scrobbles from uploading. The firmware includes the certificates needed for verified uploads, so no <code>.scrobble.pem</code> is needed; a certificate or storage failure keeps pending listens.</p>
+  <p>A listen is logged when you play a tagged song for at least half its length or four minutes, whichever comes first, or the share <code>PERCENT</code> sets. Set the Q2’s date, time and timezone correctly before listening: an incorrect device time or timezone can prevent scrobbles from uploading. The firmware includes the certificates needed for verified uploads, so no <code>.scrobble.pem</code> is needed; a certificate or storage failure keeps pending listens.</p>
   </div>
   </div>
 </section>
