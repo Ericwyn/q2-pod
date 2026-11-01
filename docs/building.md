@@ -33,13 +33,13 @@ The build replaces the stock equalizer page with a 30-band PEQ editor (bands, sh
 
 ### Stopped-audio notifier wait
 
-On by default. The audited audio driver's stopped-state 10 ms polling is replaced by an
+Off by default, `--dev --aic-idle-wait` (on by default from 1.5.0 to 1.6.1). The audited audio driver's stopped-state 10 ms polling is replaced by an
 event wait, woken by start/resume and teardown. Active PCM notification timing, period and
-buffer limits are unchanged. `--no-aic-idle-wait` keeps the stock module. See
+buffer limits are unchanged. See
 [audio-notifier.md](audio-notifier.md) for the exact scope.
 
 ```sh
-python3 tools/build.py 'Q2 Firmware V1.32.zip' --out /tmp/q2-stock-audio --no-aic-idle-wait
+python3 tools/build.py 'Q2 Firmware V1.32.zip' --out /tmp/q2-notifier --dev --aic-idle-wait
 ```
 
 ### FLAC fast paths
@@ -58,9 +58,11 @@ About's **FW. Version** row reads the same literal, so it shows the stock firmwa
 
 Development builds also start `q2remote`, a key-gated root shell with screenshots and input over Wi-Fi, for developers and agents; see [remote.md](remote.md).
 
-On by default: the rotator clock is held only from its first conversion (`--no-rotator-lazy-clock` keeps the stock module byte for byte). See [clock gating](clock-gating.md) for the exact module guard and tests.
+Off by default, `--dev --rotator-lazy-clock`: the rotator clock is held only from its first conversion. See [clock gating](clock-gating.md) for the exact module guard and tests.
 
-On by default: `--pwm-idle-clock`, the paired PWM/MCU clock gating. It needs all three matching files and a reboot (`--no-pwm-idle-clock` for stock). See [PWM clock gating](pwm-clock-gating.md) for its ownership protocol and fallbacks.
+Off by default, `--dev --pwm-idle-clock`: the paired PWM/MCU clock gating. It needs all three matching files and a reboot. See [PWM clock gating](pwm-clock-gating.md) for its ownership protocol and fallbacks.
+
+All three kernel-module experiments were on by default from 1.5.0 to 1.6.1 and went back to `--dev` in 1.6.2: no battery saving was measured for any of them, and none handles suspend/resume, which stock Standby does by default.
 
 `--dev --mcu-idle-sleep` is off in release builds. It adds an interruptible MCU sleep with an explicit wake handshake. See [MCU sleep](mcu-sleep.md).
 

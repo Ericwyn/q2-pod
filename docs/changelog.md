@@ -1,5 +1,8 @@
 # Changelog
 
+- **1.6.2**:
+  - System: the three kernel driver changes from 1.5.0 (the rotator's lazy clock, the backlight PWM clock gating with the buzzer MCU parked, and the paused-audio notifier's sleep) are no longer in the firmware. No battery saving was ever measured for them, none of them handles the Q2's Standby suspend and resume, and they are the only Shanling driver files Q2 Pod changed, so a Q2 that goes dark and ignores every button until a 15-second Centre hold is one place simpler to explain. Developers can still build them with `--dev` and their flags.
+
 - **1.6.1**:
   - Playback: a saved **MQA: Off** now stays in effect after restarting the Q2. Before, gaps between high-resolution tracks came back after every restart until MQA was toggled On and Off.
   - Library: **Recently Added** keeps the day a song was added when you run **Update Local Music**. Shanling's firmware dates a song by the last time its file was read on exFAT cards, and a full update reads every file, so after one the whole library counted as added that day and albums added a few days earlier dropped off the list ([#170](https://github.com/DiamondBond/q2-pod/issues/170)). Songs added before this version keep the dates they have; a song shows its real date once it has been added by this version's update.

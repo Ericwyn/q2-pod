@@ -1326,9 +1326,14 @@ def patch_bluealsa(raw):
         struct.pack_into('<I', image, fileoff(raw, address), new)
     return bytes(image)
 
-def build(zip_path, out, logo, dev=False, repo=REPO, aic_idle_wait=True, rotator_lazy_clock=True, pwm_idle_clock=True, mcu_idle_sleep=False, flac_experiments='sync,lpc,output'):
+def build(zip_path, out, logo, dev=False, repo=REPO, aic_idle_wait=False, rotator_lazy_clock=False, pwm_idle_clock=False, mcu_idle_sleep=False, flac_experiments='sync,lpc,output'):
     from flac import selection
     flac_experiments = selection(flac_experiments)
+    # Kernel-module experiments: no measured saving (docs/clock-gating.md, pwm-clock-gating.md,
+    # audio-notifier.md), none handles suspend/resume, and stock Standby suspends by default; dev only.
+    check(not aic_idle_wait or dev, '--aic-idle-wait requires --dev')
+    check(not rotator_lazy_clock or dev, '--rotator-lazy-clock requires --dev')
+    check(not pwm_idle_clock or dev, '--pwm-idle-clock requires --dev')
     check(not mcu_idle_sleep or (dev and pwm_idle_clock), '--mcu-idle-sleep requires --dev --pwm-idle-clock')
     version = TAG
     check(re.fullmatch(r'[A-Za-z0-9-]+/[A-Za-z0-9._-]+', repo), f'{repo}: not a GitHub owner/name')  # a C string
@@ -1781,12 +1786,12 @@ if __name__ == '__main__':
                     help='FLAC fast paths (comma-separated subset; empty for stock FLAC)')
     ap.add_argument('--update-repo', default=REPO, metavar='OWNER/NAME',
                     help="GitHub repo whose latest release Network Update fetches (default: %(default)s), for a fork's test builds")
-    ap.add_argument('--aic-idle-wait', action=argparse.BooleanOptionalAction, default=True,
-                    help='sleep the stopped PCM notifier until start or teardown (default on; --no-aic-idle-wait for stock)')
-    ap.add_argument('--rotator-lazy-clock', action=argparse.BooleanOptionalAction, default=True,
-                    help='defer the rotator clock until its first conversion (default on)')
-    ap.add_argument('--pwm-idle-clock', action=argparse.BooleanOptionalAction, default=True,
-                    help='cooperative Linux/MCU PWM clock gating (default on)')
+    ap.add_argument('--aic-idle-wait', action='store_true',
+                    help='experimental: sleep the stopped PCM notifier until start or teardown (requires --dev)')
+    ap.add_argument('--rotator-lazy-clock', action='store_true',
+                    help='experimental: defer the rotator clock until its first conversion (requires --dev)')
+    ap.add_argument('--pwm-idle-clock', action='store_true',
+                    help='experimental: cooperative Linux/MCU PWM clock gating (requires --dev)')
     a=ap.parse_args()
     try:
         build(a.zip,a.out.resolve(),a.logo,a.dev,a.update_repo,a.aic_idle_wait,a.rotator_lazy_clock,a.pwm_idle_clock,a.mcu_idle_sleep,a.flac_experiments)
