@@ -197,7 +197,8 @@ static void qs_follow(void) {
 /* The second touch: the finger down where the swipe starts, then on across the gap. */
 static void qs_begin(void) {
     int state = *(volatile int *)g_dropdown_menu_state;
-    if (!g_backlight_status || (state && state != 3) || !ringnav_wheel_qs()) return;
+    if (!g_backlight_status || (state && state != 3) || !ringnav_wheel_qs() || addon_game_on())
+        return; /* a card game would take its swipe as a touch */
     char path[32], name[16];
     for (int i = 0; !qs_fd && i < 16; ++i) {
         tk_snprintf(path, sizeof path, "/dev/input/event%d", i);

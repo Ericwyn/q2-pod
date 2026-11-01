@@ -31,8 +31,10 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y clang lld llvm
       - run: pip install -r requirements.txt -r test/unit/requirements.txt
       - run: python3 -m pytest test/unit -q
+      - name: Targets
+        run: t=$(python3 test/unit/targets.py) && echo "TARGETS=$t" >> "$GITHUB_ENV"  # a failure fails here
       - name: Mutate
-        run: mutmut run $(python3 test/unit/targets.py) | tail -n 3
+        run: test -n "$TARGETS" && mutmut run $TARGETS | tail -n 3
       - name: Report
         run: python3 test/unit/report.py --floor 95 --survivors survivors.txt | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2

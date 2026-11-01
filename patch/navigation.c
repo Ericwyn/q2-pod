@@ -9206,8 +9206,9 @@ static void wdt_poll(void) {
         ioctl(st.wdt, WDT_FEED, 0);
         return;
     }
-    int fd = open(WDT_DEV, 2), ms = WDT_MS; /* O_RDWR, as libhardware2 opens it */
+    int fd = open(WDT_DEV, 0x80002), ms = WDT_MS; /* O_RDWR, as libhardware2, | O_CLOEXEC (MIPS) */
     st.wdt = fd > 0 && !ioctl(fd, WDT_START, &ms) ? fd : -1;
+    if (fd > 0 && st.wdt < 0) close(fd);
 }
 /* The state record (docs/internals.md#watchdog): /mnt/data/q2-state says what the Q2 is doing, one
  * line rewritten and synced whenever it changes: the screen, Standby's suspend, the cable, the
@@ -9453,9 +9454,9 @@ static int now_playing(void) {
 /* Now Playing's visualizer repainting, its album marquee moving or its lyrics gliding: their 40 and
  * 50 ms timers and the glide's steps would run late on an idle pass. Its progress and the lyrics'
  * follow tick every 250 ms and keep up. A game's 33 ms frame timer too: Vortex's raw wheel posts no
- * input to stamp. */
+ * input to stamp, nor does a card game's, whose travel goes once a pass. */
 static int np_animating(void) {
-    return games_live() ||
+    return games_live() || addon_game_on() ||
            (now_playing() && (visualizer_live() || st.lyric_glide ||
                               (st.np_marquee && st.np_off > 0 && st.np_off < st.np_over)));
 }
@@ -9817,7 +9818,7 @@ int ringnav_input(void *wm, void *e) {
         if (e && I(e, EVENT_TYPE) == EVT_KEY_UP) video_key((unsigned)I(e, EVENT_KEY));
         return 0;
     }
-    if (addon_game_on() && addon_game_input(e)) return 0;
+    if (addon_game_input(e)) return 0;
     unsigned type = e ? (unsigned)I(e, EVENT_TYPE) : 0;
     unsigned key = e ? (unsigned)I(e, EVENT_KEY) : 0;
     if ((type == EVT_KEY_DOWN || type == EVT_KEY_UP || type == EVT_KEY_LONG) &&

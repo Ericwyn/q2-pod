@@ -1,4 +1,4 @@
-"""targets.py: which functions the nightly run mutates, and mutmut's names for them."""
+"""targets.py: which functions the weekly run mutates, and mutmut's names for them."""
 import targets
 
 SOURCE = '''

@@ -585,36 +585,57 @@ static void poll_one(app_t *a) {
  *   "w N"                             the wheel's raw travel since the last (wheel_raw: 200 a turn,
  *                                     rising anticlockwise), sent once a UI loop pass
  * Play/Pause and the side buttons stay the music's, as stock has them under the Games page. The
- * game ends itself (from its Return menu); a held Return ends it (TERM), as does GAME_IDLE_MS
- * without input unless Smart Awake is on, and demo repaints when it has gone.
+ * game ends itself (from its Return menu); Return held GAME_HOLD_MS ends it (TERM, and its release
+ * is dropped so stock's Games stays), as does GAME_IDLE_MS without input unless Smart Awake is on;
+ * one still there GAME_KILL_MS after a TERM is KILLed. demo repaints when it has gone. Stock makes
+ * a held key's long press after this hook, so the hold is timed here, from the game's key-down.
  * ponytail: the screen stays on while it runs, as for a video, and the idle quit is what lets it
  * sleep without Smart Awake; a game that wants to sleep on screen needs the wake path to reach
  * stock under it. */
 #define GAME_IDLE_MS 120000
+#define GAME_HOLD_MS 700 /* navigation.c's KEY_HOLD_MS, Return's hold elsewhere */
+#define GAME_KILL_MS 3000
 static struct {
-    int pid, sock;
-    unsigned seen; /* time_now_ms of the last input */
-    char path[48]; /* the game's socket */
+    int pid, sock, eat;  /* eat: the held Return's release, after the game it ended */
+    unsigned seen;       /* time_now_ms of the last input */
+    unsigned held, term; /* when Return went down, when TERM went (0: neither) */
+    char path[48];       /* the game's socket */
 } gm __attribute__((section(".scratch")));
 
 int addon_games(void) { return addon_scan(), ap.games; }
 const char *addon_game_name(int k) { return k >= 0 && k < ap.games ? ap.a[ap.game[k]].name : 0; }
 int addon_game_on(void) { return gm.pid; }
 
-static void game_end(void) {
+static void game_kill(const char *how) {
     char cmd[24];
-    tk_snprintf(cmd, sizeof cmd, "kill %d", gm.pid); /* demo imports no kill() */
+    tk_snprintf(cmd, sizeof cmd, "kill %s%d", how, gm.pid); /* demo imports no kill() */
     system(cmd);
+}
+static void game_end(void) {
+    if (gm.term) return; /* game_poll KILLs it GAME_KILL_MS on */
+    gm.term = (unsigned)time_now_ms() | 1;
+    game_kill("");
+}
+
+/* netupdate.c's toast once app id is installed: a game is in Games, not Streaming */
+int addon_is_game(const char *id) {
+    addon_scan();
+    for (int k = 0; k < ap.games; ++k)
+        if (!strcmp(ap.a[ap.game[k]].id, id)) return 1;
+    return 0;
 }
 
 /* Card game k started over the screen: 1 when it runs. */
 int addon_game_start(int k) {
     app_t *a = k >= 0 && k < ap.games ? &ap.a[ap.game[k]] : 0;
     if (gm.pid || !a) return 0;
+    const char *busy = shelf_busy();
+    if (busy && !strcmp(busy + 1, a->id)) return toast("Wait until the App Store finishes"), 0;
     if (access(a->bin, 0)) return toast("It isn't on the card"), 0;
     int pid = fork();
     if (!pid) {
         child_oom_first();
+        for (int fd = 3; fd < 1024; ++fd) close(fd); /* demo's: the watchdog, the screen, sockets */
         execl(a->bin, a->bin, (char *)0);
         child_exit(127);
     }
@@ -622,26 +643,31 @@ int addon_game_start(int k) {
     gm.pid = pid;
     gm.sock = socket(1, 1, 0); /* AF_UNIX, SOCK_DGRAM (MIPS numbering) */
     gm.seen = time_now_ms();
+    gm.held = gm.term = gm.eat = 0;
     tk_snprintf(gm.path, sizeof gm.path, "/tmp/q2-%s.input.sock", a->id);
     __sync_lock_test_and_set(&wheel_travel, 0);
     wheel_raw = 1;
     return 1;
 }
 
-/* ringnav_input, while a game runs: the event as the game's datagram, 1; 0 for a music key, which
- * stays stock's */
+/* ringnav_input, every event: 1 when it is the game's (sent as its datagram) or the release of the
+ * Return held to end it; 0 for stock's, a music key among them */
 int addon_game_input(void *e) {
-    if (!e || !gm.pid) return 1;
+    if (!e) return gm.pid != 0;
     unsigned type = (unsigned)I(e, EVENT_TYPE), key = (unsigned)I(e, EVENT_KEY);
     int keyish = type == EVT_KEY_DOWN || type == EVT_KEY_UP || type == EVT_KEY_LONG;
+    if (keyish && key == KEY_RETURN && type == EVT_KEY_UP && gm.eat) return gm.eat = 0, 1;
+    if (!gm.pid) return 0;
     if (keyish && (key == KEY_PLAY || key == KEY_BACK_BTN || key == KEY_FWD_BTN)) return 0;
+    if (keyish && key == KEY_RETURN)
+        gm.held = type == EVT_KEY_DOWN ? (unsigned)time_now_ms() | 1
+                  : type == EVT_KEY_UP ? 0
+                                       : gm.held;
     char m[32];
     m[0] = 0;
     if (type == EVT_KEY_DOWN || type == EVT_KEY_UP)
         tk_snprintf(m, sizeof m, "k %s %u", type == EVT_KEY_UP ? "u" : "d", key);
-    else if (type == EVT_KEY_LONG && key == KEY_RETURN)
-        game_end();
-    else if ((type >= EVT_POINTER_DOWN - 1 && type <= EVT_POINTER_UP_BEFORE + 1) ||
+    else if ((type >= EVT_POINTER_DOWN - 1 && type <= EVT_POINTER_UP_BEFORE) ||
              type == EVT_POINTER_ABORT) {
         const char *what = type == EVT_POINTER_ABORT || type >= EVT_POINTER_UP_BEFORE - 1 ? "u"
                            : type >= EVT_POINTER_MOVE_BEFORE - 1                          ? "m"
@@ -664,8 +690,12 @@ static void game_poll(void) {
         gm.pid = 0;
         wheel_raw = 0;
         widget_invalidate_force(window_manager(), 0);
+        if (status == 127 << 8) toast("It couldn't start"); /* the child's execl failed */
         return;
     }
+    unsigned now = (unsigned)time_now_ms();
+    if (gm.held && now - gm.held >= GAME_HOLD_MS) gm.held = 0, gm.eat = 1, game_end();
+    if (gm.term && now - gm.term >= GAME_KILL_MS) gm.term = now | 1, game_kill("-9 ");
     int travel = __sync_lock_test_and_set(&wheel_travel, 0);
     if (travel) {
         char m[16];
@@ -675,8 +705,8 @@ static void game_poll(void) {
     }
     reset_poweroptions_timer(1, 1, 1);
     if (time_now_ms() - gm.seen < GAME_IDLE_MS) return;
-    if (!ringnav_smart_awake()) game_end(); /* and again GAME_IDLE_MS on, if it is still there */
-    gm.seen = time_now_ms();                /* Smart Awake: asked again GAME_IDLE_MS on */
+    if (!ringnav_smart_awake()) game_end();
+    gm.seen = time_now_ms(); /* Smart Awake: asked again GAME_IDLE_MS on */
 }
 
 void addon_poll(void) {

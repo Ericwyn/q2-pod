@@ -378,9 +378,10 @@ static inline int arc_out(int r, int y) {
 #define CHARGE_RESUME 75
 #define CHARGE_POLL_MS 5000
 /* Hardware watchdog (docs/internals.md#watchdog): the UI loop feeds it every pass, so a loop or a
- * kernel stalled WDT_MS reboots. Well above any pass known (a 65k-song list, a cover decode: seconds)
- * and well under the driver's limit of about 23 minutes. */
-#define WDT_MS 60000
+ * kernel stalled WDT_MS reboots. Above stock's own long passes on the UI thread (Import Playlists
+ * reads every song's tags, a folder add loads each directory: a minute or more on a big card) and
+ * well under the driver's limit of about 23 minutes. */
+#define WDT_MS 300000
 /* Standby limit (docs/internals.md#standby-limit): its three choices after Off, in hours of one
  * Standby, after which the Q2 powers off. */
 #define STANDBY_LIMIT_1 1

@@ -95,7 +95,6 @@ class Machine:
                   'strcasestr@GLIBC_2.2',
                   'unlink@GLIBC_2.0','atoi@GLIBC_2.0','strtol@GLIBC_2.0','memcmp@GLIBC_2.0','access@GLIBC_2.0',
                   'open@GLIBC_2.0','fflush@GLIBC_2.0','fsync@GLIBC_2.0','fileno@GLIBC_2.0',  # the watchdog and the state record
-                  'fflush@GLIBC_2.0','fsync@GLIBC_2.0','fileno@GLIBC_2.0',  # blob_io's sync before rename
                   'fopen@GLIBC_2.2', 'opendir@GLIBC_2.0', 'readdir@GLIBC_2.0',
                   'closedir@GLIBC_2.0', 'pthread_mutex_lock@GLIBC_2.0',
                   'pthread_mutex_unlock@GLIBC_2.0', 'calloc@GLIBC_2.0', 'realloc@GLIBC_2.0',
@@ -11101,19 +11100,35 @@ def game_event(kind,key=0,x=0,y=0,stock=False):
     assert ('stock_input' in [c[0] for c in m.calls])==stock,(kind,key)
     return [(t[1],t[5]) for t in m.sent]
 assert game_event(O['EVT_KEY_UP'],O['KEY_CENTER'])==[('k u 218',GS)] and game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN'])==[('k d 170',GS)]
+assert game_event(O['EVT_KEY_UP'],O['KEY_RETURN'])==[('k u 170',GS)]  # let go: not a hold
 for k in ('KEY_PLAY','KEY_BACK_BTN','KEY_FWD_BTN'):
     for kind in ('EVT_KEY_DOWN','EVT_KEY_UP'): assert game_event(O[kind],O[k],stock=True)==[],(k,kind)
 for kind,want in ((O['EVT_POINTER_DOWN']-1,'d'),(O['EVT_POINTER_MOVE_BEFORE']-1,'m'),(O['EVT_POINTER_UP_BEFORE']-1,'u'),(O['EVT_POINTER_ABORT'],'u')):
     assert game_event(kind,x=120,y=88)==[(f't {want} 88 199',GS)],kind  # the panel's (x, y) turned into the view's
-assert game_event(O['EVT_KEY_LONG'],O['KEY_RETURN'])==[] and any(c[0]=='system' and m.text(c[1])=='kill 4243' for c in m.calls)
 m.word(payload_syms['wheel_travel'],0xffffffdb); m.sent=[]; m.waited=0; fn('addon_poll')
 assert [t[1] for t in m.sent]==['w -37'] and m.get(payload_syms['wheel_travel'])==0 and fn('addon_game_on')==4243
-# Two minutes without input end it (TERM), unless Smart Awake (IPOD KEEPLIT) holds it open and lit.
+def poll(m):  # one pass: how many kills it sent (their text's stack buffer is reused by then)
+    m.calls=[]; m.call(address=payload_syms['addon_poll'],args=(0,0,0,0),gap=0,clear=False,count=5_000_000)
+    return [c[0] for c in m.calls].count('system')
+# Return held 700 ms ends it, timed here from its down (stock makes the long press after this hook); one
+# that ignores the TERM is KILLed 3 s on; the held Return's release, after it has gone, stays out of Games.
+assert game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN'])==[('k d 170',GS)]
+m.now+=600; assert poll(m)==0
+m.now+=101; assert poll(m)==1 and poll(m)==0  # the stamps are odd (| 1), 0 being none
+m.now+=3000; assert poll(m)==1
+m.waited=4243; poll(m); assert fn('addon_game_on')==0 and m.get(payload_syms['wheel_raw'])==0
+assert game_event(O['EVT_KEY_UP'],O['KEY_RETURN'])==[] and game_event(O['EVT_KEY_UP'],O['KEY_RETURN'],stock=True)==[]
+# Released before then: the game's Return, nothing ended.
+m.waited=0; assert fn('addon_game_start',0)==1
+game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN']); m.now+=300; assert game_event(O['EVT_KEY_UP'],O['KEY_RETURN'])==[('k u 170',GS)]
+m.now+=1000; assert poll(m)==0
+# Two minutes without input end it (TERM), counted from the last input, unless Smart Awake (IPOD KEEPLIT)
+# holds it open and lit.
+m.now+=90_000; game_event(O['EVT_KEY_UP'],O['KEY_CENTER']); m.now+=60_000; assert poll(m)==0
+m.now+=60_000; assert poll(m)==1
+m.waited=4243; poll(m); assert fn('addon_game_on')==0
 def idle(m):
-    m.calls=[]; m.now+=120_000; m.waited=0; m.call(address=payload_syms['addon_poll'],args=(0,0,0,0),gap=0,clear=False,count=5_000_000)
-    return 'system' in [c[0] for c in m.calls]  # its kill (the command's stack buffer is reused by then)
-assert idle(m)
-m.waited=4243; fn('addon_poll'); assert fn('addon_game_on')==0 and m.get(payload_syms['wheel_raw'])==0
+    m.now+=120_000; m.waited=0; return poll(m)>0
 CONFIG['KEEPLIT']='1'; a=AppMachine(); del CONFIG['KEEPLIT']; card_app(a,'fidget','name=Fidget\ngame=1\n'); a.forked=4243
 assert a.call(address=payload_syms['addon_games'],args=(0,0,0,0),gap=0,clear=False,count=5_000_000)==1
 assert a.call(address=payload_syms['addon_game_start'],args=(0,0,0,0),gap=0,clear=False,count=5_000_000)==1
@@ -13341,7 +13356,7 @@ class WatchdogMachine(StandbyMachine):
     def hook(self,u,address,size,unused):
         name=self.handlers.get(address,''); a,b,c=[u.reg_read(r) for r in REGS[:3]]
         if name=='p:open@GLIBC_2.0':
-            assert self.text(a)=='/dev/jz_watchdog' and b==2; self.wdt_opens+=1; self.returns(self.fd&0xffffffff); return
+            assert self.text(a)=='/dev/jz_watchdog' and b==0x80002; self.wdt_opens+=1; self.returns(self.fd&0xffffffff); return
         if name=='d:ioctl':
             self.ioctls.append((a,b,self.get(c)) if b==WDT_START else (a,b))
             if b!=WDT_FEED: self.events.append(('wdt',b))

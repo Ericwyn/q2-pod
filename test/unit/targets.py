@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What the nightly mutmut run covers: tools/ functions changed since BASE, as mutant name globs.
+"""What the weekly mutmut run covers: tools/ functions changed since BASE, as mutant name globs.
 
 mutmut mutates Python only, so patch/*.c is out of scope here (docs/building.md#mutation-tests)."""
 import ast
