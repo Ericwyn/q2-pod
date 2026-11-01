@@ -5,11 +5,12 @@ lavcresample and libswresample under Unicorn.
 A tone split across two files comes out of two instances exactly as one instance plays it whole
 at AAC/SBC's 48 kHz and LDAC's 96 kHz. Stock's (and a skip mid-track, a rate change or a pause)
 start the second from a fresh resampler, which loses the first's tail.
+Then a USB DAC's init across a change (ao_init): a repeated request asks for what it negotiated.
 Usage: test/bt_resample.py BUILD_DIR"""
 import math, pathlib, struct, subprocess, sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]/'tools'))
 from build import fileoff, load_elf, symbols
-from peq import RS_OPEN_SLOT, RS_OPEN
+from peq import RS_OPEN_SLOT, RS_OPEN, AO_INIT_SLOT, AO_INIT
 from unicorn import Uc, UC_ARCH_MIPS, UC_MODE_MIPS32, UC_MODE_LITTLE_ENDIAN, UC_HOOK_CODE
 from unicorn.mips_const import *
 
@@ -135,3 +136,33 @@ for rate, output_rate in ((96000, 48000), (44100, 48000), (44100, 96000), (48000
     assert change(first, other, rate, output_rate, rate2=rate2)[1] == play(instance(rate2, output_rate, ps['rs_open']), other)
     print(f'Bluetooth resampler {rate}->{output_rate}: continuous samples across a change '
           f'(stock loses {lost} frames); skip, pause and input-rate change start fresh.')
+
+# A USB DAC's init across a change (patch/peq_player.c ao_init, on ao_alsa's init slot): on output way 2
+# with the PCM open, the request that last negotiated asks for what it got, so stock's compare of the
+# previous request keeps the PCM open; other requests, a closed PCM and other outputs pass as asked.
+assert struct.unpack_from('<I', raw, fileoff(raw, AO_INIT_SLOT))[0] == ps['ao_init']
+WAY, PCM, AO_DATA, S16, S24 = 0xb10e54, 0xb115a8, 0xafa1a0, 0x88, 0x90
+seen = []
+def stock_init(u, address, size, _):
+    """Stock init as a 48 kHz, 16-bit DAC: the PCM is open and ao_data holds what it negotiated."""
+    seen.append((a(0), a(1), a(2)))
+    w(AO_DATA, 48000, a(1), S16), w(PCM, 1)
+    u.reg_write(UC_MIPS_REG_V0, 1), u.reg_write(UC_MIPS_REG_PC, u.reg_read(UC_MIPS_REG_RA))
+u.hook_add(UC_HOOK_CODE, stock_init, begin=AO_INIT, end=AO_INIT)
+def init(rate, fmt, way=2):
+    w(WAY, way)
+    assert call(ps['ao_init'], rate, 2, fmt, 0) == 1
+    return seen[-1]
+w(PCM, 0)
+assert init(44100, S24) == (44100, 2, S24)  # a fresh open negotiates as stock
+assert init(44100, S24) == (48000, 2, S16)  # the same request asks for what it got: stock's compare matches
+assert init(48000, S16) == (48000, 2, S16)  # the negotiated values themselves pass as asked
+assert init(44100, S24) == (48000, 2, S16)  # and the album's request still asks for them after that
+assert init(96000, S24) == (96000, 2, S24)  # another request negotiates as stock
+assert init(44100, S24) == (44100, 2, S24)  # and is the one remembered
+assert init(44100, S24) == (48000, 2, S16)
+w(PCM, 0)
+assert init(44100, S24) == (44100, 2, S24)  # a closed PCM (a stop) negotiates afresh
+assert init(44100, S24, way=0) == (44100, 2, S24)  # the headphone jack is stock's
+assert init(44100, S24, way=1) == (44100, 2, S24)  # so is Bluetooth
+print('USB DAC init: a repeated request asks for its negotiated rate and format; others pass as asked.')
