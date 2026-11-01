@@ -2,6 +2,8 @@
 
 - **1.6.1**:
   - Library: **Recently Added** keeps the day a song was added when you run **Update Local Music**. Shanling's firmware dates a song by the last time its file was read on exFAT cards, and a full update reads every file, so after one the whole library counted as added that day and albums added a few days earlier dropped off the list ([#170](https://github.com/DiamondBond/q2-pod/issues/170)). Songs added before this version keep the dates they have; a song shows its real date once it has been added by this version's update.
+  - Coverflow: preparing artwork on a big library with very large covers is much less likely to restart the Q2 ([#169](https://github.com/DiamondBond/q2-pod/issues/169)). Reading a 3000×3000 cover takes tens of MB, and when memory ran out the Q2 stopped its own interface instead of the cover reader; now it stops the cover reader. A cover whose reading was cut short is tried again the next time Coverflow opens, instead of staying blank until Refresh Coverflow. If it still restarts, the new q2-crash.log on the card says why.
+  - System: if the Q2 restarts on its own, what it was doing is saved, and after the restart it appears on the card as q2-crash.log, so a bug report can include it.
 
 - **1.6.0**:
   - Scrobbling: `PERCENT=` in `.scrobble.ini`'s `[SCROBBLE]` section, from 1 to 100, scrobbles a song only once you've heard that share of it, as phone scrobblers offer. Without it a song scrobbles at half its length or four minutes, as before.

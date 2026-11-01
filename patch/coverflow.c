@@ -165,6 +165,8 @@ static int art_exists(const char *url) { return !access(url + 7, 0); }
 #define ART_FFMPEG "/usr/bin/ffmpeg"
 #endif
 
+int open(const char *, int, ...); /* write and close: unistd.h on the host, peq_platform.h on the device */
+
 /* path's size, -1 when it can't be opened */
 long file_size(const char *path) {
     void *f = fopen(path, "rb");
@@ -181,19 +183,28 @@ long file_size(const char *path) {
  * -xerror stops at a picture's first decode error rather than demuxing the rest of the file.
  * *exited: ffmpeg ran to its own exit (no refused fork, no kill), so a failure is the picture's.
  * ponytail: a process per cover; a resident decoder if first builds drag. */
+/* Runs that never reached ffmpeg's own exit, from any thread; build_art compares before and
+ * after, and any increment, however many were lost to a race, moves it. */
+static volatile unsigned ff_kills __attribute__((section(".scratch")));
 static int ff_run(const char *src, const char *dst, int w, int h, int *exited) {
     char vf[80], tmp[1040];
     tk_snprintf(vf, sizeof(vf), "scale=%d:%d:force_original_aspect_ratio=decrease", w, h);
     tk_snprintf(tmp, sizeof(tmp), "%s.ff", dst);
     int status = -1, pid = fork();
     if (!pid) {
+        /* Out of memory, the kernel kills the fattest process, which was demo (#169): make it
+         * this child, whose one picture can need tens of MB. */
+        int adj = open("/proc/self/oom_score_adj", 1);
+        if (adj >= 0) write(adj, "1000", 4), close(adj);
         execl(ART_FFMPEG, ART_FFMPEG, "-nostdin", "-v", "quiet", "-xerror", "-i", src, "-frames:v", "1",
               "-vf", vf, "-pix_fmt", "yuvj420p", "-q:v", "3", "-f", "mjpeg", "-y", tmp, (char *)0);
         child_exit(127);
     }
     while (pid > 0 && waitpid(pid, &status, 0) < 0 && *__errno_location() == 4) { /* EINTR: reap it */
     }
-    *exited = !(status & 0x7f); /* WIFEXITED; not for -1 */
+    /* WIFEXITED, less execl's own failure (127: out of memory, as ffmpeg is stock's); never for -1 */
+    *exited = !(status & 0x7f) && ((status >> 8) & 0xff) != 127;
+    if (!*exited) ++ff_kills;
     if (!status && file_size(tmp) > 0 && !rename(tmp, dst)) return 1;
     unlink(tmp);
     return 0;
@@ -336,7 +347,9 @@ int coverflow_folder_cover(const char *track, const char *dst, int w, int h) {
 
 /* One album: embedded art, then beside_art, then ffmpeg's read of the embedded art, last as it
  * costs a process for every album without art; written to .tmp and renamed. An empty file marks
- * "no art", so the placeholder shows and the album is not retried until Refresh Coverflow. */
+ * "no art", so the placeholder shows and the album is not retried until Refresh Coverflow; a run
+ * ffmpeg did not finish leaves none. ponytail: an album whose ffmpeg is killed every time costs
+ * one kill per open. */
 static void build_art(const job_t *j) {
     char dst[512], tmp[512];
     if (access(j->track, 0)) return; /* storage gone: no marker, the next open retries */
@@ -350,11 +363,15 @@ static void build_art(const job_t *j) {
     int ok = toolsGetAlbumCover(j->track, tmp, ART_SIZE, ART_SIZE) == 1;
     pthread_mutex_unlock((void *)g_playcover_mutex);
     pthread_mutex_unlock((void *)parse_cover_mutex);
+    unsigned kills = ff_kills;
     ok = ok || beside_art(j->track, tmp, ART_SIZE, ART_SIZE, j->shared, thumb) ||
          ff_thumb(j->track, tmp, ART_SIZE, ART_SIZE);
     if (ok && !rename(tmp, dst)) return;
     unlink(tmp);
-    if (access(j->track, 0)) return;
+    /* No marker when an ffmpeg run meanwhile never reached its own exit (a refused fork, or killed:
+     * the kernel takes it first when memory runs out, #169; another thread's run counts too, a
+     * retry at worst) or storage is gone: the next open retries. */
+    if (kills != ff_kills || access(j->track, 0)) return;
     void *f = fopen(dst, "w");
     if (f) fclose(f);
 }
@@ -412,7 +429,9 @@ static void drop_albums(void) {
 }
 
 /* A stock library query's rows (*count its result) copied out of the staging deque, which is
- * restored so the query leaves no trace; shared with navigation.c's queue menu. */
+ * restored so the query leaves no trace; shared with navigation.c's queue menu. ponytail: save
+ * and restore are deep copies, so after Library -> Songs on a 65,000-song library each call holds
+ * two copies of that list for a moment; a move needs the stock deque's layout. */
 void *staged(int (*query)(void *), void *arg, int *count) {
     void *dir = P(tools_pdeq_directory, 0), *save = _create_deque("stSongInfo"),
          *out = _create_deque("stSongInfo");

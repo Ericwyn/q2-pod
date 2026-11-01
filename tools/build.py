@@ -184,6 +184,12 @@ REMOTE = 'usr/bin/q2remote'
 S90PLAY = 'etc/init.d/S90play'
 ROCKBOX_FLAG = '/tmp/q2pod-rockbox'
 BOOT_HOOK = (b'    /release/bin/demo &\n', f'''    (
+        c=/mnt/data/q2-crash.log
+        [ -f $c ] && (
+            i=0
+            while [ $i -lt 60 ] && ! grep -q ' /mnt/mmc ' /proc/mounts; do usleep 500000; i=$((i+1)); done
+            grep -q ' /mnt/mmc ' /proc/mounts && ! cmp -s $c /mnt/mmc/q2-crash.log && cp $c /mnt/mmc/q2-crash.log && sync
+        ) &
         rb=/mnt/mmc/.rockbox
         rockbox() {{
             [ -f $rb/rockbox ] || return
@@ -199,11 +205,23 @@ BOOT_HOOK = (b'    /release/bin/demo &\n', f'''    (
         fi
         while :; do
             /release/bin/demo
+            s=$?
             [ -e {ROCKBOX_FLAG} ] || break
             rm -f {ROCKBOX_FLAG}
             killall checkappprocess.sh 2>/dev/null
             rockbox
         done
+        case $s in 0|143) ;; *)
+            {{
+                echo "== date"; date
+                echo "== demo exit $s"
+                echo "== meminfo"; cat /proc/meminfo
+                echo "== ps"; ps
+                echo "== dmesg"; dmesg | tail -n 200
+                [ -f /tmp/q2-demo.log ] && {{ echo "== q2-demo.log"; tail -n 200 /tmp/q2-demo.log; }}
+            }} > $c 2>&1
+            sync ;;
+        esac
     ) &
 '''.encode())
 # User boot logo (docs/boot.md#custom-boot-logo): demo copies the card's to /mnt/data, which

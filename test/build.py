@@ -41,24 +41,27 @@ def boot_check():
     with tempfile.TemporaryDirectory(prefix='q2-boot-') as tmp:
         r = pathlib.Path(tmp)
         script = BOOT_HOOK[1].decode().replace(' &\n', '\n')
-        for old in ('/mnt/', '/tmp/mmc_add', ROCKBOX_FLAG, '/usr/bin/q2boot', '/release/bin/demo'):
+        for old in ('/mnt/', '/tmp/mmc_add', ROCKBOX_FLAG, '/usr/bin/q2boot', '/release/bin/demo', '/proc/mounts', '/tmp/q2-demo.log'):
             script = script.replace(old, f'{r}{old}')
-        script = script.replace('usleep 200000', ':')
-        for d in ('mnt/data', 'mnt/mmc/.rockbox', 'tmp', 'usr/bin', 'release/bin'): (r/d).mkdir(parents=True)
+        script = script.replace('usleep 200000', ':').replace('usleep 500000', ':')
+        for d in ('proc', 'mnt/data', 'mnt/mmc/.rockbox', 'tmp', 'usr/bin', 'release/bin'): (r/d).mkdir(parents=True)
         def exe(path, body): (r/path).write_text('#!/bin/sh\n' + body + '\n'); (r/path).chmod(0o755)
         # demo takes Home's Rockbox row (leaves the flag) as many times as the shortcuts file says
         flag, shortcuts = f'{r}{ROCKBOX_FLAG}', r/'shortcuts'
         exe('release/bin/demo', f'echo demo >> {r}/ran; n=$(cat {shortcuts}); '
-            f'[ "$n" -gt 0 ] && echo $((n - 1)) > {shortcuts} && : > {flag}; exit 137')
+            f'[ "$n" -gt 0 ] && echo $((n - 1)) > {shortcuts} && : > {flag}; '
+            f's=$(head -n1 {r}/code); [ $(wc -l < {r}/code) -gt 1 ] && sed -i 1d {r}/code; exit $s')  # one status per run, the last repeats
         rb, target = r/'mnt/mmc/.rockbox/rockbox', r/'mnt/data/boot-target'
-        def boot(held, card, code=81, shortcut=0):
+        def boot(held, card, code=81, shortcut=0, status=137):
             shortcuts.write_text(f'{shortcut}\n')
+            (r/'code').write_text(''.join(f'{c}\n' for c in (status if isinstance(status, (list, tuple)) else [status])))
             exe('usr/bin/q2boot', 'exit ' + ('0' if held else '1'))
             if card: exe('mnt/mmc/.rockbox/rockbox', f'pwd >> {r}/ran; exit {code}')
             else: rb.unlink(missing_ok=True)
             (r/'ran').write_text('')
             subprocess.run(['sh', '-c', script], check=True)
             return (r/'ran').read_text().split(), target.exists() and target.read_text().strip()
+        (r/'proc/mounts').write_text('')
         rockbox = [str(rb.parent), 'demo']
         assert boot(False, False) == (['demo'], False)          # no Rockbox on the card: Q2 Pod
         assert boot(False, True, 1) == (rockbox, False)         # Rockbox by default; a crash starts Q2 Pod
@@ -82,6 +85,22 @@ def boot_check():
         assert boot(True, True, 81, 1) == (['demo', *rockbox], False)
         assert boot(False, True, 81, 2) == (rockbox * 3, False) and not pathlib.Path(flag).exists()
         assert boot(True, False, 81, 1) == (['demo', 'demo'], False)  # no Rockbox on the card: Q2 Pod again
+        # an abnormal end of demo leaves its status on /mnt/data, which the next boot copies to a mounted card;
+        # 0, 143 and the Rockbox hand-over leave nothing
+        crash, copy, mounts = r/'mnt/data/q2-crash.log', r/'mnt/mmc/q2-crash.log', r/'proc/mounts'
+        def logged(status, card, shortcut=0):
+            for f in (crash, copy): f.unlink(missing_ok=True)
+            mounts.write_text(f'tmpfs /tmp tmpfs rw 0 0\n/dev/mmcblk0p1 {r}/mnt/mmc vfat rw 0 0\n' if card else '')
+            boot(True, False, shortcut=shortcut, status=status)
+            return crash.exists() and crash.read_text(), copy.exists() and copy.read_text()
+        out, cp = logged(137, True)
+        assert 'demo exit 137' in out and '== meminfo' in out and '== ps' in out and cp is False  # no card write while dying
+        boot(True, False, status=0); assert copy.read_text() == out  # the next boot copies it to the mounted card
+        copy.unlink(); mounts.write_text(''); boot(True, False, status=0); assert not copy.exists()  # no card, no copy
+        out, cp = logged(139, False)
+        assert 'demo exit 139' in out and cp is False
+        assert logged(0, True) == (False, False) and logged(143, True) == (False, False)
+        assert logged([137, 0], True, 1) == (False, False)  # the Rockbox hand-over's kill, then a clean demo
     print('Dual boot: Rockbox by default, one-session Q2 Pod, stale choice ignored, card fallback and Home Rockbox row passed.')
 boot_check()
 
