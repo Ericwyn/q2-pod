@@ -188,7 +188,7 @@ BOOT_HOOK = (b'    /release/bin/demo &\n', f'''    (
         [ -f $c ] && (
             i=0
             while [ $i -lt 60 ] && ! grep -q ' /mnt/mmc ' /proc/mounts; do usleep 500000; i=$((i+1)); done
-            grep -q ' /mnt/mmc ' /proc/mounts && ! cmp -s $c /mnt/mmc/q2-crash.log && cp $c /mnt/mmc/q2-crash.log && sync
+            grep -q ' /mnt/mmc ' /proc/mounts && cp $c /mnt/mmc/q2-crash.log && sync && rm -f $c
         ) &
         rb=/mnt/mmc/.rockbox
         rockbox() {{
@@ -215,11 +215,11 @@ BOOT_HOOK = (b'    /release/bin/demo &\n', f'''    (
             {{
                 echo "== date"; date
                 echo "== demo exit $s"
+                echo "== dmesg"; dmesg | tail -n 200
                 echo "== meminfo"; cat /proc/meminfo
                 echo "== ps"; ps
-                echo "== dmesg"; dmesg | tail -n 200
                 [ -f /tmp/q2-demo.log ] && {{ echo "== q2-demo.log"; tail -n 200 /tmp/q2-demo.log; }}
-            }} > $c 2>&1
+            }} > $c.tmp 2>&1; mv $c.tmp $c
             sync ;;
         esac
     ) &

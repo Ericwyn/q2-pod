@@ -14,10 +14,15 @@
 #include <math.h>
 #include <unistd.h>
 #define child_exit _exit
+static inline void child_oom_first(void) {
+    int fd = open("/proc/self/oom_score_adj", O_WRONLY);
+    if (fd >= 0) write(fd, "1000", 4), close(fd);
+}
 #else
 #include "peq_platform.h"
 #define PEQ_ROOT "" /* host tests pass a scratch directory */
 void child_exit(int status) __attribute__((noreturn));
+void child_oom_first(void); /* between fork and exec: the OOM killer takes this child, not demo (#169) */
 #ifdef canvas_set_fill_color
 /* Light Mode: every colour the payload draws passes ui_ink (navigation.c) on its way to these stock
  * setters, as stock's own colours pass the style and image hooks. stock_* sets a colour read back

@@ -383,23 +383,26 @@ int rs_open(af_instance *af) {
  * DAC whose top rate is 48 kHz at 48 kHz for any file (0x43999c), so a 44.1 kHz album's every change
  * closed the PCM undrained and reopened it. The same request asks for what it got last time instead, as
  * the player already does for Bluetooth (0x42efcc): the compare matches and ao_data keeps the negotiated
- * values, so the chain resamples as before. Another request, a closed PCM (a stop; reset's own init call
- * at 0x439d14 bypasses the slot) or another output negotiate as stock, so a DAC that takes the file's
- * rate and format is unchanged. ponytail: one request remembered; a queue that changes rate reopens at
- * each change, as the headphone jack does. */
+ * values, so the chain resamples as before. The pair moves as one, on a fresh open (another DAC may have
+ * come) or when the DAC changed the request; a request taken as asked leaves it, so a 44.1 and 48 kHz
+ * mix stays matched. Another request, a closed PCM (a stop; stock's own init calls at 0x439b5c, the
+ * hw_params retry, and 0x439d14, reset's, bypass the slot) or another output negotiate as stock, so a
+ * DAC that takes the file's rate and format is unchanged. ponytail: one request remembered; a queue
+ * that changes rate reopens at each change, as the headphone jack does. */
 #define OUTPUT_WAY (*(volatile int *)0xb10e54u)
 #define ALSA_PCM (*(void *volatile *)0xb115a8u)
 #define AO_RATE (*(volatile int *)0xafa1a0u)
 #define AO_FORMAT (*(volatile int *)0xafa1a8u)
-static int usb_asked[2], usb_got[2];
+static int usb_asked[2], usb_got[2]; /* the last request the DAC changed, and what it got */
 int ao_init(int rate, int channels, int format, int flags) {
-    int asked[2] = { rate, format };
-    if (OUTPUT_WAY == 2 && ALSA_PCM && rate == usb_asked[0] && format == usb_asked[1])
+    int asked[2] = { rate, format }, was_open = ALSA_PCM != 0;
+    if (OUTPUT_WAY == 2 && was_open && rate == usb_asked[0] && format == usb_asked[1])
         rate = usb_got[0], format = usb_got[1];
     int r = ((int (*)(int, int, int, int))0x438988u)(rate, channels, format, flags);
     if (r > 0 && OUTPUT_WAY == 2 && ALSA_PCM) {
-        usb_got[0] = AO_RATE, usb_got[1] = AO_FORMAT;
-        if (asked[0] != usb_got[0] || asked[1] != usb_got[1]) usb_asked[0] = asked[0], usb_asked[1] = asked[1];
+        int got[2] = { AO_RATE, AO_FORMAT };
+        if (!was_open || asked[0] != got[0] || asked[1] != got[1])
+            usb_asked[0] = asked[0], usb_asked[1] = asked[1], usb_got[0] = got[0], usb_got[1] = got[1];
     }
     return r;
 }

@@ -137,32 +137,49 @@ for rate, output_rate in ((96000, 48000), (44100, 48000), (44100, 96000), (48000
     print(f'Bluetooth resampler {rate}->{output_rate}: continuous samples across a change '
           f'(stock loses {lost} frames); skip, pause and input-rate change start fresh.')
 
-# A USB DAC's init across a change (patch/peq_player.c ao_init, on ao_alsa's init slot): on output way 2
-# with the PCM open, the request that last negotiated asks for what it got, so stock's compare of the
-# previous request keeps the PCM open; other requests, a closed PCM and other outputs pass as asked.
+# A USB DAC's init across a change (patch/peq_player.c ao_init, on ao_alsa's init slot). The stub is
+# stock's init as a DAC: it keeps the PCM open when the request equals the saved triple (the last
+# request, its rate and format as negotiated), else opens and negotiates, and ao_data holds the result.
 assert struct.unpack_from('<I', raw, fileoff(raw, AO_INIT_SLOT))[0] == ps['ao_init']
 WAY, PCM, AO_DATA, S16, S24 = 0xb10e54, 0xb115a8, 0xafa1a0, 0x88, 0x90
-seen = []
+dac, seen, saved = {}, [], [None]
 def stock_init(u, address, size, _):
-    """Stock init as a 48 kHz, 16-bit DAC: the PCM is open and ao_data holds what it negotiated."""
-    seen.append((a(0), a(1), a(2)))
-    w(AO_DATA, 48000, a(1), S16), w(PCM, 1)
+    asked = (a(0), a(1), a(2))
+    seen.append(asked)
+    if not (r(PCM) and asked == saved[0]):
+        saved[0] = (dac['rate'](asked[0]), asked[1], dac['fmt'](asked[2]))
+        dac['opens'] += 1
+    w(AO_DATA, *saved[0]), w(PCM, 1)
     u.reg_write(UC_MIPS_REG_V0, 1), u.reg_write(UC_MIPS_REG_PC, u.reg_read(UC_MIPS_REG_RA))
 u.hook_add(UC_HOOK_CODE, stock_init, begin=AO_INIT, end=AO_INIT)
+def plug(rate, fmt):
+    """Another DAC: the PCM is closed, as after a stop."""
+    dac.update(rate=rate, fmt=fmt, opens=0), w(PCM, 0)
 def init(rate, fmt, way=2):
     w(WAY, way)
     assert call(ps['ao_init'], rate, 2, fmt, 0) == 1
-    return seen[-1]
-w(PCM, 0)
-assert init(44100, S24) == (44100, 2, S24)  # a fresh open negotiates as stock
-assert init(44100, S24) == (48000, 2, S16)  # the same request asks for what it got: stock's compare matches
-assert init(48000, S16) == (48000, 2, S16)  # the negotiated values themselves pass as asked
-assert init(44100, S24) == (48000, 2, S16)  # and the album's request still asks for them after that
-assert init(96000, S24) == (96000, 2, S24)  # another request negotiates as stock
-assert init(44100, S24) == (44100, 2, S24)  # and is the one remembered
-assert init(44100, S24) == (48000, 2, S16)
-w(PCM, 0)
-assert init(44100, S24) == (44100, 2, S24)  # a closed PCM (a stop) negotiates afresh
-assert init(44100, S24, way=0) == (44100, 2, S24)  # the headphone jack is stock's
-assert init(44100, S24, way=1) == (44100, 2, S24)  # so is Bluetooth
-print('USB DAC init: a repeated request asks for its negotiated rate and format; others pass as asked.')
+    return seen[-1][0], seen[-1][2]
+def queue(*tracks):
+    """Each track's rate and format as stock's init sees them, and how many opens the queue cost."""
+    before = dac['opens']
+    return [init(*t) for t in tracks], dac['opens'] - before
+
+# A 48 kHz DAC that takes 24 bits (the report's): a 44.1 kHz album opens once, not per track, and a
+# 16-bit track in between neither drops the album to 16 bits nor loses it the match afterwards.
+plug(lambda rate: 48000, lambda fmt: fmt)
+assert queue((44100, S24), (44100, S24), (44100, S24)) == ([(44100, S24), (48000, S24), (48000, S24)], 1)
+assert queue((48000, S16), (44100, S24), (44100, S24)) == ([(48000, S16), (48000, S24), (48000, S24)], 2)
+assert queue((48000, S24), (44100, S24)) == ([(48000, S24), (48000, S24)], 0)  # a 44.1/48 mix stays matched
+# A 16-bit DAC that takes any rate: the album is not resampled to a rate another track negotiated.
+plug(lambda rate: rate, lambda fmt: S16)
+assert queue((44100, S24), (44100, S24), (48000, S16), (44100, S24)) == (
+    [(44100, S24), (44100, S16), (48000, S16), (44100, S16)], 3)
+# A DAC that takes everything (a Modi): every request passes as asked, as stock.
+plug(lambda rate: rate, lambda fmt: fmt)
+assert queue((44100, S24), (44100, S24), (96000, S24), (44100, S16)) == (
+    [(44100, S24), (44100, S24), (96000, S24), (44100, S16)], 3)
+# Back on the 48 kHz DAC after a stop, nothing of the other DAC's pair is asked; the other outputs are stock's.
+plug(lambda rate: 48000, lambda fmt: fmt)
+assert queue((44100, S16), (44100, S16)) == ([(44100, S16), (48000, S16)], 1)
+assert init(44100, S24, way=0) == (44100, S24) and init(44100, S24, way=1) == (44100, S24)
+print('USB DAC init: an album on a 48 kHz DAC opens the PCM once; other requests, DACs and outputs are stock\'s.')

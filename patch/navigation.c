@@ -87,6 +87,13 @@ static int spoken(const char *path);
 
 /* Failed exec in a forked child must not flush demo's copied stdio or run its exit handlers. */
 __asm__(".globl child_exit\nchild_exit:\nli $v0, 4001\nsyscall\n");
+/* Out of memory, the kernel kills the fattest process, which was demo (#169): every child demo
+ * forks, whose one job can need tens of MB, makes itself the first to go, between fork and exec. */
+int open(const char *, int, ...);
+void child_oom_first(void) {
+    int fd = open("/proc/self/oom_score_adj", 1); /* O_WRONLY */
+    if (fd >= 0) write(fd, "1000", 4), close(fd);
+}
 
 /* Stock's album-artist queries (Artists, an artist's albums and songs, search) take a song without
  * an album artist by its artist, so an untagged album stays under its artist, not Unknown.
@@ -9255,6 +9262,7 @@ static void *logo_sync(void *unused) {
             b = 0; /* landscape: ffmpeg turns it a quarter clockwise (coverflow.c's ff_thumb) */
         int status, pid = fork();
         if (!pid) {
+            child_oom_first();
             execl("/usr/bin/ffmpeg", "/usr/bin/ffmpeg", "-nostdin", "-v", "quiet", "-i", LOGO_SRC,
                   "-vf", "transpose=1", "-pix_fmt", "yuvj444p", "-q:v", "2", "-f", "mjpeg", "-y",
                   LOGO_ROT, (char *)0);

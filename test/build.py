@@ -94,9 +94,12 @@ def boot_check():
             boot(True, False, shortcut=shortcut, status=status)
             return crash.exists() and crash.read_text(), copy.exists() and copy.read_text()
         out, cp = logged(137, True)
-        assert 'demo exit 137' in out and '== meminfo' in out and '== ps' in out and cp is False  # no card write while dying
-        boot(True, False, status=0); assert copy.read_text() == out  # the next boot copies it to the mounted card
-        copy.unlink(); mounts.write_text(''); boot(True, False, status=0); assert not copy.exists()  # no card, no copy
+        assert 'demo exit 137' in out and '== dmesg' in out and '== meminfo' in out and '== ps' in out and cp is False  # no card write while dying
+        assert not crash.with_name('q2-crash.log.tmp').exists()  # written whole, then renamed
+        mounts.write_text(''); boot(True, False, status=0); assert not copy.exists() and crash.exists()  # no card: kept for a later boot
+        mounts.write_text(f'/dev/mmcblk0p1 {r}/mnt/mmc vfat rw 0 0\n'); boot(True, False, status=0)
+        assert copy.read_text() == out and not crash.exists()  # the next boot with a card moves it there
+        copy.write_text('kept'); boot(True, False, status=0); assert copy.read_text() == 'kept'  # and never brings it back
         out, cp = logged(139, False)
         assert 'demo exit 139' in out and cp is False
         assert logged(0, True) == (False, False) and logged(143, True) == (False, False)

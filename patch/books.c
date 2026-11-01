@@ -779,6 +779,7 @@ int video_start(const char *file, int radio) {
     if (!out) dac_take(); /* without it the PCM takes the sound and the jack stays silent */
     int pid = fork();
     if (!pid) {
+        child_oom_first();
         const char *dev = out ? out : "plughw:0,0", *v = out ? vol : (char *)0;
         if (radio)
             execl(VIDEO_BIN, VIDEO_BIN, "-r", dev, file, v, (char *)0);

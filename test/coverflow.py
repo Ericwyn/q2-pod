@@ -1240,6 +1240,15 @@ static void ffmpeg_art(void) {
     open_page();
     assert(calls == before && size("Webp") == 6 && size("Ffok") == 6 && !tmp_files());
     close_page();
+    /* An ffmpeg that never reached its own exit (killed: out of memory, #169) leaves no marker, so
+       the album is tried again at the next open, not shown artless until Refresh Coverflow. */
+    album("Fkill", 0);
+    rescan();
+    for (int i = 0; i < 2; ++i) {
+        open_page();
+        assert(size("Fkill") == -1 && !tmp_files());
+        close_page();
+    }
 }
 
 static void player_cover(void) {
@@ -1601,7 +1610,7 @@ int main(void) {
 # track under Ffok/, else a failure.
 FFMPEG_STUB = r"""#!/bin/sh
 for a; do [ "$prev" = -i ] && src=$a; prev=$a; done
-case $src in *.webp|*/Ffok/*) printf ffmpeg > "$a";; *) exit 1;; esac
+case $src in *.webp|*/Ffok/*) printf ffmpeg > "$a";; */Fkill/*) kill -9 $$;; *) exit 1;; esac
 """
 
 

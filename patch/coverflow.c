@@ -78,16 +78,17 @@ static int library_write(int (*stock)(void *, void *), void *a, void *b) {
  * Songs already in the library keep their time_create across the rebuild, matched by path and
  * CUE start; new songs take stock's. The copy is a table in the database, typed as songtable's
  * columns are so the key matches by value and is one lookup per song, without rowid (it is its own
- * index) and dropped after; its pages stay in the file's free list for the next update. Both
- * scripts run inside the generation window, so no list is kept between stock's end and the
- * write-back. ponytail: a song replaced at the same path keeps its old date; an update stopped
+ * index) and dropped once written back; its pages stay in the file's free list for the next
+ * update. An update that never got there (power lost, a reboot mid-scan) leaves it, and the next
+ * update's copy keeps its rows, so those dates still return. Both scripts run inside the
+ * generation window, so no list is kept between stock's end and the write-back.
+ * ponytail: a song replaced at the same path keeps its old date; an update stopped
  * with Back loses the dates of the songs it never re-added; a failed save (toolsUpdateDbTable
  * returns 1 on success and closes the handle on an error, which the next call reopens) skips
  * the write-back, so stock's dates stand. */
 #define DB "/mnt/data/database.db"
 static const char ADDED_SAVE[] =
-    "drop table if exists ringnav_added;"
-    "create table ringnav_added(fileurl VARCHAR(1024),time INTEGER,time_create INTEGER,"
+    "create table if not exists ringnav_added(fileurl VARCHAR(1024),time INTEGER,time_create INTEGER,"
     "primary key(fileurl,time)) without rowid;"
     "insert or ignore into ringnav_added select fileurl,time,time_create from songtable;";
 static const char ADDED_RESTORE[] =
@@ -165,8 +166,6 @@ static int art_exists(const char *url) { return !access(url + 7, 0); }
 #define ART_FFMPEG "/usr/bin/ffmpeg"
 #endif
 
-int open(const char *, int, ...); /* write and close: unistd.h on the host, peq_platform.h on the device */
-
 /* path's size, -1 when it can't be opened */
 long file_size(const char *path) {
     void *f = fopen(path, "rb");
@@ -183,8 +182,8 @@ long file_size(const char *path) {
  * -xerror stops at a picture's first decode error rather than demuxing the rest of the file.
  * *exited: ffmpeg ran to its own exit (no refused fork, no kill), so a failure is the picture's.
  * ponytail: a process per cover; a resident decoder if first builds drag. */
-/* Runs that never reached ffmpeg's own exit, from any thread; build_art compares before and
- * after, and any increment, however many were lost to a race, moves it. */
+/* Runs that never reached ffmpeg's own exit, from any thread (counted atomically, so none is
+ * lost); build_art compares before and after. */
 static volatile unsigned ff_kills __attribute__((section(".scratch")));
 static int ff_run(const char *src, const char *dst, int w, int h, int *exited) {
     char vf[80], tmp[1040];
@@ -192,10 +191,7 @@ static int ff_run(const char *src, const char *dst, int w, int h, int *exited) {
     tk_snprintf(tmp, sizeof(tmp), "%s.ff", dst);
     int status = -1, pid = fork();
     if (!pid) {
-        /* Out of memory, the kernel kills the fattest process, which was demo (#169): make it
-         * this child, whose one picture can need tens of MB. */
-        int adj = open("/proc/self/oom_score_adj", 1);
-        if (adj >= 0) write(adj, "1000", 4), close(adj);
+        child_oom_first(); /* its one picture can need tens of MB (#169) */
         execl(ART_FFMPEG, ART_FFMPEG, "-nostdin", "-v", "quiet", "-xerror", "-i", src, "-frames:v", "1",
               "-vf", vf, "-pix_fmt", "yuvj420p", "-q:v", "3", "-f", "mjpeg", "-y", tmp, (char *)0);
         child_exit(127);
@@ -204,7 +200,7 @@ static int ff_run(const char *src, const char *dst, int w, int h, int *exited) {
     }
     /* WIFEXITED, less execl's own failure (127: out of memory, as ffmpeg is stock's); never for -1 */
     *exited = !(status & 0x7f) && ((status >> 8) & 0xff) != 127;
-    if (!*exited) ++ff_kills;
+    if (!*exited) __atomic_fetch_add(&ff_kills, 1, __ATOMIC_RELAXED);
     if (!status && file_size(tmp) > 0 && !rename(tmp, dst)) return 1;
     unlink(tmp);
     return 0;

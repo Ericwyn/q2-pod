@@ -4125,6 +4125,12 @@ def update(drop,folder=False):
 m=update(1)
 assert m.db.execute('select fileurl,time,time_create from songtable order by id').fetchall()==[("/m/it's.flac",0,123),("/m/it's.flac",30,456),('/m/new.flac',0,9002),(None,0,9003)]
 assert len(m.scripts)==2 and not m.db.execute("select name from sqlite_master where name='ringnav_added'").fetchall(); passed()
+# a copy left by an update that never wrote back (power lost mid-scan) keeps its dates through the next one
+m=UpdateMachine(); m.db.executescript("""create table ringnav_added(fileurl VARCHAR(1024),time INTEGER,time_create INTEGER,primary key(fileurl,time)) without rowid;
+insert into ringnav_added values("/m/it's.flac",0,111)""")
+assert m.call(address=payload_syms['coverflow_scan_all'],args=(m.string('/m'),1,0,0),gap=0)==1
+assert m.db.execute('select time_create from songtable order by id').fetchall()==[(111,),(456,),(9002,),(9003,)]
+assert not m.db.execute("select name from sqlite_master where name='ringnav_added'").fetchall(); passed()
 for drop,folder in ((0,False),(1,True)):
     assert not update(drop,folder).scripts; passed()
 # Library Artists rows hide the head picture (CLASS_ICON); Composers and Genres, sharing the rebound
@@ -9616,7 +9622,7 @@ class BooksMachine(DepthMachine):
                   'access@GLIBC_2.0','rename@GLIBC_2.0','unlink@GLIBC_2.0','mkdir@GLIBC_2.0','memcmp@GLIBC_2.0',
                   'strlen@GLIBC_2.0','strstr@GLIBC_2.0','canvas_measure_text','canvas_draw_text',
                   'fork@GLIBC_2.0','execl@GLIBC_2.0','exit@GLIBC_2.0','waitpid@GLIBC_2.0','socket@GLIBC_2.0',
-                  'sendto@GLIBC_2.0','close@GLIBC_2.0'):
+                  'sendto@GLIBC_2.0','close@GLIBC_2.0','open@GLIBC_2.0'):
             self.handlers[syms[n]]='b:'+n
         self.handlers[syms['mclGetOutputWay']]='b:mclGetOutputWay'
         self.handlers[payload_syms['child_exit']]='b:exit'
@@ -9673,6 +9679,7 @@ class BooksMachine(DepthMachine):
             i=self.raw(a).find(self.raw(b)); ret=a+i if i>=0 else 0
         elif name=='canvas_measure_text': u.reg_write(UC_MIPS_REG_F0,struct.unpack('<I',struct.pack('<f',BOOK_PITCH*c))[0])
         elif name=='mclGetOutputWay': ret=self.way
+        elif name=='open': ret=0xffffffff  # the child's oom_score_adj write: refused here, so nothing is written
         elif name=='fork': ret=self.forked
         elif name=='execl':
             sp=u.reg_read(UC_MIPS_REG_SP); e=self.get(sp+16)  # a volume argv, then its terminator
@@ -13333,7 +13340,7 @@ class LogoMachine(PowerMachine):
         self.handlers[payload_syms['child_exit']]='l:exit'
         self.word(0xa2638c,0x1000010); self.handlers[0x1000010]='l:free'  # free's GOT slot, as Coverflow's
         for n in ('fseek@GLIBC_2.0','ftell@GLIBC_2.0','memcmp@GLIBC_2.0','strstr@GLIBC_2.0','pthread_create@GLIBC_2.2',
-                  'fork@GLIBC_2.0','execl@GLIBC_2.0','exit@GLIBC_2.0','waitpid@GLIBC_2.0','navigator_to_with_context'): self.handlers[syms[n]]='l:'+n
+                  'fork@GLIBC_2.0','execl@GLIBC_2.0','exit@GLIBC_2.0','waitpid@GLIBC_2.0','open@GLIBC_2.0','navigator_to_with_context'): self.handlers[syms[n]]='l:'+n
     def hook(self,u,address,size,unused):
         name=self.handlers.get(address,'')
         if name.startswith('r:'+self.failure+'@') and (self.failure!='fopen' or self.text(u.reg_read(REGS[1]))=='wb'):
@@ -13345,6 +13352,7 @@ class LogoMachine(PowerMachine):
         elif name=='memcmp': ret=int(bytes(u.mem_read(a,c))!=bytes(u.mem_read(b,c)))
         elif name=='strstr': i=self.text(a).find(self.text(b)); ret=a+i if i>=0 else 0
         elif name=='pthread_create': self.word(a,77); self.threads.append(c)
+        elif name=='open': ret=0xffffffff  # the child's oom_score_adj write: refused here
         elif name=='fork': ret=0 if self.child else 4242
         elif name=='exit':  # the child ends: back to call()'s return, as if the thread had
             self.exits.append(a)
