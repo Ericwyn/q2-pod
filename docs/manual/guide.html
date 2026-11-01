@@ -258,6 +258,7 @@ p:has(+ ul), p:has(+ ol), p:has(+ table), p:has(+ pre), .task, h2, h3 { break-af
     </tbody>
   </table>
   <div class="note"><p><span class="label">Sleep or shut down?</span> Sleep is the screen-off state: music keeps playing and one press wakes it. Shut down (hold Centre) stops the Q2. The Q2 stays asleep until you wake it; the <b>Standby Limit</b> can power it off later (<a href="#power">Power and battery</a>).</p></div>
+  <div class="note important"><p><span class="label">If the Q2 seems dead:</span> it won’t turn on, or the screen stays black and no button does anything. Plug it into the charger, then hold <b>Centre</b> for 15 seconds. Keep holding through the shutdown prompt until it powers off and restarts.</p></div>
   <p>Shortcuts, with the rest of the controls, follow.</p>
   </div>
   <div class="sec">
@@ -943,7 +944,7 @@ http://stream.radioparadise.com/mp3-128</pre>
   <h2 id="restore">Restoring stock firmware</h2>
   <ul>
     <li><b>Back to Shanling’s firmware:</b> install the official Shanling firmware (en.shanling.com/download/150), such as stock V1.32, the same way as Q2 Pod.</li>
-    <li><b>If the Q2 won’t start up:</b> copy the <code>recovery-update</code> folder from Shanling’s recovery package to the card, then hold <b>Previous</b> and power on with <b>Centre</b>.</li>
+    <li><b>If the Q2 won’t start up:</b> first try a forced restart (<a href="#trouble">Troubleshooting by symptom</a>). If it still won’t start, copy the <code>recovery-update</code> folder from Shanling’s recovery package to the card, then hold <b>Previous</b> and power on with <b>Centre</b>.</li>
   </ul>
 
   </div>
@@ -1012,6 +1013,7 @@ http://stream.radioparadise.com/mp3-128</pre>
   <h2 id="trouble">Troubleshooting by symptom</h2>
   <p>Each entry starts with checks you can undo, such as reconnecting or rescanning. Recovery steps come last and link to where they’re explained.</p>
   <ul>
+    <li><b>The Q2 won’t turn on, won’t charge, or is frozen.</b> Plug it into the charger. Hold <b>Centre</b> for 15 seconds, and keep holding through the on-screen shutdown prompt until it powers off and restarts. For Rockbox, hold Play/Pause for 15 seconds instead.</li>
     <li><b>A song is missing.</b> Check it’s in a folder the Q2 scans, with a supported format (<a href="#card">What goes on the microSD card</a>), then run <b>Library → Update Local Music</b>. DRM-protected files don’t appear. Still missing? Check its tags with <a href="#tagging">Tagging your music</a>.</li>
     <li><b>An album is split in two.</b> Give every track the same Album Artist (<a href="#tagging">Tagging your music</a>). Then run <b>Update Local Music</b> again.</li>
     <li><b>Artwork is missing.</b> Add a <code>cover</code> or <code>folder</code> image (<code>.jpg</code>, <code>.png</code> or <code>.webp</code>) next to the songs, unless several albums share that folder. Then press <b>System settings → Display → Coverflow → Refresh Coverflow</b> (<a href="#cf">Browsing with Coverflow</a>).</li>
@@ -1019,8 +1021,6 @@ http://stream.radioparadise.com/mp3-128</pre>
     <li><b>No sound, or sound from the wrong output.</b> Unplug and reconnect the headphones, and check <b>Volume</b> and the status bar. Playback uses whichever output is active when it starts: headphone jack, Bluetooth or a USB DAC. For Spotify, pause and play again after switching. If local music stays silent after streaming, use <b>Streaming → Configuration → Stop Streaming Services</b> (<a href="#stream-config">Configuration</a>).</li>
     <li><b>The PC doesn’t see the Q2 as a USB DAC.</b> Windows needs Shanling’s USB driver (V5.20, for the MTouch players), from <a href="https://en.shanling.com/download/69">en.shanling.com/download/69</a>. Install it, then plug the Q2 in again.</li>
     <li><b>Bluetooth headphones drop out.</b> Set the quality to <b>LDAC Connection (auto)</b>, which adapts to the link. HQ is the most likely to break up (<a href="#bt">Bluetooth headphones</a>).</li>
-    <li><b>Q2 Pod freezes.</b> Hold <b>Centre</b> for 10–15 seconds. Keep holding through the on-screen shutdown prompt until the Q2 restarts. For Rockbox, hold Play/Pause for 15 seconds instead.</li>
-    <li><b>The Q2 won’t charge.</b> With it plugged into the charger and turned on, hold <b>Centre</b> for 15 seconds. Keep holding through the on-screen shutdown prompt until it powers off and restarts.</li>
     <li><b>Spotify won’t pair or download.</b> The phone and the Q2 must be on the same Wi-Fi, and the Spotify app’s device list must show Q2. New tracks need Wi-Fi; downloaded songs play without it. Browsing needs q2-librespot v1.3 or later, and <b>Download Playlist</b> needs v1.6 (<a href="#spinstall">Installing and pairing Spotify</a>). <b>Playback didn’t start</b> means no track arrived within 15 seconds: go back and try again.</li>
     <li><b>Pocket controls wake the screen or change the volume.</b> Choose <b>Wake: Double Press</b>, turn on <b>Volume Guard</b>, or set <b>Settings → Buttons Lock</b> (<a href="#power">Power and battery</a>).</li>
     <li><b>Update or startup problems.</b> Check that <code>update.tar</code> is in the card’s root (not inside a folder), and leave the card in until the Q2 restarts. Rockbox doesn’t start unless the card is exFAT or FAT32 with the <code>.rockbox</code> folder in its root. If Rockbox freezes or a theme leaves the screen unreadable, hold Play/Pause for 15 seconds to force a restart. If Rockbox is stuck, hold Play/Pause while turning the Q2 on (<a href="#rockbox">Using Rockbox alongside Q2 Pod</a>). If the Q2 won’t start at all, follow <a href="#restore">Restoring stock firmware</a>.</li>
