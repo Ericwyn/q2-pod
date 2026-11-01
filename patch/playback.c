@@ -1446,6 +1446,7 @@ void playback_poll(void) {
 }
 
 int ringnav_savequeue(void) {
+    ringnav_clean_end(); /* stock's only call is into_poweroff's */
     playback_save();
     return stock_savequeue_trampoline();
 }
@@ -1456,6 +1457,7 @@ int ringnav_savequeue(void) {
  * Network Update's) stops the player before its thread flashes and reboots, so it saves on open.
  * Stopped, nothing is saved: stock's save skips it and the snapshot keeps its second. */
 static void reboot_save(void) {
+    ringnav_clean_end();
     if (mclGetPlayStatus() != 1) save_memoryplay_info(); /* ringnav_savequeue */
 }
 int ringnav_reboot(void) {

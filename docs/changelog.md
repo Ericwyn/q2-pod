@@ -2,6 +2,8 @@
 
 - **1.6.2**:
   - System: the three kernel driver changes from 1.5.0 (the rotator's lazy clock, the backlight PWM clock gating with the buzzer MCU parked, and the paused-audio notifier's sleep) are no longer in the firmware. No battery saving was ever measured for them, none of them handles the Q2's Standby suspend and resume, and they are the only Shanling driver files Q2 Pod changed, so a Q2 that goes dark and ignores every button until a 15-second Centre hold is one place simpler to explain. Developers can still build them with `--dev` and their flags.
+  - System: a Q2 whose software stops responding (screen black, no button does anything, and only a 15-second Centre hold revived it) now restarts by itself within a minute. Shanling's hardware watchdog was loaded but never started.
+  - System: what the Q2 was doing (screen, Standby, charger, battery, playback and its output) is kept on the Q2 and, after a restart it didn't choose, appears in q2-crash.log on the card, with the crash record when the player ends on its own.
 
 - **1.6.1**:
   - Playback: a saved **MQA: Off** now stays in effect after restarting the Q2. Before, gaps between high-resolution tracks came back after every restart until MQA was toggled On and Off.

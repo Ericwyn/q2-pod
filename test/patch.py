@@ -94,6 +94,7 @@ class Machine:
                   'strlen@GLIBC_2.0','strncpy@GLIBC_2.0','strrchr@GLIBC_2.0','strcasecmp@GLIBC_2.0','strncasecmp@GLIBC_2.0',
                   'strcasestr@GLIBC_2.2',
                   'unlink@GLIBC_2.0','atoi@GLIBC_2.0','strtol@GLIBC_2.0','memcmp@GLIBC_2.0','access@GLIBC_2.0',
+                  'open@GLIBC_2.0','fflush@GLIBC_2.0','fsync@GLIBC_2.0','fileno@GLIBC_2.0',  # the watchdog and the state record
                   'fflush@GLIBC_2.0','fsync@GLIBC_2.0','fileno@GLIBC_2.0',  # blob_io's sync before rename
                   'fopen@GLIBC_2.2', 'opendir@GLIBC_2.0', 'readdir@GLIBC_2.0',
                   'closedir@GLIBC_2.0', 'pthread_mutex_lock@GLIBC_2.0',
@@ -261,6 +262,7 @@ class Machine:
             result=(re.sub(r'%\.\*s','%s',fmt) % tuple(params)).encode(); self.u.mem_write(a,result[:b-1]+b'\0'); ret=len(result)
         elif name=='atoi@GLIBC_2.0': ret=int(re.match(r'[+-]?\d+',self.text(a))[0]) if re.match(r'[+-]?\d+',self.text(a)) else 0
         elif name=='access@GLIBC_2.0': ret=0 if self.text(a) in self.present else -1
+        elif name=='open@GLIBC_2.0': ret=0xffffffff  # no /dev/jz_watchdog here: the watchdog stays off
         elif name=='calloc@GLIBC_2.0': ret=0 if getattr(self,'fail_calloc',False) else self.alloc(a*b)
         elif name=='realloc@GLIBC_2.0':  # moved, as glibc may, the old block spoilt
             kept=bytes(self.u.mem_read(a,b)); ret=self.alloc(b); self.u.mem_write(ret,kept); self.u.mem_write(a,b'\xff'*b); self.resized.append(kept)
@@ -12181,6 +12183,8 @@ assert m.labels()==['App Store','Foo','Install'] and m.files[LIST]==b'me/q2-foo 
 # of play, after a pause and on a track change, and jumps back there when it next starts playing near
 # its beginning.
 # A place near either end is forgotten; a short or CUE track, or a paused start, is left alone.
+RECORD='/mnt/data/q2-state'  # navigation.c state_poll's record, written on the first pass and on a change
+RECORD_FD=77  # PowerMachine's fileno for it, so its fsync is told apart
 class ResumeMachine(QueueMachine):
     def __init__(self,files=None):
         super().__init__()
@@ -12198,7 +12202,7 @@ class ResumeMachine(QueueMachine):
         if name=='fopen':
             path,mode=self.text(a),self.text(b)
             # the boot logo's lit-only mount poll; dark, any open counts
-            self.opens+=path!='/proc/mounts' or not self.u.mem_read(syms['g_backlight_status'],1)[0]
+            self.opens+=path!=RECORD and (path!='/proc/mounts' or not self.u.mem_read(syms['g_backlight_status'],1)[0])
             if mode=='rb' and path not in self.files: ret=0
             else: ret=0x2000000+len(self.calls); self.open[ret]=[path,mode,0,b'' if mode=='wb' else self.files.get(path,b'')]
         elif name=='fread':
@@ -13135,14 +13139,16 @@ assert [c[:2] for c in m.calls if c[0] in ('stock_savercover','widget_invalidate
 # back at CHARGE_RESUME: on, or USB mode's own choice while its page is open. Every CHARGE_POLL_MS.
 class PowerMachine(ResumeMachine):
     def __init__(self,config={},files=None):
-        super().__init__(files); self.config.update(config); self.writes=[]
+        super().__init__(files); self.config.update(config); self.writes=[]; self.records=[]  # records: the state record's
         for n in ('fflush@GLIBC_2.0','fsync@GLIBC_2.0','fileno@GLIBC_2.0','unlink@GLIBC_2.0','open@GLIBC_2.0','close@GLIBC_2.0'):
             self.handlers[syms[n]]='p:'+n
     def hook(self,u,address,size,unused):
         name=self.handlers.get(address,''); a=u.reg_read(REGS[0])
         if name.startswith('r:fclose') and self.open.get(a,[0,0])[1]=='w':
-            path,_,_,data=self.open.pop(a); self.files[path]=data; self.writes.append((path,data)); self.calls.append(('fclose',a,0,0))
+            path,_,_,data=self.open.pop(a); self.files[path]=data; (self.records if path==RECORD else self.writes).append((path,data)); self.calls.append(('fclose',a,0,0))
             self.returns(0); return
+        if name.startswith(('p:fflush','p:fileno','p:fsync')) and (a==RECORD_FD or self.open.get(a,[''])[0]==RECORD):
+            self.returns(RECORD_FD if name.startswith('p:fileno') else 0); return  # the record's sync, apart from the marker's
         if name.startswith('r:fopen') and self.text(u.reg_read(REGS[1]))=='w':
             ret=0x2000000+len(self.calls); self.open[ret]=[self.text(a),'w',0,b'']; self.calls.append(('fopen',a,0,0))
             self.returns(ret); return
@@ -13287,6 +13293,50 @@ m=StandbyMachine({'STANDBYLIMIT':'1'},key=7200,refuse=True); assert m.standby()=
 for usb,play in ((1,3),(0,2)):  # a cable in, or playing: it stays on, and no later pass powers off
     m=StandbyMachine({'STANDBYLIMIT':'1'}); m.standby(); m.byte(syms['g_usbdet_value'],usb); m.word(0xa3beac,play)
     assert not m.off() and not m.off(); passed()
+# Hardware watchdog and the state record (docs/internals.md#watchdog). The first pass opens
+# /dev/jz_watchdog and starts it at WDT_MS, every pass feeds it, Standby stops it around the suspend
+# and starts it again, and a clean end stops it and removes the record; nothing is fed or written
+# after. No device, or a refused start: tried once, and the record is kept all the same. The record
+# is rewritten only when it changes, and as suspending just before Standby's suspend.
+WDT_START,WDT_STOP,WDT_FEED=0x8004570d,0x2000570e,0x2000570f
+class WatchdogMachine(StandbyMachine):
+    def __init__(self,config={},fd=3,refuse_start=False,**k):
+        super().__init__(config,**k); self.fd,self.refuse_start,self.ioctls,self.wdt_opens=fd,refuse_start,[],0
+        self.handlers[syms['ioctl@GLIBC_2.0']]='d:ioctl'
+        self.byte(syms['g_backlight_status'],1); self.byte(syms['g_usbdet_value'],0)
+    def hook(self,u,address,size,unused):
+        name=self.handlers.get(address,''); a,b,c=[u.reg_read(r) for r in REGS[:3]]
+        if name=='p:open@GLIBC_2.0':
+            assert self.text(a)=='/dev/jz_watchdog' and b==2; self.wdt_opens+=1; self.returns(self.fd&0xffffffff); return
+        if name=='d:ioctl':
+            self.ioctls.append((a,b,self.get(c)) if b==WDT_START else (a,b))
+            if b!=WDT_FEED: self.events.append(('wdt',b))
+            self.returns(0xffffffff if b==WDT_START and self.refuse_start else 0); return
+        return super().hook(u,address,size,unused)
+    def record(self): return self.files.get(RECORD)
+m=WatchdogMachine(key=600); m.pass_(1)
+assert m.wdt_opens==1 and m.ioctls==[(3,WDT_START,O['WDT_MS'])],(m.ioctls)
+assert m.record()==b'screen:on power:running cable:out battery:0 play:paused out:jack\n',m.record()
+m.pass_(1); m.pass_(1); assert m.ioctls[1:]==[(3,WDT_FEED)]*2 and m.wdt_opens==1 and len(m.records)==1; passed()
+level(m,57,0); m.pass_(1); assert m.records[-1]==(RECORD,b'screen:on power:running cable:out battery:57 play:paused out:jack\n')
+n=len(m.records); m.pass_(1); assert len(m.records)==n  # unchanged: not rewritten
+m.byte(syms['g_backlight_status'],0); m.byte(syms['g_usbdet_value'],1); m.pass_(1)
+assert m.records[-1][1]==b'screen:off power:running cable:in battery:57 play:paused out:jack\n'; passed()
+m.ioctls=[]; assert m.standby()==[('wdt',WDT_STOP),'suspend',('wdt',WDT_START)],m.events
+assert m.records[-1][1]==b'screen:off power:suspending cable:in battery:57 play:paused out:jack\n'
+m.pass_(1); assert m.records[-1][1].startswith(b'screen:off power:running') and m.ioctls[-1]==(3,WDT_FEED); passed()
+m=WatchdogMachine({'STANDBYLIMIT':'1'}); m.pass_(1)
+assert m.standby()==[('alarm',0),('alarm',start+3600),('wdt',WDT_STOP),'suspend',('wdt',WDT_START),('alarm',0)],m.events; passed()
+# a clean end: the watchdog stops, the record goes, and nothing is fed or written after it
+m=WatchdogMachine(key=600); m.pass_(1); m.ioctls=[]
+m.call(address=payload_syms['ringnav_clean_end'],args=(0,0,0,0),gap=0)
+assert m.ioctls==[(3,WDT_STOP)] and RECORD not in m.files; n=len(m.records); m.ioctls=[]
+level(m,5,0); m.pass_(1); assert not m.ioctls and len(m.records)==n and RECORD not in m.files; passed()
+m=WatchdogMachine(key=600,fd=-1); m.pass_(1); m.pass_(1)
+assert m.wdt_opens==1 and not m.ioctls and m.record() and m.standby()==['suspend']; passed()
+m=WatchdogMachine(key=600,refuse_start=True); m.pass_(1); m.pass_(1)
+assert m.ioctls==[(3,WDT_START,O['WDT_MS'])] and m.record() and m.standby()==['suspend']; passed()
+
 # The Wi-Fi signal (navigation.c ringnav_wifi_signal): networkGetWifiSignal, which the status bar and
 # the network monitor thread each call about once a second, reads the driver's rx_signal and never
 # sends stock's SIOCGIWSTATS, whose TX report takes the radio out of power save. It answers stock's

@@ -399,6 +399,10 @@ typedef struct {
     void *dc_top;    /* the page of the last centre press no list click took, and its time */
     unsigned dc_at;
     unsigned charge_at, last_input, cpu_retry;
+    int wdt;   /* the hardware watchdog's fd: 0 untried, -1 none or refused (wdt_poll) */
+    int ended; /* a clean end began: no feed and no state record from here (ringnav_clean_end) */
+    int suspended;  /* inside Standby's suspend (ringnav_standby), for the state record */
+    char state[96]; /* the state record last written (state_poll) */
     /* the boot logo's poll: last check, card seen mounted, its sync thread, its failure to toast */
     unsigned logo_at;
     int logo_mounted;
@@ -9173,6 +9177,78 @@ static void cpu_poll(void) {
     }
     if (!st.cpu_off) st.cpu_bad = 3;
 }
+/* Hardware watchdog (docs/internals.md#watchdog). Stock loads soc_watchdog.ko and never starts it,
+ * so a Q2 whose UI loop or kernel stalls stays dark, every button dead, until a 15 s Centre hold
+ * cuts the power. The first UI loop pass starts it counting WDT_MS and every pass feeds it, so a
+ * stall that long reboots instead. It counts on the RTC clock, through a suspend, so Standby stops
+ * it before and starts it again after (ringnav_standby). Its close is a no-op, so a clean end
+ * (ringnav_clean_end: power-off, Restart, a firmware update, Rockbox) stops it. libhardware2's
+ * watchdog_start/stop/feed ioctls; no device, or a refused start, leaves stock's behaviour.
+ * ponytail: the UI loop is the only feeder, so a stalled worker thread is not caught. */
+#define WDT_DEV "/dev/jz_watchdog"
+#define WDT_START 0x8004570d /* an int of milliseconds, by pointer */
+#define WDT_STOP 0x2000570e
+#define WDT_FEED 0x2000570f
+static void wdt_set(int on) { /* Standby's suspend and the resume after it; a clean end */
+    int ms = WDT_MS;
+    if (st.wdt > 0) ioctl(st.wdt, on ? WDT_START : WDT_STOP, &ms);
+}
+static void wdt_poll(void) {
+    if (st.ended || st.wdt < 0) return;
+    if (st.wdt) {
+        ioctl(st.wdt, WDT_FEED, 0);
+        return;
+    }
+    int fd = open(WDT_DEV, 2), ms = WDT_MS; /* O_RDWR, as libhardware2 opens it */
+    st.wdt = fd > 0 && !ioctl(fd, WDT_START, &ms) ? fd : -1;
+}
+/* The state record (docs/internals.md#watchdog): /mnt/data/q2-state says what the Q2 is doing, one
+ * line rewritten and synced whenever it changes: the screen, Standby's suspend, the cable, the
+ * battery, playback and its output, CPU1. A clean end removes it; one still there at boot means a
+ * forced restart (or the battery), and S90play puts it in q2-crash.log (docs/boot.md). */
+#define STATE_FILE "/mnt/data/q2-state"
+static char *put(char *p, const char *s) {
+    while (*s) *p++ = *s++;
+    return p;
+}
+static void state_poll(void) {
+    static const char *const play[] = { "?", "stopped", "playing", "paused" };
+    static const char *const out[] = { "jack", "bluetooth", "usb" };
+    if (st.ended) return;
+    unsigned ps = (unsigned)mclGetPlayStatus(), ow = (unsigned)mclGetOutputWay();
+    unsigned pct = (unsigned)I(g_power_capacity, 0), n = 0;
+    char s[sizeof st.state], d[4], *p = s;
+    p = put(p, g_backlight_status ? "screen:on" : "screen:off");
+    p = put(p, st.suspended ? " power:suspending" : " power:running");
+    p = put(p, g_usbdet_value ? " cable:in" : " cable:out");
+    p = put(p, " battery:");
+    if (pct > 100) pct = 100;
+    do d[n++] = '0' + pct % 10;
+    while (pct /= 10);
+    while (n) *p++ = d[--n];
+    p = put(p, " play:");
+    p = put(p, play[ps < 4 ? ps : 0]);
+    p = put(p, " out:");
+    p = put(p, out[ow < 3 ? ow : 0]);
+    p = put(p, st.cpu_off ? " cpu1:off\n" : "\n");
+    *p = 0;
+    if (!tk_strcmp(s, st.state)) return;
+    void *f = fopen(STATE_FILE, "w");
+    if (!f) return;
+    fwrite(s, 1, p - s, f);
+    fflush(f);
+    fsync(fileno(f));
+    fclose(f);
+    memcpy(st.state, s, p - s + 1);
+}
+/* A clean end: power-off, Restart, a firmware update, Rockbox. Nothing to report at the next boot.
+ */
+void ringnav_clean_end(void) {
+    if (st.ended) return;
+    st.ended = 1;
+    wdt_set(0);
+    unlink(STATE_FILE);
+}
 /* Standby limit (docs/internals.md#standby-limit): device_standby puts the radios, the card and the
  * DAC down, then toolsIntoStandby suspends to RAM ("mem" to /sys/power/state) and returns once
  * something resumes it. With a limit, the RTC's wake alarm is set that far ahead first and cleared
@@ -9205,7 +9281,12 @@ int ringnav_standby(void) {
     unsigned start = st.standby_limit ? rtc_now() : 0;
     unsigned alarm = start + hours[st.standby_limit] * 3600;
     int armed = start && rtc_alarm(0) && rtc_alarm(alarm);
+    st.suspended = 1;
+    state_poll(); /* the record a resume that never comes leaves behind */
+    wdt_set(0);   /* it would count through the suspend */
     int result = stock_standby_trampoline();
+    wdt_set(1);
+    st.suspended = 0; /* the next pass records the resume */
     if (armed) {
         unsigned now = rtc_now();
         rtc_alarm(0);
@@ -9319,6 +9400,8 @@ static void power_poll(void) {
     cpu_poll();
     standby_poll();
     logo_poll();
+    wdt_poll();
+    state_poll();
 }
 
 /* Home's Rockbox row (docs/boot.md#rockbox-from-home), bound by coverflow_home: a click leaves
@@ -9349,6 +9432,7 @@ int rockbox_open(void *ctx, void *event) {
     if (bt_link() && g_bluetoothflag && bt_linkstatus &&
         (unsigned)btctl_transport_get_volume() <= 127)
         btctl_transport_set_volume(((g_maxvolume < 100 ? g_maxvolume : 100) * 127 + 50) / 100);
+    ringnav_clean_end(); /* the watchdog would outlive demo's kill; nothing to report */
     system("killall checkappprocess.sh; killall -9 hciplayer; " SPOT_KILL "; sync; kill -9 $PPID");
     return 0;
 }

@@ -185,6 +185,15 @@ S90PLAY = 'etc/init.d/S90play'
 ROCKBOX_FLAG = '/tmp/q2pod-rockbox'
 BOOT_HOOK = (b'    /release/bin/demo &\n', f'''    (
         c=/mnt/data/q2-crash.log
+        m=/mnt/data/q2-state
+        [ -f $m ] && {{
+            [ -f $c ] || {{
+                echo "== date"; date
+                echo "== demo did not end: a forced restart, or the battery ran out"
+            }} > $c
+            {{ echo "== last state"; ls -l $m; cat $m; }} >> $c
+            rm -f $m
+        }}
         [ -f $c ] && (
             i=0
             while [ $i -lt 60 ] && ! grep -q ' /mnt/mmc ' /proc/mounts; do usleep 500000; i=$((i+1)); done
@@ -211,7 +220,7 @@ BOOT_HOOK = (b'    /release/bin/demo &\n', f'''    (
             killall checkappprocess.sh 2>/dev/null
             rockbox
         done
-        case $s in 0|143) ;; *)
+        case $s in 0|143) rm -f $m ;; *)
             {{
                 echo "== date"; date
                 echo "== demo exit $s"
