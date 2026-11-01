@@ -364,7 +364,7 @@ void playback_track_speed(void) {
 int ringnav_speed(int mode) {
     folder_speed saved = { { 0 }, 0 };
     char path[80], tmp[84];
-    /* player_initconfig re-applies speed when the decoder connects; that is not a user edit. */
+    /* player_initconfig re-applies speed when hciplayer reconnects after a disconnect; not a user edit. */
     if (__builtin_return_address(0) == (void *)0x51339c || (unsigned)mode >= 4) {
         playback_speed_start();
         return stock_speed_trampoline(g_playspeed_mode);
@@ -829,11 +829,10 @@ void playback_clear(void) {
     release();
 }
 int ringnav_mode(int mode) {
-    /* player_initconfig re-applies the saved mode each time hciplayer connects, after a boot
-     * resume too: not a choice, so advanced play stays. The new hciplayer gets MQA's too. */
+    /* player_initconfig re-applies the saved mode when hciplayer reconnects after a disconnect
+     * (never on the first connection at boot): not a choice, so advanced play stays. */
     int initconfig = __builtin_return_address(0) == (void *)INITCONFIG_MODE_RET;
     if (initconfig) {
-        mqa_sync();
         /* A new hciplayer has no filter: peq_chain attaches again. With the EQ on, player_initconfig's
          * own set_equalizer_value (0x5133b8, before this call) has put it in already. */
         if (!g_equalizer_flag) peq_chained = 0;

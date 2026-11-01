@@ -1216,7 +1216,7 @@ def compile_payload(out):
         f'--undefined={WM_PAINT_LEAF[2]}', '--undefined=ringnav_audio_extension', '--undefined=ringnav_lyric_save', '--undefined=ringnav_bootmode', '--undefined=lockscreen_access','--undefined=ringnav_ts_read',
         '--undefined=ringnav_baidu_poll', '--undefined=ringnav_tidal_poll', '--undefined=addon_m3u_dir',
         '--undefined=coverflow_player_cover', '--undefined=coverflow_grid_cover', '--undefined=coverflow_album_cover', '--undefined=coverflow_folder_cover', '--undefined=headset_bt_init',
-        '--undefined=headset_status_register', '--undefined=headset_bt_autolink',
+        '--undefined=headset_status_register', '--undefined=headset_bt_autolink', '--undefined=mqa_accept',
         out/'navigation.o',out/'trampoline.o',*extra,'-o',out/'patch.elf')
     run('llvm-objcopy','-O','binary',out/'patch.elf',out/'patch.bin')
     return symbols(out/'patch.elf')
@@ -1450,6 +1450,8 @@ def build(zip_path, out, logo, dev=False, repo=REPO, aic_idle_wait=True, rotator
           'player_initconfig: unexpected mclSetPlayMode call')
     patch_word(patched, 0x4f999c, 0x0411e992, jal(ps['ringnav_bootmode']),
                'config_init preserves the saved queue when applying the boot play mode')
+    patch_word(patched, 0x5a7da0, 0x0320f809, jal(ps['mqa_accept']),
+               'saved MQA mode on every player connection, including boot')
     patch_word(patched, 0x4fa41c, 0x0320f809, jal(ps['lockscreen_access']),
                'startup accepts built-in wallpapers')
     patch_word(patched, 0x4fad60, 0x0320f809, jal(ps['lockscreen_access']),
