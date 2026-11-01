@@ -1,5 +1,8 @@
 # Changelog
 
+- **1.6.1**:
+  - Library: **Recently Added** keeps the day a song was added when you run **Update Local Music**. Shanling's firmware dates a song by the last time its file was read on exFAT cards, and a full update reads every file, so after one the whole library counted as added that day and albums added a few days earlier dropped off the list ([#170](https://github.com/DiamondBond/q2-pod/issues/170)). Songs added before this version keep the dates they have; a song shows its real date once it has been added by this version's update.
+
 - **1.6.0**:
   - Scrobbling: `PERCENT=` in `.scrobble.ini`'s `[SCROBBLE]` section, from 1 to 100, scrobbles a song only once you've heard that share of it, as phone scrobblers offer. Without it a song scrobbles at half its length or four minutes, as before.
   - Resume: with Memory Playback or In-Vehicle Mode on, the queue you left comes back after turning the Q2 off and on, as you left it: songs added with **Play Next** or **Add to Queue**, several albums of an artist, or a folder. It came back as your whole library at the same song, unless an advanced play mode (Shuffle Albums, a Repeat) was on.

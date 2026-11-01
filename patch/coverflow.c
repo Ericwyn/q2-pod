@@ -71,9 +71,38 @@ static int library_write(int (*stock)(void *, void *), void *a, void *b) {
     ++library_gen;
     return result;
 }
+/* Update Local Music (b: the drop flag it passes to toolsInitDatabase) drops songtable and dates
+ * every song again from toolsGetFileCreateTime (0x5bddc4): on exFAT and NTFS cards the file's
+ * access time, which the update's own tag reads move, so each full update dated the whole library
+ * to its last update or play and Recently Added lost the albums added a few days before (#170).
+ * Songs already in the library keep their time_create across the rebuild, matched by path and
+ * CUE start; new songs take stock's. The copy is a table in the database, typed as songtable's
+ * columns are so the key matches by value and is one lookup per song, without rowid (it is its own
+ * index) and dropped after; its pages stay in the file's free list for the next update. Both
+ * scripts run inside the generation window, so no list is kept between stock's end and the
+ * write-back. ponytail: a song replaced at the same path keeps its old date; an update stopped
+ * with Back loses the dates of the songs it never re-added; a failed save (toolsUpdateDbTable
+ * returns 1 on success and closes the handle on an error, which the next call reopens) skips
+ * the write-back, so stock's dates stand. */
+#define DB "/mnt/data/database.db"
+static const char ADDED_SAVE[] =
+    "drop table if exists ringnav_added;"
+    "create table ringnav_added(fileurl VARCHAR(1024),time INTEGER,time_create INTEGER,"
+    "primary key(fileurl,time)) without rowid;"
+    "insert or ignore into ringnav_added select fileurl,time,time_create from songtable;";
+static const char ADDED_RESTORE[] =
+    "update songtable set time_create=ifnull((select a.time_create from ringnav_added a"
+    " where a.fileurl=songtable.fileurl and a.time=songtable.time),time_create);"
+    "drop table if exists ringnav_added;";
+static int scan_all_kept(void *a, void *b) {
+    int saved = b && toolsUpdateDbTable(DB, ADDED_SAVE) == 1;
+    int result = stock_scan_all_trampoline(a, b);
+    if (saved) toolsUpdateDbTable(DB, ADDED_RESTORE);
+    return result;
+}
 int coverflow_scan_all(void *a, void *b) {
     library_scope_scan();
-    return library_write(stock_scan_all_trampoline, a, b);
+    return library_write(scan_all_kept, a, b);
 }
 int coverflow_scan_folder(void *a, void *b) {
     library_scope_scan();
