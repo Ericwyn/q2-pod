@@ -254,6 +254,7 @@ void addon_forget(const char *dir), addon_quit(const char *dir);
 int addon_games(void), addon_game_start(int k), addon_game_on(void);
 const char *addon_game_name(int k);
 int addon_game_input(void *e), addon_is_game(const char *id);
+void ringnav_wdt_long(void); /* navigation.c: the watchdog's long count for a long pass */
 int ringnav_smart_awake(void); /* navigation.c: Smart Awake (IPOD KEEPLIT) is on */
 void library_poll(void); /* addon_library.c: an app's library update request, once per addon_poll */
 /* spotify.c's Q2SPOT/1 framing (docs/librespot.md), which the card apps speak too */

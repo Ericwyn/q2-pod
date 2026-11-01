@@ -656,13 +656,15 @@ int addon_game_input(void *e) {
     if (!e) return gm.pid != 0;
     unsigned type = (unsigned)I(e, EVENT_TYPE), key = (unsigned)I(e, EVENT_KEY);
     int keyish = type == EVT_KEY_DOWN || type == EVT_KEY_UP || type == EVT_KEY_LONG;
-    if (keyish && key == KEY_RETURN && type == EVT_KEY_UP && gm.eat) return gm.eat = 0, 1;
+    if (keyish && key == KEY_RETURN && gm.eat) /* the held Return's repeats and release */
+        return gm.eat = type != EVT_KEY_UP, 1;
     if (!gm.pid) return 0;
     if (keyish && (key == KEY_PLAY || key == KEY_BACK_BTN || key == KEY_FWD_BTN)) return 0;
     if (keyish && key == KEY_RETURN)
-        gm.held = type == EVT_KEY_DOWN ? (unsigned)time_now_ms() | 1
-                  : type == EVT_KEY_UP ? 0
-                                       : gm.held;
+        gm.held = type == EVT_KEY_UP ? 0
+                  : type == EVT_KEY_DOWN && !gm.held
+                      ? (unsigned)time_now_ms() | 1 /* not a repeat's */
+                      : gm.held;
     char m[32];
     m[0] = 0;
     if (type == EVT_KEY_DOWN || type == EVT_KEY_UP)
@@ -683,7 +685,7 @@ int addon_game_input(void *e) {
 
 /* every UI loop pass: the wheel's travel, the screen and standby held, the idle quit, its end */
 static void game_poll(void) {
-    int status;
+    int status = 0;
     if (!gm.pid) return;
     if (waitpid(gm.pid, &status, 1)) { /* WNOHANG: it has ended */
         close(gm.sock);

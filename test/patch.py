@@ -11113,11 +11113,13 @@ def poll(m):  # one pass: how many kills it sent (their text's stack buffer is r
 # Return held 700 ms ends it, timed here from its down (stock makes the long press after this hook); one
 # that ignores the TERM is KILLed 3 s on; the held Return's release, after it has gone, stays out of Games.
 assert game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN'])==[('k d 170',GS)]
-m.now+=600; assert poll(m)==0
-m.now+=101; assert poll(m)==1 and poll(m)==0  # the stamps are odd (| 1), 0 being none
+for _ in range(12): m.now+=50; game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN'])  # its repeats: still the first down's hold
+assert poll(m)==0
+m.now+=101; assert poll(m)==1 and poll(m)==0  # 701: the stamps are odd (| 1), 0 being none
 m.now+=3000; assert poll(m)==1
 m.waited=4243; poll(m); assert fn('addon_game_on')==0 and m.get(payload_syms['wheel_raw'])==0
-assert game_event(O['EVT_KEY_UP'],O['KEY_RETURN'])==[] and game_event(O['EVT_KEY_UP'],O['KEY_RETURN'],stock=True)==[]
+assert game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN'])==[] and game_event(O['EVT_KEY_UP'],O['KEY_RETURN'])==[]
+assert game_event(O['EVT_KEY_UP'],O['KEY_RETURN'],stock=True)==[]
 # Released before then: the game's Return, nothing ended.
 m.waited=0; assert fn('addon_game_start',0)==1
 game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN']); m.now+=300; assert game_event(O['EVT_KEY_UP'],O['KEY_RETURN'])==[('k u 170',GS)]
@@ -13376,6 +13378,12 @@ assert m.records[-1][1]==b'screen:off power:suspending cable:in battery:57 play:
 m.pass_(1); assert m.records[-1][1].startswith(b'screen:off power:running') and m.ioctls[-1]==(3,WDT_FEED); passed()
 m=WatchdogMachine({'STANDBYLIMIT':'1'}); m.pass_(1)
 assert m.standby()==[('alarm',0),('alarm',start+3600),('wdt',WDT_STOP),'suspend',('wdt',WDT_START),('alarm',0)],m.events; passed()
+# a known long pass (an import, a folder add) counts WDT_LONG_MS; the next pass, after it, WDT_MS again
+m=WatchdogMachine(key=600); m.pass_(1); m.ioctls=[]
+for _ in range(2): m.call(address=payload_syms['ringnav_wdt_long'],args=(0,0,0,0),gap=0)  # once while it runs
+assert m.ioctls==[(3,WDT_STOP),(3,WDT_START,O['WDT_LONG_MS'])],m.ioctls; m.ioctls=[]
+m.pass_(1); assert m.ioctls==[(3,WDT_STOP),(3,WDT_START,O['WDT_MS'])],m.ioctls; m.ioctls=[]
+m.pass_(1); assert m.ioctls==[(3,WDT_FEED)] and O['WDT_LONG_MS']>O['WDT_MS']==60000; passed()
 # a clean end: the watchdog stops, the record goes, and nothing is fed or written after it
 m=WatchdogMachine(key=600); m.pass_(1); m.ioctls=[]
 m.call(address=payload_syms['ringnav_clean_end'],args=(0,0,0,0),gap=0)

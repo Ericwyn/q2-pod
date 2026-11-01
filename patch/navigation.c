@@ -399,8 +399,9 @@ typedef struct {
     void *dc_top;    /* the page of the last centre press no list click took, and its time */
     unsigned dc_at;
     unsigned charge_at, last_input, cpu_retry;
-    int wdt;   /* the hardware watchdog's fd: 0 untried, -1 none or refused (wdt_poll) */
-    int ended; /* a clean end began: no feed and no state record from here (ringnav_clean_end) */
+    int wdt;      /* the hardware watchdog's fd: 0 untried, -1 none or refused (wdt_poll) */
+    int wdt_long; /* counting WDT_LONG_MS for a long pass (ringnav_wdt_long) */
+    int ended;    /* a clean end began: no feed and no state record from here (ringnav_clean_end) */
     int suspended;  /* inside Standby's suspend (ringnav_standby), for the state record */
     char state[96]; /* the state record last written (state_poll) */
     /* the boot logo's poll: last check, card seen mounted, its sync thread, its failure to toast */
@@ -6052,6 +6053,7 @@ static void qm_tracks(void *r, void *add) {
         char path[1024];
         tk_snprintf(path, sizeof(path), "%s/%s", (const char *)g_folder_path,
                     (const char *)P(r, REC_NAME));
+        ringnav_wdt_long();
         folder_tracks(path, add, 0);
         return;
     }
@@ -9200,12 +9202,25 @@ static void wdt_set(int on) { /* Standby's suspend and the resume after it; a cl
     int ms = WDT_MS;
     if (st.wdt > 0) ioctl(st.wdt, on ? WDT_START : WDT_STOP, &ms);
 }
+static void wdt_span(int ms) {
+    ioctl(st.wdt, WDT_STOP, 0);
+    ioctl(st.wdt, WDT_START, &ms);
+}
+/* A known long pass is starting (an import's tag reads, a folder add's loads): WDT_LONG_MS for it,
+ * and the next pass, once it has returned, WDT_MS again */
+void ringnav_wdt_long(void) {
+    if (st.ended || st.wdt <= 0 || st.wdt_long) return;
+    st.wdt_long = 1;
+    wdt_span(WDT_LONG_MS);
+}
 static void wdt_poll(void) {
     if (st.ended || st.wdt < 0) return;
-    if (st.wdt) {
+    if (st.wdt && st.wdt_long) {
+        st.wdt_long = 0;
+        wdt_span(WDT_MS);
+    } else if (st.wdt)
         ioctl(st.wdt, WDT_FEED, 0);
-        return;
-    }
+    if (st.wdt) return;
     int fd = open(WDT_DEV, 0x80002), ms = WDT_MS; /* O_RDWR, as libhardware2, | O_CLOEXEC (MIPS) */
     st.wdt = fd > 0 && !ioctl(fd, WDT_START, &ms) ? fd : -1;
     if (fd > 0 && st.wdt < 0) close(fd);
