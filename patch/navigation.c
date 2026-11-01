@@ -3716,6 +3716,13 @@ static void keep_lit_poll(void) {
         reset_poweroptions_timer(1, 1, 1);
 }
 
+/* Smart Awake's setting (accent's, kept current by its switch): addon.c holds a card game open
+ * and lit under it */
+int ringnav_smart_awake(void) {
+    accent();
+    return st.keep_lit;
+}
+
 /* Centred Now Playing's full-screen lyrics (np_lyric_touch): the column (stock's slide_view_view,
  * tools/ipod.py PLAYING_STOCK) goes over the page's other widgets, black and the window's width,
  * its slide_view down to the page dots, and the lines wrap at the new width (lyrics_fit), back on
@@ -9800,7 +9807,8 @@ static int remote_key(void *e) {
 }
 
 /* window_manager_dispatch_input_event: while q2video plays (books.c) no key or touch reaches the
- * UI; a key's release goes to the player instead. Every event times ringnav_sleep's idle. */
+ * UI; a key's release goes to the player instead. A card game (addon.c) takes every event but the
+ * music's keys. Every event times ringnav_sleep's idle. */
 int ringnav(void *ctx, void *event);
 int ringnav_input(void *wm, void *e) {
     if (e && (chord_gate(e) || wake_gate(e))) return 0;
@@ -9809,6 +9817,7 @@ int ringnav_input(void *wm, void *e) {
         if (e && I(e, EVENT_TYPE) == EVT_KEY_UP) video_key((unsigned)I(e, EVENT_KEY));
         return 0;
     }
+    if (addon_game_on() && addon_game_input(e)) return 0;
     unsigned type = e ? (unsigned)I(e, EVENT_TYPE) : 0;
     unsigned key = e ? (unsigned)I(e, EVENT_KEY) : 0;
     if ((type == EVT_KEY_DOWN || type == EVT_KEY_UP || type == EVT_KEY_LONG) &&
@@ -9846,14 +9855,15 @@ int ringnav_input(void *wm, void *e) {
 }
 
 /* window_manager_paint, a leaf (tools/build.py WM_PAINT_LEAF): the window manager's own paint
- * (vtable +0xc), except while q2video has the framebuffer (video_poll repaints after) and while the
- * screen is off, unless a window animates (AWTK steps it from the paint); the first lit pass
- * repaints the whole screen (ringnav_sleep; docs/internals.md Battery). */
+ * (vtable +0xc), except while q2video or a card game has the framebuffer (each poll repaints after
+ * it) and while the screen is off, unless a window animates (AWTK steps it from the paint); the
+ * first lit pass repaints the whole screen (ringnav_sleep; docs/internals.md Battery). */
 int ringnav_wm_paint(void *wm) {
     if (wm && !g_backlight_status && !window_manager_is_animating(wm)) return 0; /* RET_OK */
-    void *vt = wm && !video_on() ? P(wm, 0x94) : (void *)0;
+    int away = video_on() || addon_game_on();
+    void *vt = wm && !away ? P(wm, 0x94) : (void *)0;
     int (*paint)(void *) = vt ? (int (*)(void *))P(vt, 0xc) : (int (*)(void *))0;
-    return paint ? paint(wm) : video_on() ? 0 : 0x10; /* RET_BAD_PARAMS, as stock */
+    return paint ? paint(wm) : away ? 0 : 0x10; /* RET_BAD_PARAMS, as stock */
 }
 
 /* buzzeer_switch (0x4f3cc8), every Key Tone click, stock's and ringnav()'s: the MCU's buzzer

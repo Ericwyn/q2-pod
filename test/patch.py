@@ -9685,7 +9685,8 @@ class BooksMachine(DepthMachine):
         elif name=='fork': ret=self.forked
         elif name=='execl':
             sp=u.reg_read(UC_MIPS_REG_SP); e=self.get(sp+16)  # a volume argv, then its terminator
-            self.execs.append((self.text(a),self.text(b),self.text(c),self.text(d),e and (self.text(e),self.get(sp+20)))); ret=-1
+            if not c: self.execs.append((self.text(a),self.text(b))); ret=-1  # no arguments: the terminator third
+            else: self.execs.append((self.text(a),self.text(b),self.text(c),self.text(d),e and (self.text(e),self.get(sp+20)))); ret=-1
         elif name=='waitpid': assert a==self.forked and c==1; ret=self.waited
         elif name=='socket': assert (a,b,c)==(1,1,0); ret=7
         elif name=='sendto':
@@ -11082,8 +11083,41 @@ passed()
 CAPS='/tmp/q2-addon.caps'
 m=AppMachine(); stream_rows(m); caps=bytes(m.files[CAPS])
 assert caps.endswith(b'\n') and caps.count(b'\n')==1,caps
-assert set(caps.split())=={b'playlist',b'progress',b'pages',b'library',b'goto',b'sleep'},caps
+assert set(caps.split())=={b'playlist',b'progress',b'pages',b'library',b'goto',b'sleep',b'game'},caps
 m.files[CAPS]=bytearray(b'stale\n'); stream_rows(m); assert m.files[CAPS]==caps; passed()
+# Card games (addon.c, q2app game=1): Library's Games lists them, Streaming doesn't. A row runs the binary
+# over the screen; each input event reaches its socket as a text datagram instead of the UI (a held Return
+# ends it), but the music's keys stay stock's; the wheel's raw travel goes once a poll, and its end gives
+# the wheel back.
+m=AppMachine(); card_app(m,'fidget','name=Fidget\ngame=1\n'); assert 'Fidget' not in stream_rows(m)
+def fn(name,*args): return m.call(address=payload_syms[name],args=(args+(0,0,0,0))[:4],gap=0,clear=False,count=5_000_000)
+assert fn('addon_games')==1 and m.text(fn('addon_game_name',0))=='Fidget' and fn('addon_game_on')==0
+m.forked=0; m.execs=[]; fn('addon_game_start',0); assert m.execs[-1][:2]==('/mnt/mmc/.fidget/q2-fidget',)*2  # the child
+m.forked=4243; assert fn('addon_game_start',0)==1 and fn('addon_game_on')==4243 and m.get(payload_syms['wheel_raw'])==1
+inp=HOOKS['window_manager_dispatch_input_event'][0]; m.handlers[inp+12]='stock_input'; GS='/tmp/q2-fidget.input.sock'
+def game_event(kind,key=0,x=0,y=0,stock=False):
+    m.calls=[]; m.sent=[]; m.word(m.event+O['EVENT_X'],x); m.word(m.event+O['EVENT_Y'],y)
+    m.call(x or key,address=inp,args=(m.wm,m.event,0,0),event_type=kind,gap=0,clear=False)  # EVENT_KEY is EVENT_X's word
+    assert ('stock_input' in [c[0] for c in m.calls])==stock,(kind,key)
+    return [(t[1],t[5]) for t in m.sent]
+assert game_event(O['EVT_KEY_UP'],O['KEY_CENTER'])==[('k u 218',GS)] and game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN'])==[('k d 170',GS)]
+for k in ('KEY_PLAY','KEY_BACK_BTN','KEY_FWD_BTN'):
+    for kind in ('EVT_KEY_DOWN','EVT_KEY_UP'): assert game_event(O[kind],O[k],stock=True)==[],(k,kind)
+for kind,want in ((O['EVT_POINTER_DOWN']-1,'d'),(O['EVT_POINTER_MOVE_BEFORE']-1,'m'),(O['EVT_POINTER_UP_BEFORE']-1,'u'),(O['EVT_POINTER_ABORT'],'u')):
+    assert game_event(kind,x=120,y=88)==[(f't {want} 88 199',GS)],kind  # the panel's (x, y) turned into the view's
+assert game_event(O['EVT_KEY_LONG'],O['KEY_RETURN'])==[] and any(c[0]=='system' and m.text(c[1])=='kill 4243' for c in m.calls)
+m.word(payload_syms['wheel_travel'],0xffffffdb); m.sent=[]; m.waited=0; fn('addon_poll')
+assert [t[1] for t in m.sent]==['w -37'] and m.get(payload_syms['wheel_travel'])==0 and fn('addon_game_on')==4243
+# Two minutes without input end it (TERM), unless Smart Awake (IPOD KEEPLIT) holds it open and lit.
+def idle(m):
+    m.calls=[]; m.now+=120_000; m.waited=0; m.call(address=payload_syms['addon_poll'],args=(0,0,0,0),gap=0,clear=False,count=5_000_000)
+    return 'system' in [c[0] for c in m.calls]  # its kill (the command's stack buffer is reused by then)
+assert idle(m)
+m.waited=4243; fn('addon_poll'); assert fn('addon_game_on')==0 and m.get(payload_syms['wheel_raw'])==0
+CONFIG['KEEPLIT']='1'; a=AppMachine(); del CONFIG['KEEPLIT']; card_app(a,'fidget','name=Fidget\ngame=1\n'); a.forked=4243
+assert a.call(address=payload_syms['addon_games'],args=(0,0,0,0),gap=0,clear=False,count=5_000_000)==1
+assert a.call(address=payload_syms['addon_game_start'],args=(0,0,0,0),gap=0,clear=False,count=5_000_000)==1
+assert not idle(a) and not idle(a) and any(c[0]=='reset_poweroptions_timer' for c in a.calls); passed()
 # Stock's Baidu Netdisk row (a Chinese cloud drive; list_baidu's icon) is gone from Streaming, destroyed; its
 # TIDAL row stays first.
 m=AppMachine(); view=m.node('scroll_view','scroll_view_streamsset')

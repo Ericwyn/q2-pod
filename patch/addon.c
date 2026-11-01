@@ -29,6 +29,9 @@
  * An app's /tmp/q2-<id>.sleep asks for a sleep timer: playback pauses at a time, or as the track
  * playing ends (sleep_read, sleep_check).
  *
+ * A card game (q2app game=1, then no run or Streaming row) is a row in Library's Games instead:
+ * it runs over the whole screen, as Videos' player does, until it exits (addon_game_start).
+ *
  * The card-app features this firmware has are words in /tmp/q2-addon.caps (ADDON_CAPS), written at
  * every Streaming scan. */
 #include "offsets.inc"
@@ -59,20 +62,21 @@
 #define CARD "/mnt/mmc"
 #define CAPS_FILE "/tmp/q2-addon.caps"
 /* This firmware's card-app features, space-separated; a feature adds its word. */
-#define ADDON_CAPS "playlist progress pages library goto sleep"
+#define ADDON_CAPS "playlist progress pages library goto sleep game"
 
 /* An app found on the card, kept for the life of demo in its slot. present: on the card at the
  * last scan; relaunch: stopped for USB storage, to start again; restart: stopped by Retry (its
  * socket gone), to start again once its loop is gone. */
 typedef struct {
     char id[APP_ID], name[32], tips[32], bin[48], run[48], pid[32], state[40], browse[48], icon[56];
-    int qr, present, launched, hold, relaunch, restart;
+    int qr, game, present, launched, hold, relaunch, restart;
     unsigned polled, launch_at, restart_at, play; /* play: its .play as read last, hashed */
 } app_t;
 
 static struct {
     app_t a[APPS_MAX];
     int n, shown, order[APPS_MAX]; /* order: the slots on the card, by name */
+    int games, game[APPS_MAX];     /* the card games among them, by name too */
 } ap __attribute__((section(".scratch")));
 
 /* An id goes into shell commands: lowercase letters, digits and '-' only. */
@@ -115,6 +119,7 @@ int addon_scan(void) {
         field(raw, "search", a->tips, sizeof a->tips);
         if (!a->tips[0]) tk_snprintf(a->tips, sizeof a->tips, "Search");
         a->qr = number(raw, "qr") == 1;
+        a->game = number(raw, "game") == 1;
         a->present = !access(a->bin, 0);
         /* the row's size first, the other scaled to fit (navigation.c set_child), else stream_app
          */
@@ -126,13 +131,13 @@ int addon_scan(void) {
         }
     }
     if (d) closedir(d);
-    ap.shown = 0;
+    ap.shown = ap.games = 0;
     for (int i = 0; i < ap.n; ++i) { /* by name: an insertion, eight at most */
         if (!ap.a[i].present) continue;
-        int k = ap.shown++;
-        for (; k && strcasecmp(ap.a[ap.order[k - 1]].name, ap.a[i].name) > 0; --k)
-            ap.order[k] = ap.order[k - 1];
-        ap.order[k] = i;
+        int *order = ap.a[i].game ? ap.game : ap.order, k = ap.a[i].game ? ap.games++ : ap.shown++;
+        for (; k && strcasecmp(ap.a[order[k - 1]].name, ap.a[i].name) > 0; --k)
+            order[k] = order[k - 1];
+        order[k] = i;
     }
     blob_io(CAPS_FILE, CAPS_FILE ".tmp", ADDON_CAPS "\n", sizeof(ADDON_CAPS "\n") - 1, 1);
     return ap.shown;
@@ -570,7 +575,112 @@ static void poll_one(app_t *a) {
     if (access(a->pid, 0) && now - a->launch_at > ADDON_START_MS) a->launched = a->hold = 0;
 }
 
+/* Card games: Library's Games lists them after its own (games.c); a row runs the game's binary
+ * from its folder, with no launcher, over the whole screen while demo goes on without painting
+ * (navigation.c ringnav_wm_paint) or input (ringnav_input), as Videos' q2video does. Each input
+ * event reaches the game instead as a text datagram on /tmp/q2-<id>.input.sock:
+ *   "t d X Y", "t m X Y", "t u X Y"   touch down, move, up (an abort too), in the landscape
+ *                                     view's pixels (375 x 320), turned from the panel's
+ *   "k d CODE", "k u CODE"            a key down, up (AWTK's codes: Return 170, Centre 218)
+ *   "w N"                             the wheel's raw travel since the last (wheel_raw: 200 a turn,
+ *                                     rising anticlockwise), sent once a UI loop pass
+ * Play/Pause and the side buttons stay the music's, as stock has them under the Games page. The
+ * game ends itself (from its Return menu); a held Return ends it (TERM), as does GAME_IDLE_MS
+ * without input unless Smart Awake is on, and demo repaints when it has gone.
+ * ponytail: the screen stays on while it runs, as for a video, and the idle quit is what lets it
+ * sleep without Smart Awake; a game that wants to sleep on screen needs the wake path to reach
+ * stock under it. */
+#define GAME_IDLE_MS 120000
+static struct {
+    int pid, sock;
+    unsigned seen; /* time_now_ms of the last input */
+    char path[48]; /* the game's socket */
+} gm __attribute__((section(".scratch")));
+
+int addon_games(void) { return addon_scan(), ap.games; }
+const char *addon_game_name(int k) { return k >= 0 && k < ap.games ? ap.a[ap.game[k]].name : 0; }
+int addon_game_on(void) { return gm.pid; }
+
+static void game_end(void) {
+    char cmd[24];
+    tk_snprintf(cmd, sizeof cmd, "kill %d", gm.pid); /* demo imports no kill() */
+    system(cmd);
+}
+
+/* Card game k started over the screen: 1 when it runs. */
+int addon_game_start(int k) {
+    app_t *a = k >= 0 && k < ap.games ? &ap.a[ap.game[k]] : 0;
+    if (gm.pid || !a) return 0;
+    if (access(a->bin, 0)) return toast("It isn't on the card"), 0;
+    int pid = fork();
+    if (!pid) {
+        child_oom_first();
+        execl(a->bin, a->bin, (char *)0);
+        child_exit(127);
+    }
+    if (pid < 0) return 0;
+    gm.pid = pid;
+    gm.sock = socket(1, 1, 0); /* AF_UNIX, SOCK_DGRAM (MIPS numbering) */
+    gm.seen = time_now_ms();
+    tk_snprintf(gm.path, sizeof gm.path, "/tmp/q2-%s.input.sock", a->id);
+    __sync_lock_test_and_set(&wheel_travel, 0);
+    wheel_raw = 1;
+    return 1;
+}
+
+/* ringnav_input, while a game runs: the event as the game's datagram, 1; 0 for a music key, which
+ * stays stock's */
+int addon_game_input(void *e) {
+    if (!e || !gm.pid) return 1;
+    unsigned type = (unsigned)I(e, EVENT_TYPE), key = (unsigned)I(e, EVENT_KEY);
+    int keyish = type == EVT_KEY_DOWN || type == EVT_KEY_UP || type == EVT_KEY_LONG;
+    if (keyish && (key == KEY_PLAY || key == KEY_BACK_BTN || key == KEY_FWD_BTN)) return 0;
+    char m[32];
+    m[0] = 0;
+    if (type == EVT_KEY_DOWN || type == EVT_KEY_UP)
+        tk_snprintf(m, sizeof m, "k %s %u", type == EVT_KEY_UP ? "u" : "d", key);
+    else if (type == EVT_KEY_LONG && key == KEY_RETURN)
+        game_end();
+    else if ((type >= EVT_POINTER_DOWN - 1 && type <= EVT_POINTER_UP_BEFORE + 1) ||
+             type == EVT_POINTER_ABORT) {
+        const char *what = type == EVT_POINTER_ABORT || type >= EVT_POINTER_UP_BEFORE - 1 ? "u"
+                           : type >= EVT_POINTER_MOVE_BEFORE - 1                          ? "m"
+                                                                                          : "d";
+        /* here, before the window manager turns it, a touch is the portrait panel's: the view
+         * (375 x 320) is the panel turned anticlockwise, so its x is the panel's y */
+        tk_snprintf(m, sizeof m, "t %s %d %d", what, I(e, EVENT_Y), 319 - I(e, EVENT_X));
+    }
+    gm.seen = time_now_ms();
+    if (m[0]) dgram_send(&gm.sock, gm.path, m, strlen(m));
+    return 1;
+}
+
+/* every UI loop pass: the wheel's travel, the screen and standby held, the idle quit, its end */
+static void game_poll(void) {
+    int status;
+    if (!gm.pid) return;
+    if (waitpid(gm.pid, &status, 1)) { /* WNOHANG: it has ended */
+        close(gm.sock);
+        gm.pid = 0;
+        wheel_raw = 0;
+        widget_invalidate_force(window_manager(), 0);
+        return;
+    }
+    int travel = __sync_lock_test_and_set(&wheel_travel, 0);
+    if (travel) {
+        char m[16];
+        tk_snprintf(m, sizeof m, "w %d", travel);
+        dgram_send(&gm.sock, gm.path, m, strlen(m));
+        gm.seen = time_now_ms();
+    }
+    reset_poweroptions_timer(1, 1, 1);
+    if (time_now_ms() - gm.seen < GAME_IDLE_MS) return;
+    if (!ringnav_smart_awake()) game_end(); /* and again GAME_IDLE_MS on, if it is still there */
+    gm.seen = time_now_ms();                /* Smart Awake: asked again GAME_IDLE_MS on */
+}
+
 void addon_poll(void) {
+    game_poll();
     for (int i = 0; i < ap.n; ++i) poll_one(&ap.a[i]);
     sleep_check();
     library_poll();
