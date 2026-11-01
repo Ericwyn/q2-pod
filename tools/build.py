@@ -1326,7 +1326,7 @@ def patch_bluealsa(raw):
         struct.pack_into('<I', image, fileoff(raw, address), new)
     return bytes(image)
 
-def build(zip_path, out, logo, dev=False, repo=REPO, aic_idle_wait=True, rotator_lazy_clock=True, pwm_idle_clock=True, mcu_idle_sleep=False, flac_experiments='sync,lpc,output'):
+def build(zip_path, out, logo, dev=False, repo=REPO, aic_idle_wait=True, rotator_lazy_clock=True, pwm_idle_clock=True, mcu_idle_sleep=False, flac_experiments='sync,lpc,output'):  # pragma: no mutate block
     from flac import selection
     flac_experiments = selection(flac_experiments)
     check(not mcu_idle_sleep or (dev and pwm_idle_clock), '--mcu-idle-sleep requires --dev --pwm-idle-clock')
