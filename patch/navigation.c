@@ -9760,7 +9760,7 @@ static int chord_gate(void *e) {
              (!(st.edge_held & edge) || (type == EVT_KEY_DOWN && now - st.edge_seen > 300))) {
         st.edge_held |= edge;
         st.edge_at = now;
-        if (st.centre_at && now - st.centre_at < CHORD_MS && st.centre_hold) {
+        if (st.centre_at && (int)(now - st.centre_at) < CHORD_MS && st.centre_hold) {
             timer_remove(st.centre_hold); /* the rim's Centre: no hold */
             st.centre_hold = 0;
         }
@@ -9770,7 +9770,7 @@ static int chord_gate(void *e) {
         /* a repeat follows its press within 258 ms; a later down is a new press */
         if (type == EVT_KEY_DOWN && !st.return_at &&
             (!st.return_eat || now - st.return_eat_at > 300))
-            st.return_eat = st.return_up && now - st.return_up < RETURN_GHOST_MS;
+            st.return_eat = st.return_up && (int)(now - st.return_up) < RETURN_GHOST_MS;
         if (st.return_eat) {
             st.return_eat_at = now;
             if (type == EVT_KEY_UP) st.return_eat = st.return_up = 0;

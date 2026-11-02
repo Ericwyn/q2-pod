@@ -11124,6 +11124,13 @@ assert game_event(O['EVT_KEY_UP'],O['KEY_RETURN'],stock=True)==[]
 m.waited=0; assert fn('addon_game_start',0)==1
 game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN']); m.now+=300; assert game_event(O['EVT_KEY_UP'],O['KEY_RETURN'])==[('k u 170',GS)]
 m.now+=1000; assert poll(m)==0
+# A press stamped on an even millisecond rounds up (| 1), a poll in that same millisecond is before it: no hold.
+m.now+=m.now&1; game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN']); assert poll(m)==0
+game_event(O['EVT_KEY_UP'],O['KEY_RETURN'])
+# Ended by a hold on an even millisecond, its TERM gets its time before any KILL.
+m.now+=2; game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN']); m.now+=702; assert poll(m)==1
+m.now+=2999; assert poll(m)==0; m.now+=3; assert poll(m)==1
+m.waited=4243; poll(m); game_event(O['EVT_KEY_UP'],O['KEY_RETURN'],stock=False); m.waited=0; assert fn('addon_game_start',0)==1
 # Two minutes without input end it (TERM), counted from the last input, unless Smart Awake (IPOD KEEPLIT)
 # holds it open and lit.
 m.now+=90_000; game_event(O['EVT_KEY_UP'],O['KEY_CENTER']); m.now+=60_000; assert poll(m)==0
@@ -12659,7 +12666,10 @@ assert wake(DOWN,gap=1000) and wake(UP); passed()
 hold=700
 assert wake(DOWN,RET,gap=1000) and wake(UP,RET,gap=hold) and not wake(DOWN,RET,gap=60) and not wake(UP,RET,gap=30)
 assert wake(DOWN,RET,gap=1000) and wake(UP,RET,gap=hold) and wake(DOWN,RET,gap=200) and wake(UP,RET,gap=30)
-assert wake(DOWN,RET,gap=1000) and wake(UP,RET,gap=100) and wake(DOWN,RET,gap=60) and wake(UP,RET,gap=30); passed()
+assert wake(DOWN,RET,gap=1000) and wake(UP,RET,gap=100) and wake(DOWN,RET,gap=60) and wake(UP,RET,gap=30)
+# The stamp rounds up (| 1): a ghost in the same even millisecond as the release is still inside the window.
+assert wake(DOWN,RET,gap=1000); m.now+=hold; m.now+=m.now&1
+assert wake(UP,RET,gap=0) and not wake(DOWN,RET,gap=0) and not wake(UP,RET,gap=30); passed()
 # Every edge button guards Centre as Return does: a thumb on the rim closes Centre with Play/Pause,
 # Previous or Next too. Centre pressed first passes, but an edge press within CHORD_MS of it ends
 # Centre's hold timer, so stock's Centre hold (Shut Down) never comes; a later one leaves it.
@@ -12671,7 +12681,10 @@ FWD=O['KEY_FWD_BTN']
 assert wake(DOWN,gap=1000); t=centre_hold(); assert t in m.timers
 assert wake(DOWN,FWD,gap=100) and t not in m.timers and wake(UP,gap=50) and wake(UP,FWD)
 assert wake(DOWN,gap=1000); t=centre_hold(); assert wake(DOWN,FWD,gap=600) and t in m.timers
-m.timers.pop(t); assert wake(UP,gap=50) and wake(UP,FWD); passed()
+m.timers.pop(t); assert wake(UP,gap=50) and wake(UP,FWD)
+# The stamp rounds up (| 1): an edge press in the same even millisecond as Centre's still ends the hold.
+m.now+=1000; m.now+=m.now&1; assert wake(DOWN,gap=0); t=centre_hold()
+assert wake(DOWN,FWD,gap=0) and t not in m.timers and wake(UP,gap=50) and wake(UP,FWD); passed()
 # A lost release (Standby while held) leaves the guards whole: a press long after its button's last
 # event is a new press, while repeats within 258 ms of each other are still the first press.
 assert wake(DOWN,FWD,gap=1000) and wake(DOWN,FWD,gap=1000) and not wake(DOWN,gap=30) and not wake(UP,gap=50) and wake(UP,FWD)
