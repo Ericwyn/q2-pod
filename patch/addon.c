@@ -696,8 +696,9 @@ static void game_poll(void) {
         return;
     }
     unsigned now = (unsigned)time_now_ms();
-    if (gm.held && now - gm.held >= GAME_HOLD_MS) gm.held = 0, gm.eat = 1, game_end();
-    if (gm.term && now - gm.term >= GAME_KILL_MS) gm.term = now | 1, game_kill("-9 ");
+    /* signed: | 1 stamps either up to a millisecond after now, which unsigned reads as long past */
+    if (gm.held && (int)(now - gm.held) >= GAME_HOLD_MS) gm.held = 0, gm.eat = 1, game_end();
+    if (gm.term && (int)(now - gm.term) >= GAME_KILL_MS) gm.term = now | 1, game_kill("-9 ");
     int travel = __sync_lock_test_and_set(&wheel_travel, 0);
     if (travel) {
         char m[16];

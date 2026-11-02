@@ -11124,6 +11124,13 @@ assert game_event(O['EVT_KEY_UP'],O['KEY_RETURN'],stock=True)==[]
 m.waited=0; assert fn('addon_game_start',0)==1
 game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN']); m.now+=300; assert game_event(O['EVT_KEY_UP'],O['KEY_RETURN'])==[('k u 170',GS)]
 m.now+=1000; assert poll(m)==0
+# A press stamped on an even millisecond rounds up (| 1), a poll in that same millisecond is before it: no hold.
+m.now+=m.now&1; game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN']); assert poll(m)==0
+game_event(O['EVT_KEY_UP'],O['KEY_RETURN'])
+# Ended by a hold on an even millisecond, its TERM gets its time before any KILL.
+m.now+=2; game_event(O['EVT_KEY_DOWN'],O['KEY_RETURN']); m.now+=702; assert poll(m)==1
+m.now+=2999; assert poll(m)==0; m.now+=3; assert poll(m)==1
+m.waited=4243; poll(m); game_event(O['EVT_KEY_UP'],O['KEY_RETURN'],stock=False); m.waited=0; assert fn('addon_game_start',0)==1
 # Two minutes without input end it (TERM), counted from the last input, unless Smart Awake (IPOD KEEPLIT)
 # holds it open and lit.
 m.now+=90_000; game_event(O['EVT_KEY_UP'],O['KEY_CENTER']); m.now+=60_000; assert poll(m)==0
