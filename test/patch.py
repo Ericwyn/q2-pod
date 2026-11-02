@@ -8633,6 +8633,12 @@ for gap in (100,O['EDGE_PAUSE_MS'],1000):
     assert m.call(gap=gap)==11 and m.selected(w)==5
     m.paint(w,gap=0); assert m.sel()==(0,48,240,48)
 passed()
+# Library's Games chooser carries over at both ends.
+m,w,es=ring('games_page')
+assert m.call(gap=100)==11 and m.selected(w)==5
+assert m.call(gap=O['EDGE_PAUSE_MS'])==11 and m.selected(w)==0
+assert m.call(PREV,gap=100)==11 and m.selected(w)==0
+assert m.call(PREV,gap=O['EDGE_PAUSE_MS'])==11 and m.selected(w)==5; passed()
 
 # 5. Key Tone follows the row. Each tick is the pair the window manager delivers: key-down-before
 # through the hook and the stock callback, then key-up-before. The count is the buzzer commands
@@ -11088,9 +11094,9 @@ m.files[CAPS]=bytearray(b'stale\n'); stream_rows(m); assert m.files[CAPS]==caps;
 # over the screen; each input event reaches its socket as a text datagram instead of the UI (a held Return
 # ends it), but the music's keys stay stock's; the wheel's raw travel goes once a poll, and its end gives
 # the wheel back.
-m=AppMachine(); card_app(m,'fidget','name=Fidget\ngame=1\n'); assert 'Fidget' not in stream_rows(m)
+m=AppMachine(); card_app(m,'fidget','name=Buddy\ngame=1\n'); assert 'Buddy' not in stream_rows(m)
 def fn(name,*args): return m.call(address=payload_syms[name],args=(args+(0,0,0,0))[:4],gap=0,clear=False,count=5_000_000)
-assert fn('addon_games')==1 and m.text(fn('addon_game_name',0))=='Fidget' and fn('addon_game_on')==0
+assert fn('addon_games')==1 and m.text(fn('addon_game_name',0))=='Buddy' and fn('addon_game_on')==0
 m.forked=0; m.execs=[]; fn('addon_game_start',0); assert m.execs[-1][:2]==('/mnt/mmc/.fidget/q2-fidget',)*2  # the child
 m.forked=4243; assert fn('addon_game_start',0)==1 and fn('addon_game_on')==4243 and m.get(payload_syms['wheel_raw'])==1
 inp=HOOKS['window_manager_dispatch_input_event'][0]; m.handlers[inp+12]='stock_input'; GS='/tmp/q2-fidget.input.sock'
@@ -11131,7 +11137,7 @@ m.now+=60_000; assert poll(m)==1
 m.waited=4243; poll(m); assert fn('addon_game_on')==0
 def idle(m):
     m.now+=120_000; m.waited=0; return poll(m)>0
-CONFIG['KEEPLIT']='1'; a=AppMachine(); del CONFIG['KEEPLIT']; card_app(a,'fidget','name=Fidget\ngame=1\n'); a.forked=4243
+CONFIG['KEEPLIT']='1'; a=AppMachine(); del CONFIG['KEEPLIT']; card_app(a,'fidget','name=Buddy\ngame=1\n'); a.forked=4243
 assert a.call(address=payload_syms['addon_games'],args=(0,0,0,0),gap=0,clear=False,count=5_000_000)==1
 assert a.call(address=payload_syms['addon_game_start'],args=(0,0,0,0),gap=0,clear=False,count=5_000_000)==1
 assert not idle(a) and not idle(a) and any(c[0]=='reset_poweroptions_timer' for c in a.calls); passed()
@@ -12178,9 +12184,9 @@ LIST='/mnt/mmc/.q2/sources.list'
 m=ShelfMachine({LIST:bytearray((ROOT/'sources.list').read_bytes()),SPOT_TAG:bytearray(b'q2-v1.8'),SPOT_FILES:bytearray(b'.spotify/run\n.spotify/librespot\n'),
                 '/mnt/mmc/.spotify/run':bytearray(b'sh'),'/mnt/mmc/.spotify/librespot':bytearray(b'ELF')})
 m.rockbox_mode=0; m.wifi=-1; apps_open(m)
-assert m.labels()==['App Store','Rockbox','Install','Spotify','Installed','Deezer','Install','Soulseek','Install','File Browser','Install','Subsonic','Install','Podcasts','Install','Live Music Archive','Install','Fidget','Install'] and not m.threads; passed()  # no themes without Rockbox; the card apps last
+assert m.labels()==['App Store','Rockbox','Install','Spotify','Installed','Deezer','Install','Soulseek','Install','File Browser','Install','Subsonic','Install','Podcasts','Install','Live Music Archive','Install','Buddy','Install'] and not m.threads; passed()  # no themes without Rockbox; the card apps last
 m.close(); m.wifi=3; m.rockbox_mode=0o100755; m.dirs['/mnt/mmc/.spotify']=[]; apps_open(m)
-assert m.labels()==['App Store','Rockbox','Update','Rockbox Themes','Install','Spotify','Installed','Deezer','Install','Soulseek','Install','File Browser','Install','Subsonic','Install','Podcasts','Install','Live Music Archive','Install','Fidget','Install']
+assert m.labels()==['App Store','Rockbox','Update','Rockbox Themes','Install','Spotify','Installed','Deezer','Install','Soulseek','Install','File Browser','Install','Subsonic','Install','Podcasts','Install','Live Music Archive','Install','Buddy','Install']
 m.reply=(ROOT/'test/shelf/q2-librespot.json').read_bytes(); shelf_job(m)
 assert m.opts[10002]=='https://api.github.com/repos/DiamondBond/q2-fidget/releases/latest' and m.opts[10018]=='Q2Pod'  # the last of ten
 assert m.opts[10065]=='/etc/scrobble-ca.pem' and m.opts[64]==1 and m.opts[81]==2 and m.opts[20108]
@@ -12200,7 +12206,7 @@ assert not {SPOT_TAG,SPOT_FILES,'/mnt/mmc/.spotify/run','/mnt/mmc/.spotify/libre
 m.close(); m.wifi=3; m.now+=11*60*1000; apps_open(m); assert len(m.threads)==5
 m.row(1); assert m.toasts[-1][3]=='Stopped checking for updates'; shelf_job(m); assert len(m.threads)==5; passed()
 m.close(); m.rockbox_mode=0; m.dirs.pop('/mnt/mmc/.spotify'); m.reply=(ROOT/'test/shelf/q2-rockbox.json').read_bytes()
-apps_open(m); shelf_job(m); assert m.labels()==['App Store','Rockbox','Install','Spotify','Install','Deezer','Install','Soulseek','Install','File Browser','Install','Subsonic','Install','Podcasts','Install','Live Music Archive','Install','Fidget','Install']  # not stopped: checked again
+apps_open(m); shelf_job(m); assert m.labels()==['App Store','Rockbox','Install','Spotify','Install','Deezer','Install','Soulseek','Install','File Browser','Install','Subsonic','Install','Podcasts','Install','Live Music Archive','Install','Buddy','Install']  # not stopped: checked again
 m.row(0); assert m.labels()[2]=='Starts at power-on; Boot to changes that. Press again to install' and len(m.threads)==6
 m.row(0); assert len(m.threads)==7 and m.labels()[2]=='Checking…'; m.row(0); shelf_job(m); assert m.toasts[-1][3]=='Download cancelled'
 m.free=10<<20; m.row(0); m.row(0); shelf_job(m)  # the zip (13018581 bytes) and 64 MB left over
@@ -12214,7 +12220,7 @@ assert m.moves[-2:]==['/mnt/mmc/.q2/apps/rockbox.files','/mnt/mmc/.q2/apps/rockb
 assert m.files['/mnt/mmc/.rockbox/rockbox']==b'ELF3.2' and m.files['/mnt/mmc/.rockbox/fonts/a b.fnt']==b'f'
 assert m.files['/mnt/mmc/.q2/apps/rockbox.files']==b'.rockbox/rockbox\n.rockbox/codecs/flac.codec\n.rockbox/fonts/a b.fnt\n'
 assert not [f for f in m.files if '.q2/staging' in f] and 'sync' in m.systems; passed()
-assert m.labels()==['App Store','Rockbox','Installed','Rockbox Themes','Install','Spotify','Install','Deezer','Install','Soulseek','Install','File Browser','Install','Subsonic','Install','Podcasts','Install','Live Music Archive','Install','Fidget','Install']; passed()  # the rows built again
+assert m.labels()==['App Store','Rockbox','Installed','Rockbox Themes','Install','Spotify','Install','Deezer','Install','Soulseek','Install','File Browser','Install','Subsonic','Install','Podcasts','Install','Live Music Archive','Install','Buddy','Install']; passed()  # the rows built again
 m.listing='        1  10-06-2026 13:18   .rockbox/../../x\n'; m.files.pop('/mnt/mmc/.q2/apps/rockbox.tag'); m.row(0); shelf_job(m)
 assert m.toasts[-1][3]=='The download is not a usable app' and m.files['/mnt/mmc/.rockbox/rockbox']==b'ELF3.2'; passed()
 m.close(); passed()
