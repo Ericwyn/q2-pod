@@ -12441,6 +12441,12 @@ m.word(r+O['REC_PATH'],m.string('/mnt/mmc/audiobooks/Book/01.mp3')); playing(m,0
 assert m.places()==[(fnv('/mnt/mmc/audiobooks/Book/01.mp3'),61)] and '/mnt/data/ringnav-plays' not in m.files
 assert '/mnt/mmc/.scrobbler.log' not in m.files; passed()
 
+# resume_held: a long track past RESUME_EDGE_S holds a place a restart would lose; ringnav_change asks then.
+def held(m): return m.call(address=payload_syms['resume_held'],args=(0,0,0,0),gap=0)
+m=ResumeMachine(); playing(m,0,pos=0,n=O['RESUME_EDGE_S']); assert not held(m)
+playing(m,O['RESUME_EDGE_S'],n=2); assert held(m)
+m=ResumeMachine(); playing(m,100,200,pos=0,n=3); assert not held(m); passed()  # short: nothing kept
+
 # A spoken CUE book: a chapter keeps its file's place (CUE start + seconds) and never jumps by itself;
 # a chapter row's hold menu starts with Resume, which plays the list's songs from the chapter holding
 # the place and seeks into it once that chapter starts. A chapter within RESUME_EDGE_S of the file's

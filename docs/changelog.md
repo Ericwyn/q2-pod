@@ -6,6 +6,8 @@
   - Games: the list in **Library → Games** carries over at its ends, as the other lists do.
   - App Store: **Fidget** is now called **Buddy**.
   - Wheel: holding **Centre** now stops as it should when you press the wheel's edge. Before, the hold could occasionally carry on to Shut Down.
+  - Resume: **Previous** or **Next** no longer loses your place in an audiobook, podcast or long track by restarting it when it's the only file in the queue. The first press shows "Press again to restart", and a second within 3 seconds restarts it.
+  - Resume: with **Memory Playback: Track**, an audiobook, podcast or long track now returns to your place after restarting the Q2. Before, it started from the beginning and your place was then lost.
   - Display: with **Light Mode: Auto**, the boot logo now goes by your time zone, so it matches the interface. Before, it went by UTC and could start light at night, or dark during the day.
   - Library: opening **Most Played**, Coverflow, Shuffle and other lists that read the whole library now takes far less memory. On libraries of tens of thousands of songs, the Q2 could run out and restart.
 

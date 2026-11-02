@@ -8993,6 +8993,9 @@ static void spot_save(int sec) {
         spot_keep(st.rs_file, st.rs_cue + sec, st.rs_end ? 0x7fffffff : st.rs_cue + st.rs_total);
 }
 
+/* Would starting the polled track again lose a place worth keeping? */
+int resume_held(void) { return st.rs_long && st.rs_sec >= RESUME_EDGE_S; }
+
 /* Once a second from the UI loop: a long track saves its place and, when it starts playing near
  * its beginning, jumps to the saved one. A spoken CUE track saves its file's place but jumps only
  * when a Resume row (book_place) started it. A track change waits a poll, so the previous track's
