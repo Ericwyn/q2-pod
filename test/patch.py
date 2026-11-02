@@ -8633,12 +8633,6 @@ for gap in (100,O['EDGE_PAUSE_MS'],1000):
     assert m.call(gap=gap)==11 and m.selected(w)==5
     m.paint(w,gap=0); assert m.sel()==(0,48,240,48)
 passed()
-# Library's Games chooser carries over at both ends.
-m,w,es=ring('games_page')
-assert m.call(gap=100)==11 and m.selected(w)==5
-assert m.call(gap=O['EDGE_PAUSE_MS'])==11 and m.selected(w)==0
-assert m.call(PREV,gap=100)==11 and m.selected(w)==0
-assert m.call(PREV,gap=O['EDGE_PAUSE_MS'])==11 and m.selected(w)==5; passed()
 
 # 5. Key Tone follows the row. Each tick is the pair the window manager delivers: key-down-before
 # through the hook and the stock callback, then key-up-before. The count is the buzzer commands
@@ -9797,6 +9791,15 @@ m.close()
 sheet,chooser=games_open(); G=m.get(payload_syms['g'])
 assert labels(chooser)==['Games','Sudoku','Vortex','Solitaire','Snake'] and not m.nodes[sheet]['visible']
 rows=m.nodes[m.find('scroll_view',chooser)]['children']
+# The wheel carries over at both ends of the real chooser: a bump, then after a pause the other end.
+w=m.find('scroll_view',chooser); m.paint(w,gap=0)
+for _ in range(5):
+    if m.selected(w)!=3: assert m.call(gap=1000)==11; m.paint(w,gap=0)
+assert m.selected(w)==3
+assert m.call(gap=100)==11 and m.selected(w)==3; m.paint(w,gap=0)
+assert m.call(gap=O['EDGE_PAUSE_MS'])==11 and m.selected(w)==0; m.paint(w,gap=0)
+assert m.call(PREV,gap=100)==11 and m.selected(w)==0; m.paint(w,gap=0)
+assert m.call(PREV,gap=O['EDGE_PAUSE_MS'])==11 and m.selected(w)==3; m.paint(w,gap=0); passed()
 def pick(i):
     f,ctx=m.handler(rows[i],O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0); m.advance(0)
 def paint(): m.call(address=HOOKS['widget_on_paint_border'][0],args=(sheet,m.canvas,0,0),gap=0,clear=False,count=50_000_000)

@@ -546,7 +546,7 @@ static int context_id(const char *name) {
 }
 
 /* The audited local row lists built from the compact assets: the file and music views. Grids
- * (album_page, but its Albums list below), dynamic pages and the home carousel
+ * (album_page, but its Albums list below), other dynamic pages and the home carousel
  * keep hard ends; iPod Home's lists wrap at once (home_menu). */
 /* By the top window's name, not m->ctx: a dynamic page (the hold menu) has no memory context.
  * album_page also holds an album's songs (0xff10), which keep hard ends. */
