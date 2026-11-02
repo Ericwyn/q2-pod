@@ -9426,22 +9426,26 @@ static void logo_poll(void) {
     st.logo_mounted = mounted;
 }
 /* The card's copy of the ratings (docs/internals.md#ratings): the tables hold only hashes, so a
- * pass reads the paths and tags back from the library, a page of rows each poll on this thread
- * (nothing here runs SQLite off it), and writes the card once at the end, only if the file would
- * change. ponytail: every row against every rated one, as the Ratings lists do; a rating whose song
- * or album has left the library has no name to write, and stays out until it is back. */
+ * pass reads the paths and tags back from the library, a page of rows each quiet poll on this
+ * thread (demo has no busy timeout, so a worker's read lock could make stock's own My Fav writes
+ * fail), and writes the card once at the end, only if the file would change; a copy with more lines
+ * than the new one is kept as .1, the one way back from a lost table. ponytail: every row against
+ * every rated one, as the Ratings lists do; a rating whose song or album has left the library has
+ * no name to write, and stays out until it is back. */
 #define RC_FILE "/mnt/mmc/.ratings.tsv"
 #define RC_HEADER "#song\thearts\tpath\tcue_start\n#album\thearts\tname\talbum_artist\tfolder\n"
 #define RC_PAGE 64
 #define RC_WAIT_MS 5000 /* after a change, so a run of them writes once; between checks */
 #define RC_LINE 3200    /* the fields' limits below, and room */
 #define RC_GROW 0x10000
+#define RC_QUIET_MS 1000 /* no pages this soon after input: a long walk stays off the wheel */
 static struct {
     void *db;
     unsigned *song, *album; /* the rated still to find, their hearts in the low bits */
     unsigned songs, albums, len, cap, at;
     char *out;
-    int table, last, rows, due, scanned;
+    int table, last, rows, due, oom;
+    unsigned gen;
 } rc __attribute__((section(".scratch")));
 
 void ratings_copy_due(void) {
@@ -9465,7 +9469,10 @@ static int rc_take(unsigned *t, unsigned *n, unsigned key) {
 static char *rc_line(const char *kind, int hearts) {
     if (rc.cap - rc.len < RC_LINE) {
         char *out = realloc(rc.out, rc.cap + RC_GROW);
-        if (!out) return (char *)0;
+        if (!out) {
+            rc.oom = 1; /* ends the pass: a copy with rows missing must not replace the last */
+            return (char *)0;
+        }
         rc.out = out, rc.cap += RC_GROW;
     }
     char *o = rc.out + rc.len;
@@ -9484,7 +9491,7 @@ static void rc_album(const char *name, const char *artist, const char *path, int
     if (!o) return;
     o = scrobble_tag(o, o + 600, name);
     o = scrobble_tag(o, o + 300, artist);
-    unsigned dir = artist && *artist ? 0 : path ? album_dir(path, 1) : 0;
+    unsigned dir = name && *name && artist && *artist ? 0 : path ? album_dir(path, 1) : 0;
     o = scrobble_tag(o, o + (dir < 1100 ? dir : 1100) + 1, path);
     o[-1] = '\n';
     rc.len = (unsigned)(o - rc.out);
@@ -9500,30 +9507,39 @@ static int rc_row(void *ctx, int n, char **v, char **c) {
     if (!rc.table) { /* My Fav's: 5, whatever is kept for it */
         rc_take(rc.song, &rc.songs, listen_key(rec));
         rc_song(v[1], 5, cue);
-        return 0;
+        return rc.oom;
     }
     if (rc.songs && (hearts = rc_take(rc.song, &rc.songs, listen_key(rec))))
         rc_song(v[1], hearts, cue);
     if (rc.albums && (hearts = rc_take(rc.album, &rc.albums, album_id(rec))))
         rc_album(v[3], v[4], v[1], hearts);
-    return 0;
+    return rc.oom;
 }
 
 static void rc_end(void) {
     if (rc.db) sqlite3_close(rc.db);
     free(rc.song), free(rc.album), free(rc.out);
     rc.db = 0, rc.song = rc.album = 0, rc.out = 0;
-    rc.len = rc.cap = 0;
+    rc.len = rc.cap = rc.oom = 0;
 }
 
+/* Whether the card has this copy already; if it has one with more lines, that goes to .1. */
 static int rc_unchanged(void) {
     void *f = fopen(RC_FILE, "rb");
     if (!f) return 0;
-    char *old = calloc(rc.len + 1, 1);
-    int same = old && fread(old, 1, rc.len + 1, f) == rc.len && !memcmp(old, rc.out, rc.len);
+    char b[1024];
+    unsigned n, at = 0, lines = 0;
+    int same = 1;
+    while ((n = fread(b, 1, sizeof b, f)) > 0) {
+        same = same && at + n <= rc.len && !memcmp(b, rc.out + at, n);
+        at += n;
+        for (unsigned i = 0; i < n; i++) lines += b[i] == '\n';
+    }
     fclose(f);
-    free(old);
-    return same;
+    if (same && at == rc.len) return 1;
+    for (unsigned i = 0; i < rc.len; i++) lines -= rc.out[i] == '\n';
+    if ((int)lines > 0) rename(RC_FILE, RC_FILE ".1");
+    return 0;
 }
 
 /* The rated of table album, valid hearts only, for rc_take. */
@@ -9550,15 +9566,20 @@ static void rc_start(void) {
         rc_album("Unknown Album", "", (const char *)0, hearts);
 }
 
+static int rc_exists(void *ctx, int n, char **v, char **c) {
+    rc.rows = 1;
+    return 0;
+}
+
 /* A page of the pass, then its end. A failed read or write stays as it was, for the next change or
- * boot; a scan rewriting the library starts the pass over when it ends. */
+ * boot; a scan rewriting the library ends the pass, and library_gen starts another after it. */
 static void rc_page(void) {
     char sql[128];
     if (library_scanning()) {
-        rc.scanned = 1;
         rc_end();
         return;
     }
+    if (time_now_ms() - st.last_input < RC_QUIET_MS) return;
     tk_snprintf(sql, sizeof sql,
                 "select id,fileurl,time,album,albumsonger from %s where id>%d order by id limit %d",
                 rc.table ? "songtable" : "myfav", rc.last, RC_PAGE);
@@ -9569,18 +9590,20 @@ static void rc_page(void) {
     }
     if (rc.rows == RC_PAGE && (!rc.table || rc.songs || rc.albums)) return;
     if (!rc.table++) {
-        rc.last = 0;
-        return;
+        rc.last = rc.rows = 0;
+        /* no songtable before the first scan: My Fav's alone, still worth a copy */
+        sqlite3_exec(rc.db, "select 1 from sqlite_master where name='songtable'", rc_exists, 0, 0);
+        if (rc.rows) return;
     }
     if (!card_mounted())
         rc.due = 1; /* shared over USB meanwhile */
-    else if (!rc_unchanged())
-        blob_io(RC_FILE, RC_FILE ".tmp", rc.out, rc.len, 1);
+    else if (!rc_unchanged() && !blob_io(RC_FILE, RC_FILE ".tmp", rc.out, rc.len, 1))
+        unlink(RC_FILE ".tmp");
     rc_end();
 }
 
-/* Every RC_WAIT_MS: a change, the boot (stock's own My Fav rows change it unseen) or the end of a
- * scan, once the card is there. */
+/* Every RC_WAIT_MS: a change, the boot (stock's own My Fav rows change it unseen) or the library
+ * rewritten, once the card is there and no scan is running. */
 void ratings_copy_poll(void) {
     if (rc.db) {
         rc_page();
@@ -9593,10 +9616,8 @@ void ratings_copy_poll(void) {
     }
     if (now - rc.at < RC_WAIT_MS) return;
     rc.at = now;
-    int scan = library_scanning();
-    if (rc.scanned && !scan) rc.due = 1;
-    rc.scanned = scan;
-    if (!rc.due || scan || !card_mounted()) return;
+    if (rc.gen != library_gen) rc.gen = library_gen, rc.due = 1;
+    if (!rc.due || library_scanning() || !card_mounted()) return;
     rc.due = 0;
     rc_start();
 }
