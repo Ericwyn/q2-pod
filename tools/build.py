@@ -829,7 +829,8 @@ TIMEZONES = (
     ('GMT+12 Auckland', 'Pacific/Auckland'),
 )
 # LIGHT=2 goes by the wall clock, as demo's Auto: the boot shell has no TZ, so the saved index picks it.
-LOGO_ZONES = ' '.join(f"{i}) z='{zone}';;" for i, (_, zone) in enumerate(TIMEZONES))
+# One missing or out of range is config_init's: index 22.
+LOGO_ZONES = ' '.join(f"{i}) z='{zone}';;" for i, (_, zone) in enumerate(TIMEZONES)) + f" *) z='{TIMEZONES[22][1]}';;"
 LOGO_HOOK = (b'   \tdisplay_logo /release/assets/default/raw/images/xx/logo.jpg\n',
              b'   \tl=/mnt/data/boot-logo.jpg; [ -f $l ] || { l=/%s; light=0; grep -qx LIGHT=1 /mnt/data/config.ini 2>/dev/null && light=1; grep -qx LIGHT=2 /mnt/data/config.ini 2>/dev/null && { case $(sed -n s/^TIMEZONE=//p /mnt/data/config.ini) in %s esac; case $(TZ=$z date +%%H) in 0[7-9]|1[0-8]) light=1;; esac; }; [ $light = 1 ] && [ -f /%s ] && l=/%s; }; display_logo $l\n'
              % (LOGO.encode(), LOGO_ZONES.encode(), LOGO_LIGHT.encode(), LOGO_LIGHT.encode()))
@@ -1024,6 +1025,8 @@ FUNCTIONS = {
  'getAllAlbum': ('int', 'void'),
  # Shuffle Songs (navigation.c): every song, shuffle saved as the play-mode setting does, a random start
  'getAllMusic': ('int', 'int'),
+ 'music_nagvation_title': ('int', 'int'),  # Library -> Songs' load (navigation.c songs_load)
+ 'mclGetPlayM3uFlag': ('int', 'void'),  # stock ignores Folder Skip on an M3U (playback.c change_restarts)
  'config_playmode': ('int', 'int, int'),
  'toolsRandnum': ('int', 'int'),
  'widget_restack': ('int', 'void *, unsigned'),
@@ -1172,7 +1175,7 @@ GLOBALS = ['tidal_albuminfo_thread_run', 'tidal_collection_thread_run',  # 2: a 
 # (system_bar_init stores it), the playing cover's track path and the playing track's tags as
 # player_get_id3info parsed them; sizes are checked against the ELF.
 CONTEXT_DATA = {'bt_showcoding': 4, 'g_memory_info': 3476, 'g_folder_path': 1024, 'g_class_type': 4,
-                'g_local_classinfo_save': 912, 'g_artist_type': 4, 'album_modetype': 4,
+                'g_local_classinfo_save': 912, 'g_artist_type': 4, 'album_modetype': 4, 'g_sort_flag': 4,
                 'p_deque_playlist': 4, 'p_deque_showlist': 4, 'tools_pdeq_directory': 4, 'mcl_pdeqplaylist': 4,
                 'parse_cover_mutex': 24, 'g_playcover_mutex': 24, 'system_bar': 4, 'g_lastcover_url': 1024,
                 'g_dacoff_time': 4, 'p_vector_select_record': 4,

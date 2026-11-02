@@ -1017,6 +1017,7 @@ for nxt,pos,wrap,folder in ((1,6,0,'toolsLoadNextDir'),(0,0,6,'toolsLoadPrevDir'
 def single(k=1,mode=0,cls=1,skip=0,pos=0,held=1):
     m=ChangeMachine(); m.install([(str(i),'/a/'+str(i),'A',0,i,0,0) for i in range(k)],0); m.held=held
     m.word(O['MCL_TYPE'],cls); m.word(O['MCL_POS'],pos); m.word(O['MCL_MODE'],mode); m.byte(O['MCL_JUMPFOLDER'],skip)
+    m.word(O['MCL_POOL'],m.deque([]))  # a one-track queue's shuffle pool, under stock's two
     return m
 def change(m,nxt):
     del m.seen[:]; r=signed(m.call(address=syms['player_change_music'],args=(nxt,0,0,0),gap=0))
@@ -1034,6 +1035,46 @@ m=single(cls=0xf001); r=change(m,1); assert r[0]==0 and not r[2] and m.stops==1 
 m=single(k=3); m.options(0,2,0); assert change(m,0)[2]==0  # advanced play with no history moves nowhere
 m=single(); m.fn('ringnav_change',0); assert m.get(ps['restart_ask'])==1; m.fn('playback_poll'); assert m.get(ps['restart_ask'])==0  # toasted once
 checks+=6
+# It asks exactly when stock, run bare, would start the file again: not when it leaves for a sibling folder or stops.
+M3U_FLAG=0xa3be51  # mclGetPlayM3uFlag's byte
+for nxt in (0,1):
+    for mode in (0,1,2,3):
+        for cls in (1,0xff10,0xf001):
+            for skip in (0,1):
+                for m3u in (0,1):
+                    for last in (-1,0):  # Shuffle's last position: none, or this track
+                        m=single(mode=mode,cls=cls,skip=skip,held=0); m.byte(M3U_FLAG,m3u); m.word(O['MCL_LASTPOS'],last); change(m,nxt)
+                        moved=m.stops or 'toolsLoadNextDir' in m.seen or 'toolsLoadPrevDir' in m.seen
+                        a=single(mode=mode,cls=cls,skip=skip); a.byte(M3U_FLAG,m3u); a.word(O['MCL_LASTPOS'],last)
+                        assert (change(a,nxt)==ask)==(not moved),(nxt,mode,cls,skip,m3u,last,m.seen)
+                        checks+=1
+
+# Through the real Resume poll, with its place file.
+class HeldMachine(ChangeMachine):
+    def __init__(self):
+        super().__init__(); self.handlers.pop(ps['resume_held']); self.play=(0,0); self.seeks=[]
+        self.handlers[ps['stock_sleep_trampoline']]='stock_sleep'
+        for n in ('player_playtime_and_length','player_seek_time'): self.handlers[syms[n]]='h:'+n
+    def hook(self,u,address,size,unused):
+        name=self.handlers.get(address,'')
+        if not name.startswith('h:'): return super().hook(u,address,size,unused)
+        a,b=u.reg_read(REGS[0]),u.reg_read(REGS[1]); ret=-1
+        if name=='h:player_seek_time': self.seeks.append(signed(a)); self.play=(signed(a),self.play[1]); ret=0
+        elif self.play[1]: self.word(a,self.play[0]); self.word(b,self.play[1]); ret=1
+        self.returns(ret,clobber=True)
+    def poll(self,sec,n=1):  # n polls a second apart, the time standing at sec
+        for _ in range(n):
+            self.play=(sec,3600); self.now+=1000; self.fn('ringnav_sleep',0x1234); sec=self.play[0]
+    def places(self):
+        return [(k,signed(v)) for k,v in struct.iter_unpack('<II',self.files.get('/mnt/data/ringnav-resume',b'')) if k]
+# A refused press keeps the place and toasts; the second within RESTART_ASK_MS restarts, which the poll forgets it for.
+m=HeldMachine(); m.install([('book','/a/book.m4b','B',0,0,0,0)],0); m.word(O['MCL_TYPE'],1)
+m.poll(0,2); m.poll(100,3); place=m.places(); assert [s for _,s in place]==[100]
+def press(): del m.seen[:]; return signed(m.call(address=syms['player_change_music'],args=(0,0,0,0),gap=0))
+assert press()==0 and not m.seen and m.get(ps['restart_ask'])==1
+m.poll(100); assert m.places()==place and m.toasts[-1]=='Press again to restart'
+assert press()==1 and m.seen; m.poll(0,3); assert m.places()==[] and not m.seeks
+checks+=1
 
 print(f'{checks} advanced playback/wheel MIPS checks passed')
 
@@ -1064,6 +1105,13 @@ for memory,taken in ((2,1),(1,0)):
     r=PlaybackMachine({'/mnt/data/ringnav-queue':full}); r.byte(syms['g_memory_play'],memory); assert r.fn('ringnav_memory',r.deque([]))>=0
     q=r.items(r.get(syms['mcl_pdeqplaylist']))[r.current()]
     assert (r.fn('playback_resumed',q)!=0)==bool(taken) and r.fn('playback_resumed',q)==0,memory  # asked once
+# And through the poll: Track goes back to the track's own place once it plays, Location's time keeps it.
+for memory,seeks in ((1,[1000]),(2,[])):
+    r=HeldMachine(); r.files['/mnt/data/ringnav-queue']=full; r.byte(syms['g_memory_play'],memory); assert r.fn('ringnav_memory',r.deque([]))>=0
+    path=r.get(r.items(r.get(syms['mcl_pdeqplaylist']))[r.current()]+O['REC_PATH'])
+    r.files['/mnt/data/ringnav-resume']=struct.pack('<II',r.fn('fnv',2166136261,path)&0xffffffff,1000)+bytes(8*O['RESUME_SLOTS']-8)
+    r.poll(0,2); assert not r.seeks  # at 0, paused or not started: it waits
+    r.poll(1); assert r.seeks==seeks,memory
 # Measure actual payload instructions: even exhausted/category-repeat scans occur only once.
 for n in (8,128):
     for repeat in (1,4):

@@ -4253,6 +4253,23 @@ for cls,artist,query in ((0xf003,0,'getMusicByAlbum'),(0xf004,0,'getMusicBySonge
 for cls,last,rows in ((0xf004,1,3),(0xff01,-1,3),(0xff10,-1,3),(0xff11,-1,3),(0xf007,-1,3),(0xf004,-1,0)):
     shown,q,_=unknown(cls,0,last=last,rows=rows)
     assert len(shown)==rows and q is None, (cls,last,rows); passed()
+# Library -> Songs reads straight into the showlist: stock's load holds its copy and the staging deque
+# together, the library twice. The staging pointer comes back, its deque cleared as stock leaves it.
+class SongsMachine(ClassMachine):
+    def hook(self,u,address,size,unused):
+        if address==syms['getAllMusic']:
+            self.calls.append(('getAllMusic',u.reg_read(REGS[0]),self.get(payload_syms['library_music'])))
+            self.deqs[self.get(syms['tools_pdeq_directory'])][1]=[self.copy('stSongInfo',e) for e in self.found]
+            self.returns(len(self.found)); return
+        if address==syms['music_nagvation_title']:
+            self.calls.append(('title',u.reg_read(REGS[0]),self.names(self.get(syms['p_deque_showlist'])))); self.returns(0); return
+        super().hook(u,address,size,unused)
+m=SongsMachine(page='localclass_page',cls=0xf001,rows=3); m.found=[m.song('T1'),m.song('T2')]; m.word(syms['g_sort_flag'],2)
+staging=m.get(syms['tools_pdeq_directory']); m.deqs[staging][1]=[m.song('stale')]; m.calls=[]
+assert m.call(address=HOOKS['load_localclass_list'][0],args=(0xf001,0,0,0),gap=0)==2
+assert m.names(m.get(syms['p_deque_showlist']))==['T1','T2'] and m.get(syms['tools_pdeq_directory'])==staging and not m.items(staging)
+assert ('getAllMusic',2,1) in m.calls and ('title',0xf001,['T1','T2']) in m.calls
+assert not [c for c in m.calls if c[0] in ('stock_localclass','deque_assign','deque_init_copy')]; passed()
 # Every Library class and detail load scopes SQL, including empty results and failures, and
 # restores an already-scoped caller. The trampoline supplies stock's displayed copies.
 class ScopedClassMachine(ClassMachine):
@@ -4307,8 +4324,8 @@ m.word(m.row(0)+O['REC_PATH'],m.string(paths[0]))
 assert m.call(address=HOOKS['load_localclass_list'][0],args=(0xf00b,0,0,0),gap=0)==1
 passed()
 # iPod song rows: an untagged song's title is its file name without the extension; a tag stays.
-m=ClassMachine(page='localclass_page',cls=0xf001,rows=2); m.word(m.row(1)+O['REC_TITLE'],m.string('Tagged'))
-m.word(m.row(0)+O['REC_NAME'],m.string('a.flac')); m.word(m.row(0)+O['REC_PATH'],m.string('/p/a.flac'))
+m=SongsMachine(page='localclass_page',cls=0xf001,rows=2); m.found=[m.song('a.flac'),m.song('Row 1')]
+m.word(m.found[1]+O['REC_TITLE'],m.string('Tagged')); m.word(m.found[0]+O['REC_PATH'],m.string('/p/a.flac'))
 m.call(address=HOOKS['load_localclass_list'][0],args=(0xf001,0,0,0),gap=0)
 assert [m.text(m.get(m.row(i)+O['REC_TITLE'])) for i in (0,1)]==['a','Tagged']; passed()
 # My Fav, Frequent and Recent: a row stock copied without its title takes the library's, by path, not
@@ -7023,7 +7040,7 @@ class RatingsCopyMachine(FileMocks,EraMachine):
     def hook(self,u,address,size,unused):
         name=self.handlers.get(address,'')
         if not name.startswith('rc:'): return super().hook(u,address,size,unused)
-        name=name[3:].split('@')[0]; a,b,c,d=[u.reg_read(r) for r in REGS]; self.writes+=name=='rename' and self.text(a).endswith('.tmp')
+        name=name[3:].split('@')[0]; a,b,c,d=[u.reg_read(r) for r in REGS]; self.writes+=name=='rename' and self.text(b)==RC_FILE
         self.returns(self.file_op(u,name,a,b,c,d),clobber=True)
     def rec(self,path,cue=0,album=None,artist=None):
         r=self.record((1,0,path,cue,0,'x')); self.word(r+O['REC_ALBUM'],self.string(album) if album is not None else 0)
@@ -7075,7 +7092,7 @@ f=payload_syms['ratings_copy_poll']; m.word(O['SCAN_THREAD'],0); m.now+=5000; m.
 m.word(O['SCAN_THREAD'],1); m.word(O['SCAN_DONE'],0); m.now+=1000; m.call(address=f,args=(0,0,0,0),gap=0); assert not m.get(payload_syms['rc']) and m.writes==writes
 m.word(O['SCAN_DONE'],1); m.word(payload_syms['library_gen'],m.get(payload_syms['library_gen'])+1); m.poll(); assert m.writes==writes+1; passed()
 # Fewer lines than the card's copy: the old one is kept as .1, so a lost table can't take the only copy.
-kept=m.files[RC_FILE+'.1'].decode(); assert kept.count('\n')==m.copy_text().count('\n')+1 and 'song\t5\t/mnt/mmc/m/a.flac' in kept; passed()
+kept=m.files[RC_FILE+'.1'].decode(); assert kept.count('\n')>m.copy_text().count('\n') and 'song\t5\t/mnt/mmc/m/a.flac' in kept; passed()
 # Input holds pages back; the pass then goes on.
 m.call(address=due,args=(0,0,0,0),gap=0); m.db.execute("insert into myfav(fileurl,time) values('/mnt/mmc/m/q.flac',0)"); m.now+=5000
 f=payload_syms['ratings_copy_poll']; m.call(address=f,args=(0,0,0,0),gap=0); assert m.get(payload_syms['rc'])
@@ -7087,6 +7104,21 @@ m.call(address=due,args=(0,0,0,0),gap=0); m.poll(); m.fail_write=False; assert m
 # A read that fails leaves the copy as it was, the connection closed.
 before=m.copy_text(); writes=m.writes; m.db.execute("insert into myfav(fileurl,time) values('/mnt/mmc/m/a2.flac',0)"); m.fail='select'; closed=m.closed_db
 m.call(address=due,args=(0,0,0,0),gap=0); m.poll(); assert m.writes==writes and m.copy_text()==before and m.closed_db==closed+1; m.fail=''; passed()
+# So does a failed look for songtable, which isn't "no scan yet": the copy isn't cut to My Fav's alone.
+m=RatingsCopyMachine(SONGS_RC,FAV_RC); m.rate([(m.key('listen_key','/mnt/mmc/m/a.flac'),3)]); m.poll(0); m.poll(); before=m.copy_text(); assert 'a.flac' in before
+m.db.execute("insert into myfav(fileurl,time) values('/mnt/mmc/m/a2.flac',0)"); m.fail='select 1 from sqlite_master'; closed=m.closed_db
+m.call(address=payload_syms['ratings_copy_due'],args=(0,0,0,0),gap=0); m.poll(); assert m.writes==1 and m.copy_text()==before and m.closed_db==closed+1; m.fail=''; passed()
+# The longest copy stays as .1: a rating given and cleared after a lost table can't take it. A shorter copy
+# whose write fails leaves the last one where it was, with no .tmp.
+m=RatingsCopyMachine(SONGS_RC,FAV_RC+[(f'/mnt/mmc/m/f{i}.flac',0,'','') for i in range(3)]); m.poll(0); m.poll(); full=m.copy_text()
+def rc_change(sql=''):
+    if sql: m.db.execute(sql)
+    m.call(address=payload_syms['ratings_copy_due'],args=(0,0,0,0),gap=0); m.poll()
+rc_change('delete from myfav'); assert m.files[RC_FILE+'.1'].decode()==full and m.copy_text()==RC_HEAD
+rc_change("insert into myfav(fileurl,time) values('/mnt/mmc/m/n.flac',0)"); one=m.copy_text(); assert 'n.flac' in one
+m.db.execute('delete from myfav'); m.fail_write=True; rc_change(); m.fail_write=False
+assert m.copy_text()==one and m.files[RC_FILE+'.1'].decode()==full and RC_FILE+'.tmp' not in m.files
+rc_change(); assert m.copy_text()==RC_HEAD and m.files[RC_FILE+'.1'].decode()==full; passed()
 # Out of memory ends the pass with the last copy kept, not one with rows missing.
 long=[(f'/mnt/mmc/{"x"*1000}/{i}.flac',0,'','') for i in range(80)]
 m=RatingsCopyMachine(SONGS_RC,long); m.poll(0); m.files[RC_FILE]=b'kept\n'; m.fail_realloc=True; m.poll(); assert m.files[RC_FILE]==b'kept\n' and m.writes==0
@@ -9251,7 +9283,7 @@ f,ctx=m.handler(heart,O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),g
 assert m.panel() is None and m.nodes[p]['sensitive']==0 and m.kept()==[(key_of('B')&~7)|3] and m.badge()=='3'
 assert m.tap()==0 and m.favs=={'B'} and m.kept()==[] and m.badge() is None; passed()
 # A tap or a saved rating makes the card's copy due, 5 s on; a picker left unsaved doesn't.
-rc_due=payload_syms['rc']+48; m.word(rc_due,0); m.heart(); m.call(O['KEY_RETURN']); assert not m.get(rc_due)
+rc_due=payload_syms['rc_due']; m.word(rc_due,0); m.heart(); m.call(O['KEY_RETURN']); assert not m.get(rc_due)
 assert m.tap()==0 and m.get(rc_due)==1
 m.word(rc_due,0); m.heart(); m.call(O['KEY_NEXT']); m.call(O['KEY_CENTER']); assert m.get(rc_due)==1 and m.kept()==[(key_of('B')&~7)|1]
 assert m.tap()==0 and m.favs=={'B'} and m.kept()==[]; passed()
@@ -12446,6 +12478,8 @@ def held(m): return m.call(address=payload_syms['resume_held'],args=(0,0,0,0),ga
 m=ResumeMachine(); playing(m,0,pos=0,n=O['RESUME_EDGE_S']); assert not held(m)
 playing(m,O['RESUME_EDGE_S'],n=2); assert held(m)
 m=ResumeMachine(); playing(m,100,200,pos=0,n=3); assert not held(m); passed()  # short: nothing kept
+m=ResumeMachine(); playing(m,0,pos=0,n=3); playing(m,3600-O['RESUME_EDGE_S']-1); assert held(m)
+playing(m,3600-O['RESUME_EDGE_S']); assert not held(m); passed()  # the last seconds keep no place either
 
 # A spoken CUE book: a chapter keeps its file's place (CUE start + seconds) and never jumps by itself;
 # a chapter row's hold menu starts with Resume, which plays the list's songs from the chapter holding
@@ -12457,6 +12491,7 @@ def chapter(m,r,start,end,path=book):
 def place(sec,path=book): return {'/mnt/data/ringnav-resume':struct.pack('<II',fnv(path),sec)+bytes(8*O['RESUME_SLOTS']-8)}
 m=ResumeMachine(); chapter(m,m.items(m.get(syms['mcl_pdeqplaylist']))[0],600,1200)
 playing(m,0,600,pos=0,n=70); assert m.places()==[(fnv(book),661)] and '/mnt/data/ringnav-plays' not in m.files
+assert not held(m)  # a chapter's restart leaves the book's place alone: nothing to ask
 m=ResumeMachine(m.files); chapter(m,m.items(m.get(syms['mcl_pdeqplaylist']))[0],600,1200)
 m.poll(0,600,pos=0,n=2); playing(m,1,600,n=3); assert not m.seeks; passed()  # picking a chapter plays it
 for start,end,sec,kept in ((0,600,10,[(fnv(book),700)]),(1200,0,590,[])):  # the book's first or last 30 s

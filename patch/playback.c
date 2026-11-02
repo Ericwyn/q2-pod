@@ -904,14 +904,17 @@ int ringnav_prev(void) {
     s.dirty = 1;
     return mclStartPlayer();
 }
-/* Would this manual Next/Prev start the playing file again? Stock moves on in every play mode, Repeat
- * One too, so outside advanced play only a one-track queue does, unless Folder Skip leaves it for a
- * sibling folder or List Play's Next stops it. */
+/* Would this manual Next/Prev start the playing file again? With more tracks stock moves on, Repeat
+ * One too, so outside advanced play a one-track queue does, unless Folder Skip leaves it for a sibling
+ * folder (never an M3U's) or List Play's Next stops it. Shuffle's Previous goes back to its last
+ * position before any folder, here this track. ponytail: stock Shuffle's pool can also redraw the
+ * playing track, and Folder Skip with no sibling wraps; neither can be told before the press. */
 static int change_restarts(int next) {
     int at = M(MCL_POS);
     if (s.active) return next ? playback_successor(0) == at : s.hn >= 2 && (int)s.history[s.hn - 2] == at;
     if (!queue() || deque_size(queue()) != 1 || (next && list_end())) return 0;
-    return M(MCL_MODE) == 2 || M(MCL_TYPE) != 1 || !*(volatile unsigned char *)MCL_JUMPFOLDER;
+    if (M(MCL_TYPE) != 1 || !*(volatile unsigned char *)MCL_JUMPFOLDER || mclGetPlayM3uFlag()) return 1;
+    return !next && M(MCL_MODE) == 2 && !M(MCL_LASTPOS);
 }
 /* A press that would restart a track holding a place only asks; a second within RESTART_ASK_MS goes
  * ahead, and resume_poll forgets the place as for any move to the start. */

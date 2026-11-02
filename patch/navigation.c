@@ -215,6 +215,7 @@ extern int scrobble_ready(void), scrobble_start(void), scrobble_poll(int *sent),
     scrobble_flag(const char *key), scrobble_value(const char *key);
 extern void scrobble_append(const char *line, unsigned n);
 extern void *staged(int (*query)(void *), void *arg, int *count);
+extern int staged_into(void *into, int (*query)(void *), void *arg);
 /* Scope music detail loads too: spoken tracks can share all their tags with music. */
 void *staged_music(int (*query)(void *), void *arg, int *count) {
     int saved = library_music;
@@ -5984,11 +5985,23 @@ static int music_records(void *list, int discovery) {
     deque_destroy(music);
     return (int)deque_size(list);
 }
+/* Library -> Songs (load_localclass_list's default): stock reads into the staging deque and copies
+ * that to the showlist, the library held twice; this reads straight into the showlist. */
+static int songs_sorted(void *unused) { return getAllMusic(I(g_sort_flag, 0)); }
+static int songs_load(void) {
+    void *list = P(p_deque_showlist, 0);
+    deque_clear(list);
+    staged_into(list, songs_sorted, 0);
+    deque_clear(P(tools_pdeq_directory, 0)); /* as stock leaves it */
+    music_nagvation_title(0xf001);
+    return (int)deque_size(list);
+}
+
 int ringnav_localclass(int cls) {
     I(g_artist_type, 0) = I(artist_type, 0) == 1;
     int saved = library_music;
     library_music = 1;
-    int n = stock_localclass_trampoline(cls);
+    int n = cls == 0xf001 ? songs_load() : stock_localclass_trampoline(cls);
     void *list = P(p_deque_showlist, 0), *dir = P(tools_pdeq_directory, 0), *a = album_opened();
     if (n > 0 && cls == 0xff20) n = music_records(list, 0);
     /* These stored lists bypass songtable too. Keep Discovery out of their displayed copies,
@@ -8993,8 +9006,12 @@ static void spot_save(int sec) {
         spot_keep(st.rs_file, st.rs_cue + sec, st.rs_end ? 0x7fffffff : st.rs_cue + st.rs_total);
 }
 
-/* Would starting the polled track again lose a place worth keeping? */
-int resume_held(void) { return st.rs_long && st.rs_sec >= RESUME_EDGE_S; }
+/* Would starting the polled track again lose a place worth keeping? spot_keep keeps none near
+ * either end, and spot_save leaves a CUE book's place alone at a chapter's start. */
+int resume_held(void) {
+    return st.rs_long && !st.rs_cue && !st.rs_end && st.rs_sec >= RESUME_EDGE_S &&
+           st.rs_sec < st.rs_total - RESUME_EDGE_S;
+}
 
 /* Once a second from the UI loop: a long track saves its place and, when it starts playing near
  * its beginning, jumps to the saved one. A spoken CUE track saves its file's place but jumps only
@@ -9419,6 +9436,7 @@ static void logo_poll(void) {
     int mounted = card_mounted();
     unsigned long tid;
     if (mounted && !st.logo_mounted) {
+        ratings_copy_due(); /* another card, or the copy gone over USB storage */
         st.logo_busy = 1;
         if (pthread_create(&tid, 0, logo_sync, 0)) {
             st.logo_busy = 0; /* the edge is tried again next poll */
@@ -9431,10 +9449,10 @@ static void logo_poll(void) {
 /* The card's copy of the ratings (docs/internals.md#ratings): the tables hold only hashes, so a
  * pass reads the paths and tags back from the library, a page of rows each quiet poll on this
  * thread (demo has no busy timeout, so a worker's read lock could make stock's own My Fav writes
- * fail), and writes the card once at the end, only if the file would change; a copy with more lines
- * than the new one is kept as .1, the one way back from a lost table. ponytail: every row against
- * every rated one, as the Ratings lists do; a rating whose song or album has left the library has
- * no name to write, and stays out until it is back. */
+ * fail), and writes the card once at the end, only if the file would change; the longest copy so
+ * far is kept as .1, the one way back from a lost table. ponytail: every row against every rated
+ * one, as the Ratings lists do; a rating whose song or album has left the library has no name to
+ * write, and stays out until it is back. */
 #define RC_FILE "/mnt/mmc/.ratings.tsv"
 #define RC_HEADER "#song\thearts\tpath\tcue_start\n#album\thearts\tname\talbum_artist\tfolder\n"
 #define RC_PAGE 64
@@ -9447,12 +9465,13 @@ static struct {
     unsigned *song, *album; /* the rated still to find, their hearts in the low bits */
     unsigned songs, albums, len, cap, at;
     char *out;
-    int table, last, rows, due, oom;
+    int table, last, rows, oom;
     unsigned gen;
 } rc __attribute__((section(".scratch")));
+static int rc_due __attribute__((section(".scratch")));
 
 void ratings_copy_due(void) {
-    rc.due = 1;
+    rc_due = 1;
     rc.at = time_now_ms();
 }
 
@@ -9526,23 +9545,36 @@ static void rc_end(void) {
     rc.len = rc.cap = rc.oom = 0;
 }
 
-/* Whether the card has this copy already; if it has one with more lines, that goes to .1. */
-static int rc_unchanged(void) {
-    void *f = fopen(RC_FILE, "rb");
-    if (!f) return 0;
+/* path's lines, 0 with no file; same, if asked, whether it is this copy. */
+static unsigned rc_read(const char *path, int *same) {
+    void *f = fopen(path, "rb");
     char b[1024];
     unsigned n, at = 0, lines = 0;
-    int same = 1;
-    while ((n = fread(b, 1, sizeof b, f)) > 0) {
-        same = same && at + n <= rc.len && !memcmp(b, rc.out + at, n);
+    int eq = f != 0;
+    while (f && (n = fread(b, 1, sizeof b, f)) > 0) {
+        eq = eq && at + n <= rc.len && !memcmp(b, rc.out + at, n);
         at += n;
         for (unsigned i = 0; i < n; i++) lines += b[i] == '\n';
     }
-    fclose(f);
-    if (same && at == rc.len) return 1;
-    for (unsigned i = 0; i < rc.len; i++) lines -= rc.out[i] == '\n';
-    if ((int)lines > 0) rename(RC_FILE, RC_FILE ".1");
-    return 0;
+    if (f) fclose(f);
+    if (same) *same = eq && at == rc.len;
+    return lines;
+}
+
+/* The card's copy replaced, unless it is this one already. Once the new one is safely written, a
+ * copy with more lines goes to .1, unless .1 has more still: a rating given and cleared after a
+ * lost table must not take the way back. */
+static void rc_write(void) {
+    int same;
+    unsigned lines = rc_read(RC_FILE, &same), now = 0;
+    if (same) return;
+    if (!blob_io(RC_FILE ".tmp", RC_FILE ".tmp", rc.out, rc.len, 1)) {
+        unlink(RC_FILE ".tmp");
+        return;
+    }
+    for (unsigned i = 0; i < rc.len; i++) now += rc.out[i] == '\n';
+    if (lines > now && lines >= rc_read(RC_FILE ".1", 0)) rename(RC_FILE, RC_FILE ".1");
+    if (rename(RC_FILE ".tmp", RC_FILE)) unlink(RC_FILE ".tmp");
 }
 
 /* The rated of table album, valid hearts only, for rc_take. */
@@ -9595,13 +9627,17 @@ static void rc_page(void) {
     if (!rc.table++) {
         rc.last = rc.rows = 0;
         /* no songtable before the first scan: My Fav's alone, still worth a copy */
-        sqlite3_exec(rc.db, "select 1 from sqlite_master where name='songtable'", rc_exists, 0, 0);
+        if (sqlite3_exec(rc.db, "select 1 from sqlite_master where name='songtable'", rc_exists, 0,
+                         0)) {
+            rc_end();
+            return;
+        }
         if (rc.rows) return;
     }
     if (!card_mounted())
-        rc.due = 1; /* shared over USB meanwhile */
-    else if (!rc_unchanged() && !blob_io(RC_FILE, RC_FILE ".tmp", rc.out, rc.len, 1))
-        unlink(RC_FILE ".tmp");
+        rc_due = 1; /* shared over USB meanwhile */
+    else
+        rc_write();
     rc_end();
 }
 
@@ -9614,14 +9650,14 @@ void ratings_copy_poll(void) {
     }
     unsigned now = time_now_ms();
     if (!rc.at) {
-        rc.due = 1, rc.at = now | !now;
+        rc_due = 1, rc.at = now | !now;
         return;
     }
     if (now - rc.at < RC_WAIT_MS) return;
     rc.at = now;
-    if (rc.gen != library_gen) rc.gen = library_gen, rc.due = 1;
-    if (!rc.due || library_scanning() || !card_mounted()) return;
-    rc.due = 0;
+    if (rc.gen != library_gen) rc.gen = library_gen, rc_due = 1;
+    if (!rc_due || library_scanning() || !card_mounted()) return;
+    rc_due = 0;
     rc_start();
 }
 

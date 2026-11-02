@@ -145,8 +145,11 @@ def logo_check():
             config.write_text(f'[SYSSET]\nTIMEZONE={i}\n[IPOD]\nLIGHT=2\n')
             fake = f'''date() {{ [ "$TZ" = '{zone}' ] && echo 12 || echo 22; }}; '''
             assert subprocess.run(['sh', '-c', fake + script], check=True, capture_output=True, text=True).stdout.strip() == str(light), zone
-        config.write_text('[IPOD]\nLIGHT=2\n')  # no saved zone: UTC, as before
-        assert subprocess.run(['sh', '-c', '''date() { [ -z "$TZ" ] && echo 12 || echo 22; }; ''' + script], check=True, capture_output=True, text=True).stdout.strip() == str(light)
+        # No saved zone, or one past the list: stock's default, as the player reads it (config_init)
+        for text in ('[IPOD]\nLIGHT=2\n', f'[SYSSET]\nTIMEZONE={len(TIMEZONES)}\n[IPOD]\nLIGHT=2\n'):
+            config.write_text(text)
+            fake = f'''date() {{ [ "$TZ" = '{TIMEZONES[22][1]}' ] && echo 12 || echo 22; }}; '''
+            assert subprocess.run(['sh', '-c', fake + script], check=True, capture_output=True, text=True).stdout.strip() == str(light)
     print('Boot logo: the saved card logo, else the light splash under Light Mode, else the built-in one, passed.')
 logo_check()
 
