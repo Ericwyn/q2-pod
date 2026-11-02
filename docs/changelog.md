@@ -6,6 +6,7 @@
   - Games: the list in **Library → Games** carries over at its ends, as the other lists do.
   - App Store: **Fidget** is now called **Buddy**.
   - Wheel: holding **Centre** now stops as it should when you press the wheel's edge. Before, the hold could occasionally carry on to Shut Down.
+  - Display: with **Light Mode: Auto**, the boot logo now goes by your time zone, so it matches the interface. Before, it went by UTC and could start light at night, or dark during the day.
 
 - **1.6.2**:
   - Games: games from the App Store appear in **Library → Games** after Snake and play over the whole screen, by touch and the wheel. **Play/Pause** and **Previous/Next** keep controlling the music, and holding **Return** closes one. A game closes after two minutes untouched, unless **Smart Awake** is on, which keeps it open and the screen lit.

@@ -238,9 +238,6 @@ BOOT_HOOK = (b'    /release/bin/demo &\n', f'''    (
 # (LIGHT=1 in config.ini, also on /mnt/data) its light twin, which iPod builds of the default logo ship.
 S11LOGO = 'etc/init.d/S11logo_display_shell'
 LOGO, LOGO_LIGHT = 'release/assets/default/raw/images/xx/logo.jpg', 'release/assets/default/raw/images/xx/logo-light.jpg'
-LOGO_HOOK = (b'   \tdisplay_logo /release/assets/default/raw/images/xx/logo.jpg\n',
-             b'   \tl=/mnt/data/boot-logo.jpg; [ -f $l ] || { l=/%s; light=0; grep -qx LIGHT=1 /mnt/data/config.ini 2>/dev/null && light=1; grep -qx LIGHT=2 /mnt/data/config.ini 2>/dev/null && case $(date +%%H) in 0[7-9]|1[0-8]) light=1;; esac; [ $light = 1 ] && [ -f /%s ] && l=/%s; }; display_logo $l\n'
-             % (LOGO.encode(), LOGO_LIGHT.encode(), LOGO_LIGHT.encode()))
 REMOTE_HOOK = (b'/usr/bin/dbus-daemon --config-file=/etc/dbus-1/system.conf\n',
                b'/usr/bin/dbus-daemon --config-file=/etc/dbus-1/system.conf\n/usr/bin/q2remote &\n')
 # --dev only (docs/remote.md#log): demo's console output, and hciplayer's, which inherits it, in RAM, so
@@ -831,6 +828,11 @@ TIMEZONES = (
     ('GMT+5:30 Kolkata', 'Asia/Kolkata'), ('GMT+10 Brisbane', 'Australia/Brisbane'),
     ('GMT+12 Auckland', 'Pacific/Auckland'),
 )
+# LIGHT=2 goes by the wall clock, as demo's Auto: the boot shell has no TZ, so the saved index picks it.
+LOGO_ZONES = ' '.join(f"{i}) z='{zone}';;" for i, (_, zone) in enumerate(TIMEZONES))
+LOGO_HOOK = (b'   \tdisplay_logo /release/assets/default/raw/images/xx/logo.jpg\n',
+             b'   \tl=/mnt/data/boot-logo.jpg; [ -f $l ] || { l=/%s; light=0; grep -qx LIGHT=1 /mnt/data/config.ini 2>/dev/null && light=1; grep -qx LIGHT=2 /mnt/data/config.ini 2>/dev/null && { case $(sed -n s/^TIMEZONE=//p /mnt/data/config.ini) in %s esac; case $(TZ=$z date +%%H) in 0[7-9]|1[0-8]) light=1;; esac; }; [ $light = 1 ] && [ -f /%s ] && l=/%s; }; display_logo $l\n'
+             % (LOGO.encode(), LOGO_ZONES.encode(), LOGO_LIGHT.encode(), LOGO_LIGHT.encode()))
 def timezone_offset(label):
     sign, h, m = re.match(r'GMT([+-])(\d+)(?::(\d+))?', label).groups()
     return (1 if sign == '+' else -1) * (int(h) * 60 + int(m or 0))
