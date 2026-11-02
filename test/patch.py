@@ -102,6 +102,7 @@ class Machine:
                   'fread@GLIBC_2.0','fwrite@GLIBC_2.0','fclose@GLIBC_2.2','rename@GLIBC_2.0')
         self.word(0xa2638c,0x1000010); self.handlers[0x1000010]='scope_free'
         self.resized=[]  # the bytes each realloc kept
+        self.sized={}  # a block's size, for realloc to spoil only that
         self.scope_tree={}; self.scope_markers=set(); self.scope_handles={}
         self.scope_files={}; self.scope_open={}  # SCOPE_RULES (and its .tmp): path -> bytes; handle -> [path, writing, bytes]
         self.present=set()  # paths access finds (the UI loop's Spotify poll asks for its login)
@@ -262,9 +263,12 @@ class Machine:
         elif name=='atoi@GLIBC_2.0': ret=int(re.match(r'[+-]?\d+',self.text(a))[0]) if re.match(r'[+-]?\d+',self.text(a)) else 0
         elif name=='access@GLIBC_2.0': ret=0 if self.text(a) in self.present else -1
         elif name=='open@GLIBC_2.0': ret=0xffffffff  # no /dev/jz_watchdog here: the watchdog stays off
-        elif name=='calloc@GLIBC_2.0': ret=0 if getattr(self,'fail_calloc',False) else self.alloc(a*b)
+        elif name=='calloc@GLIBC_2.0':
+            ret=0 if getattr(self,'fail_calloc',False) else self.alloc(a*b)
+            self.sized[ret]=a*b
+        elif name=='realloc@GLIBC_2.0' and getattr(self,'fail_realloc',False): ret=0
         elif name=='realloc@GLIBC_2.0':  # moved, as glibc may, the old block spoilt
-            kept=bytes(self.u.mem_read(a,b)); ret=self.alloc(b); self.u.mem_write(ret,kept); self.u.mem_write(a,b'\xff'*b); self.resized.append(kept)
+            kept=bytes(self.u.mem_read(a,b)); ret=self.alloc(b); self.u.mem_write(ret,kept); self.u.mem_write(a,b'\xff'*min(b,self.sized.get(a,b))); self.resized.append(kept); self.sized[ret]=b
         elif name=='strdup@GLIBC_2.0': ret=self.string(self.text(a))
         elif name=='scope_free': ret=0
         elif name=='opendir@GLIBC_2.0':
@@ -6785,11 +6789,13 @@ class FileMocks:
         if name=='fopen':
             path,mode=self.text(a),self.text(b)
             if (mode=='wb' and not self.fail_write) or (mode=='rb' and path in self.files):
-                f=0x2000000+16*next(i for i in range(64) if 0x2000000+16*i not in self.open_files); self.open_files[f]=[path,b'']; return f
-        elif name=='fread': data=self.files[self.open_files[d][0]]; u.mem_write(a,data[:b*c].ljust(b*c,b'\0')); return min(c,len(data)//b)
+                f=0x2000000+16*next(i for i in range(64) if 0x2000000+16*i not in self.open_files); self.open_files[f]=[path,b'',0]; return f
+        elif name=='fread':
+            o=self.open_files[d]; data=self.files[o[0]][o[2]:]; n=min(c,len(data)//b); o[2]+=n*b
+            u.mem_write(a,data[:b*c].ljust(b*c,b'\0')); return n
         elif name=='fwrite': self.open_files[d][1]+=bytes(u.mem_read(a,b*c)); return c
         elif name=='fclose':
-            path,data=self.open_files.pop(a)
+            path,data,_=self.open_files.pop(a)
             if data: self.files[path]=data
         elif name=='rename': self.files[self.text(b)]=self.files.pop(self.text(a))
         return 0
@@ -7005,6 +7011,93 @@ assert m.db.execute('PRAGMA temp_store').fetchone()==(1,); passed()
 for failure in ('open','PRAGMA','select'):
     m=EraMachine(SONGS); m.fail=failure; top=m.top; m.open_era()
     assert m.top==top and m.toasts[-1][3]=='Era unavailable' and m.closed_db==1; passed()
+# The ratings' copy on the card (navigation.c rc_*): the tables' hashes named again from the library, a page a poll.
+RC_FILE='/mnt/mmc/.ratings.tsv'; RC_HEAD='#song\thearts\tpath\tcue_start\n#album\thearts\tname\talbum_artist\tfolder\n'
+class RatingsCopyMachine(FileMocks,EraMachine):
+    def __init__(self,songs,favs=()):
+        super().__init__(); self.budget=2_000_000; self.file_mocks('rc:',{'/proc/mounts':b'/dev/mmcblk0p1 /mnt/mmc vfat rw 0 0\n'}); self.writes=0
+        self.db.execute('drop table songtable')
+        for t in ('songtable','myfav'): self.db.execute(f'create table {t}(id integer primary key,fileurl,time,album,albumsonger)')
+        self.db.executemany('insert into songtable(fileurl,time,album,albumsonger) values(?,?,?,?)',songs)
+        self.db.executemany('insert into myfav(fileurl,time,album,albumsonger) values(?,?,?,?)',favs)
+    def hook(self,u,address,size,unused):
+        name=self.handlers.get(address,'')
+        if not name.startswith('rc:'): return super().hook(u,address,size,unused)
+        name=name[3:].split('@')[0]; a,b,c,d=[u.reg_read(r) for r in REGS]; self.writes+=name=='rename' and self.text(a).endswith('.tmp')
+        self.returns(self.file_op(u,name,a,b,c,d),clobber=True)
+    def rec(self,path,cue=0,album=None,artist=None):
+        r=self.record((1,0,path,cue,0,'x')); self.word(r+O['REC_ALBUM'],self.string(album) if album is not None else 0)
+        self.word(r+O['REC_ALBUM_ARTIST'],self.string(artist) if artist is not None else 0); return r
+    def key(self,f,*a,**k): return self.call(address=payload_syms[f],args=(self.rec(*a,**k),0,0,0),gap=0)&0xffffffff
+    def rate(self,songs=(),albums=()):  # (key, hearts) each, as the tables keep them
+        for path,rows in (('/mnt/data/ringnav-ratings',songs),('/mnt/data/ringnav-album-ratings',albums)):
+            self.files[path]=b''.join(struct.pack('<I',(k&~7)|h) for k,h in rows).ljust(4*O['RATE_SLOTS'],b'\0')
+    def poll(self,ms=5000):  # that long on, then pages until the pass ends
+        self.now+=ms; f=payload_syms['ratings_copy_poll']; self.call(address=f,args=(0,0,0,0),gap=0)
+        while self.get(payload_syms['rc']): self.now+=1000; self.call(address=f,args=(0,0,0,0),gap=0)
+    def copy_text(self): return self.files[RC_FILE].decode()
+SONGS_RC=[('/mnt/mmc/m/a.flac',0,'Alpha','Band'),('/mnt/mmc/m/a2.flac',0,'Alpha','Band'),('/mnt/mmc/m/cue.flac',0,'Live','Band'),
+          ('/mnt/mmc/m/cue.flac',30,'Live','Band'),('/mnt/mmc/CD1/1.flac',0,'Solo',None),('/mnt/mmc/CD2/1.flac',0,'Solo',None),
+          ('/mnt/mmc/m/t\tab.flac',0,'Ta\tb','Ban\nd')]
+FAV_RC=[('/mnt/mmc/m/fav.flac',0,'Other','Band')]
+m=RatingsCopyMachine(SONGS_RC,FAV_RC)
+aa=m.key('album_id','/mnt/mmc/m/a.flac',album='Alpha',artist='Band'); ab=m.key('album_id','/mnt/mmc/CD2/1.flac',album='Solo',artist='')
+unknown=m.rec('/x'); m.word(unknown+O['REC_ID'],0xffffffff); au=m.call(address=payload_syms['album_id'],args=(unknown,0,0,0),gap=0)&0xffffffff
+m.rate([(m.key('listen_key','/mnt/mmc/m/cue.flac',cue=30),3),(m.key('listen_key','/mnt/mmc/m/t\tab.flac'),1),
+        (m.key('listen_key','/mnt/mmc/m/fav.flac'),2),(m.key('listen_key','/mnt/mmc/gone.flac'),4)],[(aa,5),(ab,2),(au,1)])
+# Five seconds after boot: My Fav's as 5 whatever is kept, the songs with a CUE start, an album once, the folder only where
+# no album artist tells it apart, tabs and newlines as spaces, a song no longer in the library left out.
+m.poll(0); assert RC_FILE not in m.files; m.poll(4999); assert RC_FILE not in m.files
+m.poll(1); text=m.copy_text()
+assert text==RC_HEAD+'album\t1\tUnknown Album\t\t\nsong\t5\t/mnt/mmc/m/fav.flac\t\nalbum\t5\tAlpha\tBand\t\nsong\t3\t/mnt/mmc/m/cue.flac\t30\n' \
+    'album\t2\tSolo\t\t/mnt/mmc\nsong\t1\t/mnt/mmc/m/t ab.flac\t\n',text
+assert m.writes==1 and m.closed_db==1 and not m.get(payload_syms['rc']+4) and '/mnt/mmc/.ratings.tsv.tmp' not in m.files; passed()
+# Nothing due, nothing read; the same copy again isn't written; a change is, 5 s after the last of a run.
+sql=len(m.sql); m.poll(); m.poll(); assert len(m.sql)==sql
+due=payload_syms['ratings_copy_due']; m.call(address=due,args=(0,0,0,0),gap=0); m.poll(); assert len(m.sql)>sql and m.writes==1; passed()
+m.db.execute('delete from myfav'); m.call(address=due,args=(0,0,0,0),gap=0); m.poll(4999); assert m.writes==1
+m.call(address=due,args=(0,0,0,0),gap=0); m.poll(4999); assert m.writes==1; m.poll(1); assert m.writes==2 and 'fav.flac' not in m.copy_text(); passed()
+# The card away (USB storage): it waits, then writes.
+m.db.execute("insert into myfav(fileurl,time) values('/mnt/mmc/m/a.flac',0)"); mounts=m.files['/proc/mounts']; m.files['/proc/mounts']=b'none /mnt/data ubifs rw 0 0\n'
+sql=len(m.sql); m.call(address=due,args=(0,0,0,0),gap=0); m.poll(); assert len(m.sql)==sql and m.writes==2
+m.files['/proc/mounts']=mounts; m.poll(); assert m.writes==3 and 'song\t5\t/mnt/mmc/m/a.flac\t\n' in m.copy_text(); passed()
+# USB storage taking the card during a pass: nothing written, and due again once it's back.
+m.db.execute("insert into myfav(fileurl,time) values('/mnt/mmc/m/u.flac',0)"); m.call(address=due,args=(0,0,0,0),gap=0); m.now+=5000
+f=payload_syms['ratings_copy_poll']; m.call(address=f,args=(0,0,0,0),gap=0); assert m.get(payload_syms['rc'])
+m.files['/proc/mounts']=b'none /mnt/data ubifs rw 0 0\n'; writes=m.writes
+while m.get(payload_syms['rc']): m.now+=1000; m.call(address=f,args=(0,0,0,0),gap=0)
+assert m.writes==writes; m.files['/proc/mounts']=mounts; m.poll(); assert m.writes==writes+1 and 'u.flac' in m.copy_text()
+m.db.execute("delete from myfav where fileurl like '%u.flac'"); m.call(address=due,args=(0,0,0,0),gap=0); m.poll(); passed()
+# A scan holds a pass back and ends one under way, unwritten; the library rewritten makes the copy due again.
+writes=m.writes
+m.db.execute('delete from myfav'); m.call(address=due,args=(0,0,0,0),gap=0); m.word(O['SCAN_THREAD'],1); m.word(O['SCAN_DONE'],0); m.poll(); assert m.writes==writes
+f=payload_syms['ratings_copy_poll']; m.word(O['SCAN_THREAD'],0); m.now+=5000; m.call(address=f,args=(0,0,0,0),gap=0); assert m.get(payload_syms['rc'])
+m.word(O['SCAN_THREAD'],1); m.word(O['SCAN_DONE'],0); m.now+=1000; m.call(address=f,args=(0,0,0,0),gap=0); assert not m.get(payload_syms['rc']) and m.writes==writes
+m.word(O['SCAN_DONE'],1); m.word(payload_syms['library_gen'],m.get(payload_syms['library_gen'])+1); m.poll(); assert m.writes==writes+1; passed()
+# Fewer lines than the card's copy: the old one is kept as .1, so a lost table can't take the only copy.
+kept=m.files[RC_FILE+'.1'].decode(); assert kept.count('\n')==m.copy_text().count('\n')+1 and 'song\t5\t/mnt/mmc/m/a.flac' in kept; passed()
+# Input holds pages back; the pass then goes on.
+m.call(address=due,args=(0,0,0,0),gap=0); m.db.execute("insert into myfav(fileurl,time) values('/mnt/mmc/m/q.flac',0)"); m.now+=5000
+f=payload_syms['ratings_copy_poll']; m.call(address=f,args=(0,0,0,0),gap=0); assert m.get(payload_syms['rc'])
+sql=len(m.sql); m.call(address=payload_syms['ringnav_input'],args=(m.wm,m.event,0,0),gap=0); m.call(address=f,args=(0,0,0,0),gap=0); assert len(m.sql)==sql
+m.poll(0); assert 'q.flac' in m.copy_text(); passed()
+# A failed write leaves the copy, and no .tmp on the card.
+before=m.copy_text(); m.db.execute("insert into myfav(fileurl,time) values('/mnt/mmc/m/w.flac',0)"); m.fail_write=True; writes=m.writes
+m.call(address=due,args=(0,0,0,0),gap=0); m.poll(); m.fail_write=False; assert m.writes==writes and m.copy_text()==before; passed()
+# A read that fails leaves the copy as it was, the connection closed.
+before=m.copy_text(); writes=m.writes; m.db.execute("insert into myfav(fileurl,time) values('/mnt/mmc/m/a2.flac',0)"); m.fail='select'; closed=m.closed_db
+m.call(address=due,args=(0,0,0,0),gap=0); m.poll(); assert m.writes==writes and m.copy_text()==before and m.closed_db==closed+1; m.fail=''; passed()
+# Out of memory ends the pass with the last copy kept, not one with rows missing.
+long=[(f'/mnt/mmc/{"x"*1000}/{i}.flac',0,'','') for i in range(80)]
+m=RatingsCopyMachine(SONGS_RC,long); m.poll(0); m.files[RC_FILE]=b'kept\n'; m.fail_realloc=True; m.poll(); assert m.files[RC_FILE]==b'kept\n' and m.writes==0
+m.fail_realloc=False; m.call(address=payload_syms['ratings_copy_due'],args=(0,0,0,0),gap=0); m.poll(); assert m.copy_text().count('\n')==82; passed()
+# No scan yet, so no songtable: My Fav's alone still get their copy.
+m=RatingsCopyMachine([],FAV_RC); m.db.execute('drop table songtable'); m.poll(0); m.poll()
+assert m.copy_text()==RC_HEAD+'song\t5\t/mnt/mmc/m/fav.flac\t\n' and m.closed_db==1; passed()
+# A library past a page: every page is read, and a pass stops at the last rated found.
+many=[(f'/mnt/mmc/l/{i}.flac',0,'','') for i in range(200)]
+m=RatingsCopyMachine(many); m.rate([(m.key('listen_key','/mnt/mmc/l/100.flac'),4)]); m.poll(0); m.poll()
+assert m.copy_text()==RC_HEAD+'song\t4\t/mnt/mmc/l/100.flac\t\n' and not [q for q in m.sql if 'id>128' in q]; passed()
 # Full-date tags belong to their year; normalize each track before picking the album's latest.
 dates=[('Dates','Artist','','/mnt/mmc/music/d1.flac',20220510),
        ('Dates','Artist','','/mnt/mmc/music/d2.flac',2023),
@@ -9152,6 +9245,11 @@ m.heart(); p=m.panel(); assert m.nodes[p]['sensitive']==1; heart=[h for h in m.n
 f,ctx=m.handler(heart,O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0)
 assert m.panel() is None and m.nodes[p]['sensitive']==0 and m.kept()==[(key_of('B')&~7)|3] and m.badge()=='3'
 assert m.tap()==0 and m.favs=={'B'} and m.kept()==[] and m.badge() is None; passed()
+# A tap or a saved rating makes the card's copy due, 5 s on; a picker left unsaved doesn't.
+rc_due=payload_syms['rc']+48; m.word(rc_due,0); m.heart(); m.call(O['KEY_RETURN']); assert not m.get(rc_due)
+assert m.tap()==0 and m.get(rc_due)==1
+m.word(rc_due,0); m.heart(); m.call(O['KEY_NEXT']); m.call(O['KEY_CENTER']); assert m.get(rc_due)==1 and m.kept()==[(key_of('B')&~7)|1]
+assert m.tap()==0 and m.favs=={'B'} and m.kept()==[]; passed()
 # Kept across boots; the badge follows the playing track on the UI tick.
 assert m.tap()==0 and m.favs==set(); m.heart(); m.call(O['KEY_NEXT']); m.call(O['KEY_NEXT']); m.call(O['KEY_CENTER'])
 m2=RateMachine(m.files['/mnt/data/ringnav-ratings']); assert m2.badge()=='2'
