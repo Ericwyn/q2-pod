@@ -6318,7 +6318,7 @@ static int most_played(void *ctx, void *event) {
     unsigned score[PLAYS_TOP], gen = library_gen;
     void *from = st.mp_list;
     if (!from || st.mp_gen != gen) {
-        from = staged(all_songs, (void *)1, &n);
+        from = staged(songs_unsorted, (void *)1, &n);
         st.mp_gen = gen;
     }
     int top = mp_rank(from, idx, score);

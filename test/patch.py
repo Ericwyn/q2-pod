@@ -9099,7 +9099,12 @@ m=ShuffleMachine(); m.found=[m.song(f'T{i}') for i in range(130)]
 m.word(m.found[1]+O['REC_ARTIST'],0)  # untagged: the count alone
 slots=[(fnv('/p/T3'),5),(fnv('/p/T1'),2),(fnv('/p/T7'),5)]+[(fnv(f'/p/T{i}'),1) for i in range(8,130)]
 m.counts=b''.join(struct.pack('<2I',*e) for e in slots).ljust(8*O['PLAYS_SLOTS'],b'\0')
+m.calls=[]
 assert m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=50_000_000)==0; m.page=m.top
+# The library is read once, unsorted and uncopied: a copy OOM-killed demo on a 47,000-song library.
+assert [c[1] for c in m.calls if c[0]=='getAllMusic']==[3]
+assert not [c for c in m.calls if c[0] in ('deque_init_copy','deque_assign')]
+assert m.names(m.get(syms['tools_pdeq_directory']))==['staged']
 ranked=['T3','T7','T1']+[f'T{i}' for i in range(8,130)][:O['PLAYS_TOP']-3]
 # Each 64px row: the title over its artist (when tagged) and play count, in 16px stock grey.
 details=['Artist · 5 plays','Artist · 5 plays','2 plays']+['Artist · 1 play']*(O['PLAYS_TOP']-3)
