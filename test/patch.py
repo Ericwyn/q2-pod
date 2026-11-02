@@ -12666,7 +12666,10 @@ assert wake(DOWN,gap=1000) and wake(UP); passed()
 hold=700
 assert wake(DOWN,RET,gap=1000) and wake(UP,RET,gap=hold) and not wake(DOWN,RET,gap=60) and not wake(UP,RET,gap=30)
 assert wake(DOWN,RET,gap=1000) and wake(UP,RET,gap=hold) and wake(DOWN,RET,gap=200) and wake(UP,RET,gap=30)
-assert wake(DOWN,RET,gap=1000) and wake(UP,RET,gap=100) and wake(DOWN,RET,gap=60) and wake(UP,RET,gap=30); passed()
+assert wake(DOWN,RET,gap=1000) and wake(UP,RET,gap=100) and wake(DOWN,RET,gap=60) and wake(UP,RET,gap=30)
+# The stamp rounds up (| 1): a ghost in the same even millisecond as the release is still inside the window.
+assert wake(DOWN,RET,gap=1000); m.now+=hold; m.now+=m.now&1
+assert wake(UP,RET,gap=0) and not wake(DOWN,RET,gap=0) and not wake(UP,RET,gap=30); passed()
 # Every edge button guards Centre as Return does: a thumb on the rim closes Centre with Play/Pause,
 # Previous or Next too. Centre pressed first passes, but an edge press within CHORD_MS of it ends
 # Centre's hold timer, so stock's Centre hold (Shut Down) never comes; a later one leaves it.
@@ -12678,7 +12681,10 @@ FWD=O['KEY_FWD_BTN']
 assert wake(DOWN,gap=1000); t=centre_hold(); assert t in m.timers
 assert wake(DOWN,FWD,gap=100) and t not in m.timers and wake(UP,gap=50) and wake(UP,FWD)
 assert wake(DOWN,gap=1000); t=centre_hold(); assert wake(DOWN,FWD,gap=600) and t in m.timers
-m.timers.pop(t); assert wake(UP,gap=50) and wake(UP,FWD); passed()
+m.timers.pop(t); assert wake(UP,gap=50) and wake(UP,FWD)
+# The stamp rounds up (| 1): an edge press in the same even millisecond as Centre's still ends the hold.
+m.now+=1000; m.now+=m.now&1; assert wake(DOWN,gap=0); t=centre_hold()
+assert wake(DOWN,FWD,gap=0) and t not in m.timers and wake(UP,gap=50) and wake(UP,FWD); passed()
 # A lost release (Standby while held) leaves the guards whole: a press long after its button's last
 # event is a new press, while repeats within 258 ms of each other are still the first press.
 assert wake(DOWN,FWD,gap=1000) and wake(DOWN,FWD,gap=1000) and not wake(DOWN,gap=30) and not wake(UP,gap=50) and wake(UP,FWD)

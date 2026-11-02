@@ -696,7 +696,7 @@ static void game_poll(void) {
         return;
     }
     unsigned now = (unsigned)time_now_ms();
-    /* signed: | 1 stamps either up to a millisecond after now, which unsigned reads as long past */
+    /* signed: a stamp can be just after now (| 1 rounds up, game_end reads the clock again) */
     if (gm.held && (int)(now - gm.held) >= GAME_HOLD_MS) gm.held = 0, gm.eat = 1, game_end();
     if (gm.term && (int)(now - gm.term) >= GAME_KILL_MS) gm.term = now | 1, game_kill("-9 ");
     int travel = __sync_lock_test_and_set(&wheel_travel, 0);
