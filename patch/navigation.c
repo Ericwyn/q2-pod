@@ -6691,7 +6691,7 @@ static int sc_click(void *ctx, void *event) {
         toast("已停止流媒体服务");
         return 0;
     }
-    if (i == 1 && shelf_erase(0)) return toast("Wait for the one in progress"), 0; /* it rm -rfs */
+    if (i == 1 && shelf_erase(0)) return toast("请等待当前操作完成"), 0; /* it rm -rfs */
     char path[48], tmp[52], s[8];
     int n = tk_snprintf(s, sizeof s, "%uM", 512u << (stream_cache(i) + 1) % 5);
     tk_snprintf(path, sizeof path, "%s/.cache-size", sc_dirs[i]);

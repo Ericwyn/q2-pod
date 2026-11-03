@@ -583,7 +583,7 @@ int shim_chevron(const char *text) {
     return -1;
 }
 /* navigation.c's switch beside label: here a child after it reading On or Off, so a row reads
- * "Enabled On" as the value rows read. */
+ * "启用 打开" as the value rows read. */
 void list_toggle(void *label, const char *title, int on) {
     int row = w[(long)label].parent, sw = (long)label + 1;
     if (sw > count || w[sw].parent != row) sw = (int)(long)make((void *)(long)row, 48);
@@ -1132,7 +1132,7 @@ def eq3_captures(tmp, out, font):
         shot(f'{theme}-on-presets-selected')
         keys(PREV, PREV)
         shot(f'{theme}-tabs-selected')
-        keys(NEXT, NEXT, CENTRE); ui.shim_run(); assert ui.shim_click(b'Rock', 1)
+        keys(NEXT, NEXT, CENTRE); ui.shim_run(); assert ui.shim_click('摇滚'.encode(), 1)
         shot(f'{theme}-preset')  # Rock picked from Presets: PEQ plays, the sliders dimmed
         ui.shim_e3_close()
 
@@ -1252,29 +1252,29 @@ def eq3_editor_check(lib, ui, tmp):
     ui.shim_text.restype = C.c_char_p
     def label(i=1):
         ui.shim_e3_paint(); r, px, c = (C.c_int * 4)(), C.c_uint(), C.c_uint()
-        return [ui.shim_text(i, r, C.byref(px), C.byref(c)).decode('latin-1') for i in range(ui.shim_texts())][i]  # code points < 256, a byte each
-    simple = lambda: not ui.shim_click(b'Enabled', 2) and not ui.shim_click(b'Rock', 2)  # no list
+        return [ui.shim_text(i, r, C.byref(px), C.byref(c)).decode() for i in range(ui.shim_texts())][i]
+    simple = lambda: not ui.shim_click('启用'.encode(), 2) and not ui.shim_click('摇滚'.encode(), 2)  # no list
     eq3 = gains(); after.mode = EQ_3; assert lib.eq_save(C.byref(after)); before = active.read_bytes()
-    ui.shim_e3_open(); assert label() == 'Presets'
-    keys(PREV, PREV, CENTRE); ui.shim_run(); assert ui.shim_click(b'Rock', 2) and not ui.shim_click(b'Stock presets', 2)
+    ui.shim_e3_open(); assert label() == '预设'
+    keys(PREV, PREV, CENTRE); ui.shim_run(); assert ui.shim_click('摇滚'.encode(), 2) and not ui.shim_click('内置预设'.encode(), 2)
     ui.shim_return(); assert simple() and active.read_bytes() == before
-    keys(CENTRE); ui.shim_run(); assert ui.shim_click(b'Rock', 1)
+    keys(CENTRE); ui.shim_run(); assert ui.shim_click('摇滚'.encode(), 1)
     s = state(); assert simple() and (s.mode, s.hold) == (EQ_PEQ, 0) and s.peq.bands[0].gain == -2
-    assert gains(s) == eq3 and ui.shim_flag() == 1 and label(0) == 'Rock' and label() == 'Presets' and title() == ''
+    assert gains(s) == eq3 and ui.shim_flag() == 1 and label(0) == '摇滚' and label() == '预设' and title() == ''
     keys(NEXT, NEXT, CENTRE); s = state()  # Low
-    assert s.mode == EQ_3 and s.peq.bands[0].gain == -2 and label(0) == 'Enabled: On'
-    keys(CENTRE, PREV, PREV, CENTRE); ui.shim_run(); assert ui.shim_click(b'Classical', 1) and label(0) == 'Classical'
+    assert s.mode == EQ_3 and s.peq.bands[0].gain == -2 and label(0) == '启用：打开'
+    keys(CENTRE, PREV, PREV, CENTRE); ui.shim_run(); assert ui.shim_click('古典'.encode(), 1) and label(0) == '古典'
     ui.shim_e3_touch(0x100, 50, 70); s = state()  # the switch
-    assert (s.mode, s.hold) == (EQ_OFF, 0) and label(0) == 'Enabled: Off' and ui.shim_flag() == 0
-    ui.shim_e3_touch(0x100, 230, 70); ui.shim_run(); assert ui.shim_click(b'Rock', 2)  # a tap on Presets
+    assert (s.mode, s.hold) == (EQ_OFF, 0) and label(0) == '启用：关闭' and ui.shim_flag() == 0
+    ui.shim_e3_touch(0x100, 230, 70); ui.shim_run(); assert ui.shim_click('摇滚'.encode(), 2)  # a tap on Presets
     ui.shim_close(); ui.shim_open(); assert simple(); ui.shim_close()
     # A saved preset applied in Advanced: the switch's name cut on a character boundary (byte 12 is ä's second).
     presets = active.parent/'peq-presets'
     for f in presets.glob('Batch *.peq'): f.unlink()
     assert lib.peq_save(bytes(presets/'Kopfhörerbässe.peq'), C.byref(state().peq), 1) == 1
     ui.shim_e3_open(); assert ui.shim_tab_touch(300)
-    assert ui.shim_click(b'Presets', 1) and ui.shim_click('Kopfhörerbässe.peq'.encode(), 1) and ui.shim_click(b'Apply changes', 1)
-    assert ui.shim_click(b'Enabled Off', 1) and state().mode == EQ_PEQ and ui.shim_tab_touch(50)
+    assert ui.shim_click('预设'.encode(), 1) and ui.shim_click('Kopfhörerbässe.peq'.encode(), 1) and ui.shim_click('应用更改'.encode(), 1)
+    assert ui.shim_click('启用 关闭'.encode(), 1) and state().mode == EQ_PEQ and ui.shim_tab_touch(50)
     assert label(0) == 'Kopfhörerb'; ui.shim_e3_close()
     print('EQ Simple tab: entry without change, tabs, wheel and touch adjustment, coalesced saves, switch, held Off, reset, failed save and indicator passed.')
 

@@ -24,6 +24,12 @@ const char *netupdate_tag(const char *location) {
 #define SH_CAP (1u << 30) /* the most an install may unpack */
 #define SH_MAX 16
 
+/* A best-effort shell command: its status is deliberately unused, without losing it to -Werror. */
+static void run_best_effort(const char *cmd) {
+    int status = system(cmd);
+    (void)status;
+}
+
 enum { SH_OK, SH_NET, SH_SPACE, SH_CARD, SH_MISSING, SH_BAD, SH_CANCELLED, SH_BUSY };
 /* repo: its GitHub owner/name; id: the repo's name less "q2-", for the card folder .<id>, the tag
  * and file list; keep: unzip -x patterns an update never writes (the user's); bin: the app's
@@ -304,7 +310,7 @@ void shelf_remove(int i) {
      * still saving on its TERM past that can write files back; wait on its pid file if one does. */
     if (!special_id(apps[i].id)) {
         snprintf(path, sizeof path, "rm -rf '" CARD "/%s'", apps[i].dir);
-        system(path);
+        run_best_effort(path);
     }
     app_file(path, sizeof path, i, ".files");
     unlink(path);
@@ -607,7 +613,7 @@ static int install(int i) {
     int r = release(&apps[i], tag, url, &size);
     if (sh.cancel) return SH_CANCELLED;
     if (r) return r;
-    system("rm -rf " STAGING); /* an interrupted install's, too */
+    run_best_effort("rm -rf " STAGING); /* an interrupted install's, too */
     mkdir(SH_DIR, 0755), mkdir(STAGING, 0755), mkdir(SH_DIR "/apps", 0755);
     if ((r = room(size))) return r;
     staged(part, sizeof part, i, ".part");
@@ -624,7 +630,7 @@ static int install(int i) {
     if (!r) {
         sh.stage = 3;
         if (is(i, "spotify"))
-            system(SPOT_KILL);   /* librespot runs from .spotify, if started since */
+            run_best_effort(SPOT_KILL); /* librespot runs from .spotify, if started since */
         addon_quit(apps[i].dir); /* a card app, the same: its files closed first */
         app_file(path, sizeof path, i, ".tag");
         r = shelf_place(i);
@@ -632,7 +638,7 @@ static int install(int i) {
         snprintf(tmp, sizeof tmp, "%s.tmp", path);
         if (!r && !blob_io(path, tmp, tag, strlen(tag), 1)) r = SH_CARD;
     }
-    system("rm -rf " STAGING);
+    run_best_effort("rm -rf " STAGING);
     return r;
 }
 
@@ -643,12 +649,13 @@ static void *sh_worker(void *unused) {
     } else if (sh.job == JOB_INSTALL)
         sh.result = install(i);
     else {
-        if (sh.job == JOB_ERASE)
-            system("rm -rf " SPOT_DIR "/cache " SPOT_DIR "/.cache-size"), rmdir(SPOT_DIR);
-        else if (is(i, "rockbox") && t >= 0)
+        if (sh.job == JOB_ERASE) {
+            run_best_effort("rm -rf " SPOT_DIR "/cache " SPOT_DIR "/.cache-size");
+            rmdir(SPOT_DIR);
+        } else if (is(i, "rockbox") && t >= 0)
             shelf_remove(t); /* no themes without Rockbox */
         if (sh.job == JOB_REMOVE) addon_quit(apps[i].dir), shelf_remove(i);
-        system("sync");
+        run_best_effort("sync");
     }
     sh.running = 0;
     return 0;
@@ -723,8 +730,7 @@ static int sh_wait(const void *unused) {
     else if (job == JOB_INSTALL && r)
         toast(said[r]);
     else if (job == JOB_INSTALL && is(i, "rockbox"))
-        toast(IPOD ? "Rockbox 已就绪，可在主菜单打开"
-                   : "Rockbox 已就绪，将在开机时启动");
+        toast("Rockbox 已就绪，可在主菜单打开");
     else if (job == JOB_INSTALL && is(i, "themes"))
         toast("Rockbox 主题已就绪，请在其主题设置中选择");
     else if (job == JOB_INSTALL)
@@ -815,9 +821,9 @@ static void sh_rows(void) {
  * stops it, so the next press acts); whether an erase is running. */
 int shelf_erase(int start) {
     if (start && sh.job == JOB_CHECK)
-        sh.cancel = 1, toast("Stopped checking for updates");
+        sh.cancel = 1, toast("已停止检查更新");
     else if (start && sh.job)
-        toast("Wait for the one in progress");
+        toast("请等待当前操作完成");
     else if (start)
         sh_start(JOB_ERASE, -1);
     return sh.job == JOB_ERASE;

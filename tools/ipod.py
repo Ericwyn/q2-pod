@@ -264,7 +264,7 @@ def ipod_home(root):
     check([n[2]['name'] for n in root[3][0][3]] == ['btn_' + r for r in
             ('playing', 'localmusic', 'folder', 'stream', 'playset', 'sysset')], 'Unexpected home cards')
     menu = root[3][0]
-    home_card(menu, 2, 'coverflow', 'Coverflow')
+    home_card(menu, 2, 'coverflow', 'Cover Flow')
     home_card(menu, 4, 'rockbox', 'Rockbox')
     menu[3][1][3][1][2].update(LIBRARY)
     # Home: Carousel's (coverflow_home_layout): the carousel and its arrows, over the lists, hidden and

@@ -1,10 +1,10 @@
 # 本地简体中文版
 
-这是基于本仓库 Q2 Pod 1.5.5、用于 Shanling Q2 的个人自用固定简体中文版，不是山灵官方固件，也不是上游发布的正式中文版本。
+这是基于本仓库 Q2 Pod 1.6.3、用于 Shanling Q2 的个人自用固定简体中文版，不是山灵官方固件，也不是上游发布的正式中文版本。
 
 ## 翻译范围
 
-新增菜单、设置选项和本地提示固定为简体中文，包括主菜单的音乐/Cover Flow/设置入口、评价、播放队列、随机/重复播放、均衡器、交叉淡化、转轮灵敏度、流媒体设置、Spotify、网络电台、书籍/视频与照片。
+新增菜单、设置选项和本地提示固定为简体中文，包括主菜单的音乐/Cover Flow/设置入口、评价、播放队列、随机/重复播放、均衡器、交叉淡化、转轮灵敏度、夜间模式、流媒体设置、应用商店、Spotify、网络电台、书籍/视频与照片。
 
 本轮以 Apple 的 [iPod classic 2009 简体中文使用手册](https://cdsassets.apple.com/live/6GJYWVAV/user/locale/zh-cn/ma1195_ipod_classic_160gb_user_guide.pdf) 为术语参考：主菜单入口使用“音乐”，保留“Cover Flow”，使用“表演者”“有声读物”“评价”“重复播放”和“打开/关闭”。Q2 独有功能采用相近风格，不伪称为原版 iPod 功能；评价仍使用本项目的爱心图标，不改成星星。
 
@@ -16,15 +16,15 @@
 
 ## 上游基线
 
-1.4.8 汉化保留在独立的 `update-1.4.8` 分支（上游标签 `1.4.8`，`e9095613bd2115eb50458d5f0906f3a79260b827`）。当前 `update-1.5.5` 分支基于上游 `1.5.5`（`4a23606ef019ad52f12fb592b17760d22bc4af63`），不修改 Fork 的 `main`，并保留原厂百度网盘入口。远程服务返回的内容和第三方应用自己提供的界面文本仍是数据，不能保证全中文。
+1.4.8 汉化保留在独立的 `update-1.4.8` 分支（上游标签 `1.4.8`，`e9095613bd2115eb50458d5f0906f3a79260b827`）。当前 `update-1.6.3` 分支基于上游 `1.6.3`（`cea52bb8b49378c585956ed673782bf4bc2adf2a`），不修改 Fork 的 `main`，并保留原厂百度网盘入口。远程服务返回的内容和第三方应用自己提供的界面文本仍是数据，不能保证全中文。
 
-## 1.5.5 本地修复（dev 包）
+## 1.6.3 本地修复（dev 包）
 
 - 百度网盘：恢复原厂 `baidu_pthread_playurl` 的 10ms 轮询，不再把在线播放 URL 线程永久挂起；Tidal 的按需唤醒逻辑不变，百度下载路径不变。
 - 播放中歌曲的歌词发现：先尝试 LRCLIB；无同步歌词、连接失败、忙碌重试用尽或写入失败时，恢复原厂酷狗搜索。返回酷狗的原始结果，酷狗失败时允许原厂线程继续尝试网易云。酷狗可能匹配到不同版本或其他歌曲，保存前请预览。
 - 封面发现不变：MusicBrainz/Cover Art Archive、iTunes 的候选在前，之后保留原厂酷狗、网易云和百度来源。
 - “下载专辑歌词”的批量功能仍只使用 LRCLIB；本次酷狗回退仅作用于原厂的单曲“封面/歌词发现”。
-- 显示版本仍为 `1.5.5 Pod dev N`，使用 `--dev` 生成独立的 5 字符升级标记，例如第 10 包为 `V00Ai`，与原 1.5.5 的 `V155I` 及旧 dev 包 `V009i` 不同，可直接从这些版本通过 TF 卡升级，无需中间包。
+- 显示版本为 `1.6.3 Pod dev N`，使用 `--dev` 生成独立的 5 字符升级标记，例如本轮第 16 包为 `V00Gi`，与原 1.6.3 的 `V163I` 不同，可直接从原版或旧 dev 包通过 TF 卡升级，无需中间包。
 - 每次重新打包会递增 `.build-number` 并产生新标记；同一个 `update.tar` 再刷一次仍会被原厂同版本检查拒绝，并非关闭升级校验。
 - dev 包包含 `q2remote` 调试服务，使用明文的密钥和命令，只应在可信局域网使用；不是纯粹换标记的日常包。无需远程调试时，不要配置 `q2remote.key`，既有密钥可按 [远程调试说明](remote.md) 撤销。
 
@@ -43,7 +43,7 @@ UV_CACHE_DIR="$PWD/.cache/uv" uv venv .venv
 UV_CACHE_DIR="$PWD/.cache/uv" uv pip install --python .venv/bin/python -r requirements.txt
 export PATH="$PWD/work/toolchain/bin:$PATH"
 .venv/bin/python tools/build.py '/home/ericwyn/Downloads/Q2 Firmware V1.32.zip' \
-  --out build-cn-155-fix-dev --ipod --dev
+  --out build-cn-163-dev --dev
 ```
 
 输出目录必须不存在；重复构建请换一个新目录。
@@ -59,23 +59,23 @@ export PATH="$PWD/work/toolchain/bin:$PATH"
 可运行的中文专项检查与主要测试：
 
 ```bash
-.venv/bin/python test/chinese.py build-cn-155-fix-dev
+.venv/bin/python test/chinese.py build-cn-163-dev
 .venv/bin/python test/peq.py
 .venv/bin/python test/coverflow.py
-.venv/bin/python test/playback.py build-cn-155-fix-dev
-.venv/bin/python test/patch.py build-cn-155-fix-dev
-.venv/bin/python test/build.py --build build-cn-155-fix-dev
+.venv/bin/python test/playback.py build-cn-163-dev
+.venv/bin/python test/patch.py build-cn-163-dev
+.venv/bin/python test/build.py --build build-cn-163-dev
 ```
 
 本机 `test/build.py --build ...` 的完整原始运行存在一个已复现的上游/环境差异：60px `scrsaver_playcover.png` 的角像素透明度由本机 ImageMagick 算出为 2/255，而测试要求严格为 0。未修改的 HEAD 中同一个图片缩放函数也产生 2/255。没有为了过测试修改这个断言或不相关的图像生成代码；单独在内存中报告该检查并继续运行后，其余打包资源断言通过。完整测试不能宣称全部通过。
 
-本次 `V00Ai`（`1.5.5 Pod dev 10`）修复包在主机验证：中文专项检查（460 字形）、1996 个 MIPS 补丁执行场景、353 个高级播放/转轮场景及播放性能/续播检查、均衡器和 Coverflow 主机测试均通过。原始资源检查仍在上述角像素断言失败；仅在内存诊断中报告该已知断言后，其余资源检查通过，未修改或弱化仓库中的断言。升级包内版本、内核/文件系统 MD5、包 SHA-256、百度调用点原厂指令和酷狗 trampoline 均已验证。尚未在 Q2 实机联网验证，不能把主机模拟通过等同于服务接口或实际刷机成功。
+本轮 `V00Gi`（`1.6.3 Pod dev 16`）修复包在主机验证：中文专项检查（469 字形）与 2195 个 MIPS 补丁执行场景均通过。原始资源检查仍在上述角像素断言失败；升级包内版本、内核/文件系统 MD5、包 SHA-256、百度调用点原厂指令和酷狗 trampoline 均已验证。尚未在 Q2 实机联网验证，不能把主机模拟通过等同于服务接口或实际刷机成功。
 
 ## 安装和回滚
 
 先备份卡内资料，设备充足电。将安装包中的 `update.tar` 放入存储卡根目录，安全弹出后通过系统设置的 TF 卡升级安装。不要在刷机期间断电或拔卡。
 
-原 1.5.5 日常版标记为 `V155I`。本次修复使用不同的 dev 标记（如 `V00Ai`），因此可直接刷入，不需要先降级或手工修改安装包、版本字段及校验值。实际标记和 dev 编号以构建输出的 `manifest.json` 和安装包内的 `firmware_v20.info` 为准。
+原 1.6.3 日常版标记为 `V163I`。本次修复使用不同的 dev 标记（如 `V00Gi`），因此可直接刷入，不需要先降级或手工修改安装包、版本字段及校验值。实际标记和 dev 编号以构建输出的 `manifest.json` 和安装包内的 `firmware_v20.info` 为准。
 
 需要回滚时，按山灵官方说明使用 Q2 官方 V1.32 固件从 TF 卡升级。本地中文修改不影响这一恢复途径。卡内文件通常不因正常升级而格式化，但设置、评分、续播记录等内部数据不保证被原厂固件保留或识别。
 

@@ -1072,7 +1072,7 @@ m=HeldMachine(); m.install([('book','/a/book.m4b','B',0,0,0,0)],0); m.word(O['MC
 m.poll(0,2); m.poll(100,3); place=m.places(); assert [s for _,s in place]==[100]
 def press(): del m.seen[:]; return signed(m.call(address=syms['player_change_music'],args=(0,0,0,0),gap=0))
 assert press()==0 and not m.seen and m.get(ps['restart_ask'])==1
-m.poll(100); assert m.places()==place and m.toasts[-1]=='Press again to restart'
+m.poll(100); assert m.places()==place and m.toasts[-1]=='再次按下以重新开始'
 assert press()==1 and m.seen; m.poll(0,3); assert m.places()==[] and not m.seeks
 checks+=1
 

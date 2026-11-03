@@ -16,7 +16,11 @@
 #define child_exit _exit
 static inline void child_oom_first(void) {
     int fd = open("/proc/self/oom_score_adj", O_WRONLY);
-    if (fd >= 0) write(fd, "1000", 4), close(fd);
+    if (fd >= 0) {
+        ssize_t written = write(fd, "1000", 4);
+        (void)written;
+        close(fd);
+    }
 }
 #else
 #include "peq_platform.h"

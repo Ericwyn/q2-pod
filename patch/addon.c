@@ -630,8 +630,8 @@ int addon_game_start(int k) {
     app_t *a = k >= 0 && k < ap.games ? &ap.a[ap.game[k]] : 0;
     if (gm.pid || !a) return 0;
     const char *busy = shelf_busy();
-    if (busy && !strcmp(busy + 1, a->id)) return toast("Wait until the App Store finishes"), 0;
-    if (access(a->bin, 0)) return toast("It isn't on the card"), 0;
+    if (busy && !strcmp(busy + 1, a->id)) return toast("请等待应用商店完成"), 0;
+    if (access(a->bin, 0)) return toast("存储卡上没有该应用"), 0;
     int pid = fork();
     if (!pid) {
         child_oom_first();
@@ -692,7 +692,7 @@ static void game_poll(void) {
         gm.pid = 0;
         wheel_raw = 0;
         widget_invalidate_force(window_manager(), 0);
-        if (status == 127 << 8) toast("It couldn't start"); /* the child's execl failed */
+        if (status == 127 << 8) toast("应用无法启动"); /* the child's execl failed */
         return;
     }
     unsigned now = (unsigned)time_now_ms();
@@ -992,7 +992,7 @@ static void page_next(lv_t *l) {
  * press does nothing), else More…. */
 static void row(lv_t *l, int i) {
     if (i == l->n) {
-        page_row_detail(pg.view, i, pg.paging ? "Loading…" : "More…", "", clicked);
+        page_row_detail(pg.view, i, pg.paging ? "加载中…" : "更多…", "", clicked);
         return;
     }
     void *item = (opens(i) ? page_row_detail_into : page_row_detail)(pg.view, i, cell(i, 2),

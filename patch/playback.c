@@ -1456,7 +1456,7 @@ void playback_poll(void) {
     }
     if (restart_ask) {
         restart_ask = 0;
-        toast("Press again to restart");
+        toast("再次按下以重新开始");
     }
     xfade_poll(playback_next());
     mono_sync();

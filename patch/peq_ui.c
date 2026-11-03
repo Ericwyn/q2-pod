@@ -524,7 +524,7 @@ static int action(void *ctx, void *event) {
         ui.tab = SIMPLE;
         ui.status[0] = 0;
         e3.focus = E3_PRESETS;
-        e3.status = ok ? 0 : "Apply failed; active EQ unchanged";
+        e3.status = ok ? 0 : "应用失败，当前均衡器未变";
     }
     if (screen != ui.screen) ui.file_page = 0;
     if (!ui.timer) ui.timer = timer_add(render, 0, 1);

@@ -100,11 +100,11 @@ void resume_row(void *label) {
 }
 
 static void night_text(void *label) {
-    char t[32] = "Night Shift: Off";
+    char t[32] = "夜间模式：关闭";
     if (night_on() == 2)
-        tk_snprintf(t, sizeof t, "Night Shift: Auto");
+        tk_snprintf(t, sizeof t, "夜间模式：自动");
     else if (night_on())
-        tk_snprintf(t, sizeof t, "Night Shift: %dK", night_kelvin());
+        tk_snprintf(t, sizeof t, "夜间模式：%dK", night_kelvin());
     widget_set_text_utf8(label, t);
 }
 
