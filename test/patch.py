@@ -3720,6 +3720,13 @@ class QueueMachine(Machine):
     def names(self,h=None): return [self.text(self.get(e+O['REC_NAME'])) for e in self.items(h or self.get(syms['mcl_pdeqplaylist']))]
     def pool(self): return [signed(self.get(e)) for e in self.items(self.get(O['MCL_POOL']))]
     def mcl(self,k): return signed(self.get(O[k]))
+    def songtable(self,sql,rows):
+        """The rows songs_by_path's SQL picks, run by SQLite over rows as songtable's (path, CUE start
+        and end), whose order stands for getAllMusic(3)'s time order."""
+        db=sqlite3.connect(':memory:'); db.execute('create table songtable(id,fileurl,time,time_end,time_create)')
+        db.executemany('insert into songtable values(?,?,?,?,?)',[(i,self.text(self.get(r+O['REC_PATH'])),self.get(r+O['REC_CUE_START']),
+                                                                  self.get(r+O['REC_CUE_END']),-i) for i,r in enumerate(rows)])
+        return [rows[i] for i,*_ in db.execute(sql)]
     def dialog(self):
         self.view=self.node('scroll_view','scroll_view',[self.node('list_item') for _ in range(5)])
         self.title=self.node('hscroll_label','scrlabel_title'); self.back=self.node('image','img_return')
@@ -5213,12 +5220,18 @@ for setup,toggles in ((lambda m:m.byte(syms['g_lockscreen_pageflag'],1),1),(lamb
 # the staging deque is left cleared. Other rows and classes stay stock.
 class ClassMachine(QueueMachine):
     tramp=int(manifest['patch_symbols']['stock_localclass_trampoline'],16)
+    dbquery=int(manifest['patch_symbols']['stock_dbquery_trampoline'],16)
     split=[]  # Albums' own grouping (split), which toolsQueryDbTable stages
+    fetched=0  # library rows the queries staged
     def __init__(self,**kw): super().__init__(**kw); self.word(0xa3a270,0x1000010)  # free's GOT slot, as Coverflow's
     def hook(self,u,address,size,unused):
         if address==syms['toolsQueryDbTable']:
             self.deqs[self.get(syms['tools_pdeq_directory'])][1]=[self.copy('stSongInfo',e) for e in self.split]
-            self.returns(len(self.split)); return
+            self.fetched+=len(self.split); self.returns(len(self.split)); return
+        if address==self.dbquery:  # songs_by_path's SQL, straight to stock's toolsQueryDbTable, over split
+            found=self.songtable(self.text(u.reg_read(REGS[1])),self.split); self.fetched+=len(found)
+            self.deqs[self.get(syms['tools_pdeq_directory'])][1]+=[self.copy('stSongInfo',e) for e in found]
+            self.returns(len(found)); return
         libc={syms['strdup@GLIBC_2.0']:'strdup',0x1000010:'free'}
         if address in libc:  # the untagged rows' titles (ringnav_localclass)
             a=u.reg_read(REGS[0]); self.returns(self.string(self.text(a)) if libc[address]=='strdup' else 0); return
@@ -5443,15 +5456,16 @@ m.word(m.found[1]+O['REC_TITLE'],m.string('Tagged')); m.word(m.found[0]+O['REC_P
 m.call(address=HOOKS['load_localclass_list'][0],args=(0xf001,0,0,0),gap=0)
 assert [m.text(m.get(m.row(i)+O['REC_TITLE'])) for i in (0,1)]==['a','Tagged']; passed()
 # My Fav, Frequent and Recent: a row stock copied without its title takes the library's, by path, not
-# its file name.
+# its file name. Only the untitled rows' songs are read from the library, not the library.
 for cls in (0xf00a,0xf008,0xf007):
     m=ClassMachine(page='localclass_page',cls=0xf001,rows=2)
     m.word(m.row(0)+O['REC_NAME'],m.string('05-song.flac')); m.word(m.row(0)+O['REC_PATH'],m.string('/p/05-song.flac'))
-    m.handlers.pop(syms['getAllMusic']); m.split=[m.song('Row 0'),m.song('05-song.flac')]; m.word(m.split[1]+O['REC_TITLE'],m.string('Song'))
+    m.handlers.pop(syms['getAllMusic']); m.split=[m.song('Row 0'),m.song('05-song.flac'),m.song('other')]; m.word(m.split[1]+O['REC_TITLE'],m.string('Song'))
     m.word(m.split[0]+O['REC_PATH'],m.string('/p/05-song.flac')); m.word(m.split[0]+O['REC_CUE_START'],1)  # a CUE image's other track
     m.call(address=HOOKS['load_localclass_list'][0],args=(cls,0,0,0),gap=0)
     t=m.get(m.row(1)+O['REC_TITLE'])  # no library title: as before
     assert m.text(m.get(m.row(0)+O['REC_TITLE']))=='Song' and m.text(t)=='Row 1', hex(cls)
+    assert m.fetched==2, m.fetched  # the two of /p/05-song.flac; Row 1's path has none
 passed()
 # An empty category list says so once its page is up, instead of a black page.
 m=ClassMachine(page='localclass_page',cls=0xf001,rows=0)

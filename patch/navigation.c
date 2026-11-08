@@ -8194,19 +8194,27 @@ void *rec_find(void *songs, const unsigned *slot, unsigned mask, void *r) {
 /* My Fav's, Frequent's and Recent's rows are stock's copies of the songs as added or played, some
  * with an empty title though the library has the tag (a song played from Folder): an empty one
  * takes the library's, by path, so it reads as every other list's instead of falling back to its
- * file name and track number.
- * ponytail: the library is staged and indexed once per list load (O(library)) when any row is
- * untitled; keep an index across loads if that shows. */
+ * file name and track number. Only the untitled rows' songs are read (songs_by_path).
+ * ponytail: still a table scan (O(library)) per list load when any row is untitled; keep the titles
+ * across loads if that shows. */
+static int untitled(void *r) {
+    const char *title = P(r, REC_TITLE);
+    return I(r, REC_TYPE) == 8 && !(title && *title) && P(r, REC_PATH);
+}
 static void fav_titles(void *list, int n) {
-    void *songs = 0;
-    unsigned mask = 0, *slot = 0;
-    for (int i = 0; i < n; ++i) {
+    const char **paths = calloc((unsigned)n, sizeof *paths);
+    unsigned k = 0, mask = 0, *slot = 0;
+    for (int i = 0; paths && i < n; ++i) {
+        void *r = deque_at(list, (unsigned)i);
+        if (untitled(r)) paths[k++] = P(r, REC_PATH);
+    }
+    void *songs = k ? songs_by_path(paths, k) : 0;
+    free(paths);
+    if (songs) slot = rec_index(songs, &mask);
+    for (int i = 0; slot && i < n; ++i) {
         void *r = deque_at(list, (unsigned)i), *s;
         char **title = (char **)((char *)r + REC_TITLE), *t;
-        if (I(r, REC_TYPE) != 8 || (*title && **title) || !P(r, REC_PATH)) continue;
-        int k;
-        if (!songs && (songs = staged(songs_unsorted, 0, &k))) slot = rec_index(songs, &mask);
-        if (!slot || !(s = rec_find(songs, slot, mask, r))) continue;
+        if (!untitled(r) || !(s = rec_find(songs, slot, mask, r))) continue;
         const char *lib = P(s, REC_TITLE);
         if (lib && *lib && (t = strdup(lib))) free(*title), *title = t;
     }
@@ -8398,6 +8406,41 @@ int songs_unsorted(void *music) {
     int n = getAllMusic(3);
     library_music = saved;
     return n;
+}
+
+/* songs_unsorted(0)'s rows whose path is one of paths, in its order, in a deque of their own; 0
+ * without memory for the SQL. One IN list: one table scan (songtable has no index) for any n. A
+ * snapshot's 999 paths make at most about 2 MB of SQL, which stock's SQLite 3.19.3 runs. Straight
+ * to stock's query, as library_query's rewrites fit 2 KB. */
+static int path_query(void *sql) {
+    return stock_dbquery_trampoline("/mnt/data/database.db", sql, (void *)db_song_row_callback, 0);
+}
+void *songs_by_path(const char *const *paths, unsigned n) {
+    static const char head[] = "select * from songtable where fileurl in (";
+    static const char tail[] = ") order by time_create desc"; /* getAllMusic(3)'s order */
+    unsigned size = sizeof head + sizeof tail;
+    for (unsigned i = 0; i < n; ++i) {
+        size += 3; /* the quotes and a comma */
+        for (const char *c = paths[i]; *c; ++c) size += 1 + (*c == '\'');
+    }
+    char *sql = calloc(size, 1), *p = sql;
+    if (!sql) return 0;
+    memcpy(p, head, sizeof head - 1);
+    p += sizeof head - 1;
+    for (unsigned i = 0; i < n; ++i) {
+        if (i) *p++ = ',';
+        *p++ = '\'';
+        for (const char *c = paths[i]; *c; ++c) {
+            if (*c == '\'') *p++ = '\''; /* a quote in an SQL string is two */
+            *p++ = *c;
+        }
+        *p++ = '\'';
+    }
+    memcpy(p, tail, sizeof tail);
+    int count;
+    void *out = staged(path_query, sql, &count);
+    free(sql);
+    return out;
 }
 
 /* Return for the payload's own pages; each passes page_open its own close. */

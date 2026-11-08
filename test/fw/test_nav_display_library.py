@@ -2443,6 +2443,18 @@ class Library:
         """Stock's query name: rows into the staging deque, their count back."""
         self.fw.mock(name, lambda *_: self.staging().extend(rows) or len(rows))
 
+    def by_path(self, rows):
+        """songs_by_path's one query: the rows whose path its fileurl in (...) list names. Its SQL is kept in sent."""
+        self.sent = []
+
+        def query(db, sql, *_):
+            text = C.string_at(sql).decode('latin-1')
+            self.sent.append(text)
+            found = [r for r in rows if "'%s'" % field(r, 'path').decode('latin-1').replace("'", "''") in text]
+            self.staging().extend(found)
+            return len(found)
+        self.fw.mock('stock_dbquery_trampoline', query)
+
     def tasks(self, *names):
         """Cover tasks as albumcoverinfo_init leaves them: both art flags set, the name a heap copy at +4."""
         strdup = self.fw.fn('strdup', C.c_void_p, C.c_char_p)
@@ -2767,10 +2779,12 @@ def test_stored_lists_hide_discovery_and_take_the_librarys_titles(fw, records, c
     library = [records.song(title=b'Track 1', path=b'/mnt/mmc/Music/b.cue', cue=0),
                records.song(title=b'Track 2', path=b'/mnt/mmc/Music/b.cue', cue=60),
                records.song(title=b'Dee', path=b'/mnt/mmc/Music/d.flac')]
-    lib.query('getAllMusic', library)
+    lib.by_path(library)
     load = Localclass(fw, lib, played)
     assert load(cls) == 3 and load.shown() == [b'Kept', b'Track 2', b'Dee']
-    assert [a[0] for _, a in fw.calls('getAllMusic')] == [3]  # the library once, unsorted
+    # one query for the untitled rows' paths, never the whole library
+    assert not fw.calls('getAllMusic') and len(lib.sent) == 1
+    assert [p in lib.sent[0] for p in ("'/mnt/mmc/Music/b.cue'", "'/mnt/mmc/Music/d.flac'", 'a.flac', 'c.flac')] ==         [True, True, False, False]
 
 
 def test_a_cue_track_takes_its_own_title_where_its_siblings_slot_comes_first(fw, records):
@@ -2786,7 +2800,7 @@ def test_a_cue_track_takes_its_own_title_where_its_siblings_slot_comes_first(fw,
         if listen_key(second) & 3 == taken & 3 and listen_key(second) != taken:
             break
     assert listen_key(second) & 3 == taken & 3 and listen_key(second) != taken, 'no CUE start shares the first slot'
-    lib.query('getAllMusic', [first, second])
+    lib.by_path([first, second])
     load = Localclass(fw, lib, [records.song(path=path, cue=start.value)])
     assert load(0xf007) == 1 and load.shown() == [b'Track 2']
 
@@ -2797,7 +2811,7 @@ def test_a_stored_list_with_nothing_to_look_up_never_reads_the_library(fw, recor
     # every song titled, but for a folder row, or a song with no path to find it by
     other = records.song(name=b'b.flac', kind=4 if row == 'folder' else 8)
     load = Localclass(fw, lib, [records.song(title=b'A', path=b'/mnt/mmc/a.flac'), other])
-    assert load(0xf00a) == 2 and not fw.calls('getAllMusic')
+    assert load(0xf00a) == 2 and not fw.calls('getAllMusic') and not fw.calls('stock_dbquery_trampoline')
 
 
 def test_an_untagged_song_with_no_path_reads_its_name_as_stored(fw, records):
