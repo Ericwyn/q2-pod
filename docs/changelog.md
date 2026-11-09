@@ -1,5 +1,8 @@
 # Changelog
 
+- **1.8.5**:
+  - Cover Flow: on a large library, the first open after the Q2 starts no longer stalls while it checks which albums have artwork, when the covers are in another order than the artwork was prepared in, such as Random or another Sort, or some albums have none yet.
+
 - **1.8.4**:
   - Appearance: **Hide Streaming on Home** and **Hide Folder on Home** are now called **Hide Streaming** and **Hide Folder**. The first was too long for its row and was cut off. They do what they did, and stay on or off as you had them.
   - Appearance: **Show Q2 Pod** is now called **Show Wordmark**: it shows or hides the name Q2 Pod in Home's title bar, where an iPod reads iPod. It stays on or off as you had it.
