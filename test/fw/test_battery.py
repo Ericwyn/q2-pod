@@ -155,7 +155,7 @@ def test_the_log_dates_each_day_over_its_rows(fw, q2):
     fw.var('g_time24h_flag', C.c_ubyte).value = 1
     assert q2.log() == '11 Nov 2026\n99% | 12:00\n98% | 13:15\n\n12 Nov 2026\n97% | 01:15\n'
     fw.var('g_time24h_flag', C.c_ubyte).value = 0
-    assert q2.log().split('\n')[1:3] == ['99% | 12:00 PM', '98% | 1:15 PM']
+    assert q2.log().split('\n')[1:3] == ['99% | 12:00 下午', '98% | 1:15 下午']
 
 
 def test_a_12_hour_clock_reads_midnight_as_12_am_and_the_morning_as_am(fw, q2):
@@ -163,14 +163,14 @@ def test_a_12_hour_clock_reads_midnight_as_12_am_and_the_morning_as_am(fw, q2):
     q2.poll(99)
     q2.poll(98, minutes=9 * 60 + 5)
     fw.var('g_time24h_flag', C.c_ubyte).value = 0
-    assert q2.log().split('\n')[1:3] == ['99% | 12:00 AM', '98% | 9:05 AM']
+    assert q2.log().split('\n')[1:3] == ['99% | 12:00 上午', '98% | 9:05 上午']
 
 
 def test_a_clock_never_set_logs_the_time_since_the_start(q2):
     q2.now = 3600
     q2.poll(99)
     q2.poll(98, minutes=75)
-    assert q2.log() == 'Clock not set: times since the start\n99% | +0:00\n98% | +1:15\n'
+    assert q2.log() == '时钟未设置：显示开始后的时长\n99% | +0:00\n98% | +1:15\n'
 
 
 def test_a_clock_lost_after_the_start_logs_no_time_for_the_rows_since(fw, q2):
@@ -283,7 +283,7 @@ def test_the_page_lists_export_then_each_row_a_day_s_first_dated(fw, q2):
     q2.poll(98, minutes=12 * 60 + 30)
     page = Page(fw)
     page.open()
-    assert page.captions == ['Export Log', '99% | 12:00, 11 Nov', '98% | 00:30, 12 Nov']
+    assert page.captions == ['导出日志', '99% | 12:00, 11 Nov', '98% | 00:30, 12 Nov']
     graph = [a for _, a in fw.calls('widget_factory_create_widget')]
     assert len(graph) == 1 and graph[0][2] == PAGE  # over the list, which starts below it
     gy = graph[0][4]
@@ -358,15 +358,15 @@ def test_no_history_says_to_unplug(fw, q2):
     q2.poll(70, cable=1)
     page = Page(fw)
     page.open()
-    assert page.items == [] and 'Unplug to start' in page.texts.values()
+    assert page.items == [] and '拔下充电线以开始' in page.texts.values()
     assert not fw.calls('widget_factory_create_widget')  # no graph
 
 
 @pytest.mark.parametrize('usb, mounted, free, said', [
-    (0, 1, 64 << 20, 'Saved to battery-log.txt'),
-    (1, 1, 64 << 20, 'The card is in use over USB'),
-    (0, 0, 64 << 20, 'Storage unavailable'),
-    (0, 1, 1000, 'The card is full'),
+    (0, 1, 64 << 20, '已保存到 battery-log.txt'),
+    (1, 1, 64 << 20, '存储卡正在通过 USB 使用'),
+    (0, 0, 64 << 20, '存储不可用'),
+    (0, 1, 1000, '存储卡已满'),
 ])
 def test_export_writes_the_log_whole_or_says_why_not(fw, q2, usb, mounted, free, said):
     q2.poll(99)
@@ -390,7 +390,7 @@ def test_an_export_the_card_refuses_leaves_no_temporary_file(fw, q2):
     q2.files.fail_rename = True
     page.open()
     page.tap(0)
-    assert page.toasts == ["Couldn't save"] and LOG not in q2.files.files
+    assert page.toasts == ['无法保存'] and LOG not in q2.files.files
     assert [C.string_at(a[0]).decode() for _, a in fw.calls('fw_unlink')] == [LOG + '.tmp']
 
 
@@ -421,7 +421,7 @@ def test_a_new_row_shows_on_the_open_page_where_the_wheel_left_it(fw, q2):
     q2.poll(98, minutes=5)  # nothing new: the page stays
     assert len(page.lists) == builds
     q2.poll(97, minutes=5)
-    assert page.captions[1:] == ['99% | 12:00 PM, 11 Nov', '98% | 12:10 PM', '97% | 12:20 PM'] and page.view != view
+    assert page.captions[1:] == ['99% | 12:00 下午, 11 Nov', '98% | 12:10 下午', '97% | 12:20 下午'] and page.view != view
     assert page.props[page.view, SEL] == 2 and page.props[page.view, COUNT] == 4
     assert [a[:3] for _, a in fw.calls('scroll_view_set_offset')][-1] == (page.view, 0, 48)
     assert len([a for _, a in fw.calls('widget_factory_create_widget')]) == 2  # the graph drawn again
@@ -439,7 +439,7 @@ def test_a_row_while_dark_shows_at_the_first_lit_poll(fw, q2):
     assert len(page.lists) == builds  # nothing drawn while the screen is off
     lit(fw, 1)
     q2.poll(98, minutes=1)
-    assert len(page.lists) == builds + 1 and page.captions[-1] == '98% | 12:10 PM'
+    assert len(page.lists) == builds + 1 and page.captions[-1] == '98% | 12:10 下午'
     q2.poll(98, minutes=1)
     assert len(page.lists) == builds + 1  # once
 
@@ -474,6 +474,6 @@ def test_a_row_while_the_export_toast_is_up_waits_for_the_toast(fw, q2):
     fw.mock('navigator_to_with_context', toast)
     page.tap(0)
     q2.poll(98, minutes=1)  # the first poll after the toast
-    assert len(page.lists) == builds + 1 and page.captions[-1] == '98% | 12:10 PM'
+    assert len(page.lists) == builds + 1 and page.captions[-1] == '98% | 12:10 下午'
     q2.poll(98, minutes=1)
     assert len(page.lists) == builds + 1

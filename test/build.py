@@ -408,7 +408,7 @@ def validate_assets(directory):
     assert new == relabel(old)
     n = 2 * struct.unpack_from('<H', new, 2)[0]
     table = dict(zip(*[iter(new[o:new.index(b'\0', o)] for o in struct.unpack_from(f'<{n}I', new, 4))] * 2))
-    assert [table[k] for k, _, _ in LABELS] == [v for _, _, v in LABELS] and table[b'powerm_sleep'] == b'Sleep Timer'
+    assert [table[k] for k, _, _ in LABELS] == [v for _, _, v in LABELS] and table[b'powerm_sleep'] == b'\xe7\x9d\xa1\xe7\x9c\xa0\xe5\xae\x9a\xe6\x97\xb6'
     # Settings icons: the audited 52px artwork, packaged as SET_ICON RGBA with the same transparency
     # and, on a plain background, the same average colour. Minimal greys them
     # as they load (navigation.c ringnav_image_add: every disc MINIMAL_CHEVRON, glyphs white).
@@ -511,7 +511,7 @@ def validate_assets(directory):
         off = fileoff(stock, address)
         assert struct.unpack_from('<I', stock, off)[0] == 0x0320f809
         assert struct.unpack_from('<I', demo, off)[0] == jal(symbols(directory/'patch.elf')[name])
-    off = fileoff(stock, 0x47f824)
+    off = fileoff(stock, 0x4805b8)
     assert struct.unpack_from('<I', stock, off)[0] == 0x0320f809
     assert demo[off:off+8] == stock[off:off+8], 'Baidu URL worker must keep its stock usleep call and delay slot'
     assert 'ringnav_baidu_poll' not in symbols(directory/'patch.elf')
@@ -756,7 +756,7 @@ def validate_assets(directory):
             cancel, enter = root[3]
             assert [n[0] for n in root[3]] == ['button', 'button'] and [n[2]['name'] for n in root[3]] == ['img_cancel', 'img_enter']
             assert cancel[1] == [0, 208, 375, 48] and enter[1] == [0, 256, 375, 48] and enter[1][1] + enter[1][3] <= 320
-            assert [n[2]['text'] for n in root[3]] == ['Cancel', 'OK']
+            assert [n[2]['text'] for n in root[3]] == ['取消', 'OK']
             continue
         if short == BIGCOVER:  # iPod only: a centred square of art clear of the glass (corners above), the name on its foot
             art, shade, title = root[3]

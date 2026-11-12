@@ -476,8 +476,9 @@ WHY: dict[str, dict[str, object]] = {
        'old': dict(old=1, track=b''),                 # an add-on too old to browse
        'idle': dict(auth=1, track=b''),               # signed in, nothing playing
        'waiting': dict(auth=0, track=b'')}            # nothing heard from librespot yet
-WORD = {'missing': "isn't", 'pairing': 'phone', 'refused': 'refused', 'timed out': "didn't", 'loading': 'Starting',
-        'old': 'Update', 'idle': 'Nothing', 'waiting': 'Waiting'}  # one a reason, so no two are swapped
+WORD = {'missing': '未安装', 'pairing': '手机', 'refused': '拒绝', 'timed out': '未能', 'loading': '正在开始',
+        'old': '更新', 'idle': '暂无', 'waiting': '等待'}  # one phrase per reason, so no two are swapped
+
 
 
 def why(np, **sp):
@@ -981,8 +982,8 @@ def test_an_older_add_on_s_download_status_is_toasted(fw):
     b.click(DOWNLOADS)
     b.click(1)  # the latest download's status
     assert b.request().endswith(b'\tdownloadstatus\n') and b.br.act == A_DOWNLOAD
-    b.answer(msg=b'3 of 12 tracks')
-    assert b.toasts == ['3 of 12 tracks'] and b.br.depth == 2
+    b.answer(msg=b'3 / 12 tracks')
+    assert b.toasts == ['3 / 12 tracks'] and b.br.depth == 2
     asked = b.wk.id
     b.click(2)  # the note to update the add-on: nothing to send
     assert b.wk.id == asked
@@ -1037,8 +1038,8 @@ def test_tracks_are_selected_previewed_and_removed_once_confirmed(fw):
 def test_playlists_are_removed_by_their_ids_comma_separated(fw):
     b = storage(fw, REMOVE_PLAYLISTS)
     assert b.top.kind == L_SELECT and b.request().endswith(b'\tcollections\n')
-    b.answer(rows=[(b'collection', b'liked', b'Liked Songs', b'50 of 50', b'', b''),
-                   (b'collection', b'spotify:playlist:9', b'Road Trip', b'3 of 40', b'', b'')])
+    b.answer(rows=[(b'collection', b'liked', b'\xe5\x96\x9c\xe6\xac\xa2\xe7\x9a\x84\xe6\xad\x8c\xe6\x9b\xb2', b'50 / 50', b'', b''),
+                   (b'collection', b'spotify:playlist:9', b'Road Trip', b'3 / 40', b'', b'')])
     b.click(0)
     b.click(1)
     b.click(2)  # Remove Selected…
@@ -1089,10 +1090,10 @@ def test_a_saved_playlist_plays_from_its_manifest_and_has_its_download_controls(
     b.click(HUB)
     b.click(0)  # Downloaded Playlists
     assert b.request().endswith(b'\tcollections\n')
-    b.answer(rows=[(b'collection', b'liked', b'Liked Songs', b'50 of 50', b'', b'')])
+    b.answer(rows=[(b'collection', b'liked', b'\xe5\x96\x9c\xe6\xac\xa2\xe7\x9a\x84\xe6\xad\x8c\xe6\x9b\xb2', b'50 / 50', b'', b'')])
     assert b.opens() == [True]
     b.click(0)
-    assert b.top.op == b'collection' and b.top.title == b'Liked Songs' and b.request().endswith(b'\tcollection\tliked\n')
+    assert b.top.op == b'collection' and b.top.title == b'\xe5\x96\x9c\xe6\xac\xa2\xe7\x9a\x84\xe6\xad\x8c\xe6\x9b\xb2' and b.request().endswith(b'\tcollection\tliked\n')
     b.answer(rows=[(b'track', b'spotify:track:7', b'Seven', b'A', b'liked', b'51'),
                    (b'missing', b'spotify:track:8', b'Eight', b'Unavailable', b'liked', b'52')])
     assert b.captions()[:2] == ['Seven', 'Eight'] and b.opens() == [False, False, True]  # and its download controls
@@ -1114,8 +1115,8 @@ def test_a_job_opens_its_controls_under_its_collection_s_name(fw):
     b.click(HUB)
     b.click(2)  # Download Progress
     assert b.request().endswith(b'\tjobs\n')
-    b.answer(rows=[(b'job', b'spotify:playlist:4', b'Paused', b'12 of 40', b'Road Trip', b'12')])
-    assert b.captions() == ['Paused'] and b.details() == ['12 of 40'] and b.opens() == [True]
+    b.answer(rows=[(b'job', b'spotify:playlist:4', b'\xe5\xb7\xb2\xe6\x9a\x82\xe5\x81\x9c', b'12 / 40', b'Road Trip', b'12')])
+    assert b.captions() == ['已暂停'] and b.details() == ['12 / 40'] and b.opens() == [True]
     b.click(0)
     assert b.w.title == 'Road Trip' and b.top.kind == L_JOB
     b.click(1)  # pause, resume, …

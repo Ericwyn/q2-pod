@@ -360,7 +360,7 @@ def test_an_update_reads_paths_in_one_go_then_measures_once_its_dialog_is_gone(f
     assert not up.probe.threads and not up.toasts  # the dialog's still up
     up.windows.clear()
     up.poll()
-    assert len(up.probe.threads) == 1 and up.toasts == ['Measuring song lengths…'] and len(up.reads()) == 1
+    assert len(up.probe.threads) == 1 and up.toasts == ['正在检测歌曲时长…'] and len(up.reads()) == 1
     up.probe.run()
     assert seconds(fw, song(paths[0])) == 100  # published at the join
     up.poll()

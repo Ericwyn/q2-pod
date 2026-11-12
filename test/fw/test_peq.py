@@ -970,26 +970,26 @@ def test_parse_16_tokens_then_no_more(fw):
 
 
 @pytest.mark.parametrize('text, line, word', (
-    (b'Filter 1: ON XX Fc 100 Hz Gain 1 dB Q 1\n', 1, b'type'),
-    (b'\n\nnonsense\n', 3, b'command'),
-    (b'Filter a: ON PK Fc 100 Hz Gain 1 dB Q 1\n', 1, b'label'),
+    (b'Filter 1: ON XX Fc 100 Hz Gain 1 dB Q 1\n', 1, b'\xe7\xb1\xbb\xe5\x9e\x8b'),
+    (b'\n\nnonsense\n', 3, b'\xe5\x91\xbd\xe4\xbb\xa4'),
+    (b'Filter a: ON PK Fc 100 Hz Gain 1 dB Q 1\n', 1, b'\xe7\xbc\x96\xe5\x8f\xb7'),
     (b'Filter 1 ON PK Fc 100 Hz Gain 1 dB Q 1\n', 1, b'Filter'),
-    (b'Filter 1: MAYBE PK Fc 100 Hz Gain 1 dB Q 1\n', 1, b'ON or OFF'),
-    (b'Filter 1: ON PK Fc 100 Hz Gain 1 dB\n', 1, b'requires Q'),
+    (b'Filter 1: MAYBE PK Fc 100 Hz Gain 1 dB Q 1\n', 1, b'ON \xe6\x88\x96 OFF'),
+    (b'Filter 1: ON PK Fc 100 Hz Gain 1 dB\n', 1, b'\xe9\x9c\x80\xe8\xa6\x81 Q'),
     (b'Filter 1: ON PK Fc 100 Hz Gain 1 dB R 1\n', 1, b'Q'),
     (b'Filter 1: ON PK Fc 100 kHz Gain 1 dB Q 1\n', 1, b'Fc'),
-    (b'Filter 1: ON PK Fc 0x10 Hz Gain 1 dB Q 1\n', 1, b'number'),
-    (b'Filter 1: ON PK Fc 19 Hz Gain 1 dB Q 1\n', 1, b'range'),
-    (b'Filter 1: ON PK Fc 100 Hz Gain 25 dB Q 1\n', 1, b'range'),
-    (b'Filter 1: ON PK Fc 100 Hz Gain 1 dB Q 11\n', 1, b'range'),
-    (b'Filter 1: ON PK\n', 1, b'form'),
+    (b'Filter 1: ON PK Fc 0x10 Hz Gain 1 dB Q 1\n', 1, b'\xe6\x95\xb0\xe5\x80\xbc'),
+    (b'Filter 1: ON PK Fc 19 Hz Gain 1 dB Q 1\n', 1, b'\xe8\x8c\x83\xe5\x9b\xb4'),
+    (b'Filter 1: ON PK Fc 100 Hz Gain 25 dB Q 1\n', 1, b'\xe8\x8c\x83\xe5\x9b\xb4'),
+    (b'Filter 1: ON PK Fc 100 Hz Gain 1 dB Q 11\n', 1, b'\xe8\x8c\x83\xe5\x9b\xb4'),
+    (b'Filter 1: ON PK\n', 1, b'\xe6\xa0\xbc\xe5\xbc\x8f'),
     (b'Preamp: 1\n', 1, b'Preamp'),
-    (b'Preamp: 25 dB\n', 1, b'preamp'),
-    (b'Preamp: nan dB\n', 1, b'preamp'),
+    (b'Preamp: 25 dB\n', 1, b'\xe5\x89\x8d\xe7\xba\xa7\xe5\xa2\x9e\xe7\x9b\x8a'),
+    (b'Preamp: nan dB\n', 1, b'\xe5\x89\x8d\xe7\xba\xa7\xe5\xa2\x9e\xe7\x9b\x8a'),
     (b'Channel\n', 1, b'Channel'),
-    (b'Channel: C\n', 1, b'channels'),
-    (b'Preamp: -40 dB\nPreamp: -40 dB\n', 2, b'summed'),
-    (b'Channel: L\nPreamp: -13 dB\n', 2, b'differ'),
+    (b'Channel: C\n', 1, b'\xe5\xa3\xb0\xe9\x81\x93'),
+    (b'Preamp: -40 dB\nPreamp: -40 dB\n', 2, b'\xe6\x80\xbb\xe5\x92\x8c'),
+    (b'Channel: L\nPreamp: -13 dB\n', 2, b'\xe7\x9b\xb8\xe5\xb7\xae'),
 ))
 def test_parse_refuses_with_the_line_and_why(fw, text, line, word):
     p, err = parse(api(fw), text)
@@ -1400,7 +1400,7 @@ def test_import_no_file_says_so(fw):
     Card(fw)
     err = Error()
     assert not g.peq_import_file(b'/none', r(Preset()), r(err))
-    assert err.line == 1 and b'cannot open' in err.reason
+    assert err.line == 1 and b'\xe6\x97\xa0\xe6\xb3\x95\xe6\x89\x93\xe5\xbc\x80' in err.reason
 
 
 def test_import_a_read_error_says_so(fw):
@@ -1408,7 +1408,7 @@ def test_import_a_read_error_says_so(fw):
     card = Card(fw, {'/a': b'Preamp: 1 dB\n'})
     card.bad_ferror = True
     err = Error()
-    assert not g.peq_import_file(b'/a', r(Preset()), r(err)) and b'read failed' in err.reason
+    assert not g.peq_import_file(b'/a', r(Preset()), r(err)) and b'\xe8\xaf\xbb\xe5\x8f\x96\xe5\xa4\xb1\xe8\xb4\xa5' in err.reason
 
 
 def test_import_a_file_of_16385_bytes_is_too_long(fw):

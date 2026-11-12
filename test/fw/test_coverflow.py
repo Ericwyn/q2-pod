@@ -1927,8 +1927,8 @@ def int_bytes(v):
     return v.to_bytes(4, 'little', signed=True)
 
 
-@pytest.mark.parametrize('sort, name', ((0, b'Sort: Album'), (1, b'Sort: Artist'), (2, b'Sort: Recently Added'), (3, b'Sort: Most Played'),
-                                         (4, b'Sort: Random'), (6, b'Sort: Year')))
+@pytest.mark.parametrize('sort, name', ((0, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe4\xb8\x93\xe8\xbe\x91'), (1, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe8\xa1\xa8\xe6\xbc\x94\xe8\x80\x85'), (2, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe6\x9c\x80\xe8\xbf\x91\xe6\xb7\xbb\xe5\x8a\xa0'), (3, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe6\x9c\x80\xe5\xa4\x9a\xe6\x92\xad\xe6\x94\xbe'),
+                                         (4, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe9\x9a\x8f\xe6\x9c\xba'), (6, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe5\xb9\xb4\xe4\xbb\xbd')))
 def test_the_library_s_sort_reads_back(fw, sort, name):
     g = api(fw)
     Card(fw, {SORT_FILE: int_bytes(sort)})
@@ -1939,7 +1939,7 @@ def test_the_library_s_sort_reads_back(fw, sort, name):
 def test_a_bad_sort_file_is_album(fw, data):
     g = api(fw)
     Card(fw, {} if data is None else {SORT_FILE: data})
-    assert g.sort_saved() == SORT_ALBUM and g.coverflow_sort_name() == b'Sort: Album'
+    assert g.sort_saved() == SORT_ALBUM and g.coverflow_sort_name() == b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe4\xb8\x93\xe8\xbe\x91'
 
 
 def test_sort_file_hostile_sweep(fw):
@@ -2649,7 +2649,7 @@ def test_settings_slides_in_over_the_list_and_return_slides_the_list_back(fw):
     ui.click(h.rows['img_settings'])
     assert not ui[h.main].visible and not ui[h.main].sensitive and ui[h.sets].visible and ui[h.sets].sensitive
     assert ui.at(h.sets)[0] == SPLIT_W and ui.animators == [(h.sets, t['motion.swap.ms'], t['motion.swap.easing'], 'x')]
-    assert ui[h.art].visible and title() == b'Settings'
+    assert ui[h.art].visible and title() == b'\xe8\xae\xbe\xe7\xbd\xae'
     ui.click(h.rows['img_settings'])  # open already: nothing moves
     assert len(ui.animators) == 1
     assert not back(h.art) and back(h.win) == 1
@@ -2723,7 +2723,7 @@ def test_the_library_row_slides_its_rows_in_split_s_shape(fw, stock_bg):
     t, ui, h, _ = home_open(fw)
     ui.click(h.rows['img_library'])
     assert stock_bg[0] == 1  # library_rows filled it, as the page's constructor
-    assert ui[h.lib].visible and not ui[h.main].visible and fw.fn('coverflow_home_title', C.c_char_p)() == b'Library'
+    assert ui[h.lib].visible and not ui[h.main].visible and fw.fn('coverflow_home_title', C.c_char_p)() == b'\xe9\x9f\xb3\xe4\xb9\x90'
     for b in rows_of(ui, h.lib):
         assert ui.at(b)[::2] == (0, SPLIT_W) and ui.at(b)[3] == 60  # Home's rows' width, their own height
         label = ui.of('hscroll_label', b)[0]
@@ -2745,7 +2745,7 @@ def test_the_streaming_row_takes_home_s_row_height_and_decodes_the_build_s_icons
     loads = []
     fw.mock('widget_load_image', lambda owner, url, *_: loads.append((owner, C.string_at(url))) or 1)
     ui.click(h.rows['img_services'])
-    assert stock_bg[1] == 1 and ui[h.stream].visible and fw.fn('coverflow_home_title', C.c_char_p)() == b'Streaming'
+    assert stock_bg[1] == 1 and ui[h.stream].visible and fw.fn('coverflow_home_title', C.c_char_p)() == b'\xe6\xb5\x81\xe5\xaa\x92\xe4\xbd\x93'
     assert home.kind == PANE_STREAM and not home.row  # the rows the pane read are rebuilt
     for b in rows_of(ui, h.stream):
         assert ui.at(b) == (0, 0, SPLIT_W, 70)  # the main list's row height
@@ -2763,8 +2763,8 @@ def test_the_streaming_row_opens_the_page_in_full(fw, stock_bg):
 
 @pytest.mark.parametrize('home', ('0', '1', '2'))
 @pytest.mark.parametrize('theme', (MINIMAL, CLASSIC, MODERN))
-@pytest.mark.parametrize('shortcut, shown, label', (('0', 0, 'Rockbox'), ('6', 1, 'Games'), ('11', 0, 'Favorites'),
-                                                    ('12', 1, 'Favorites')))
+@pytest.mark.parametrize('shortcut, shown, label', (('0', 0, 'Rockbox'), ('6', 1, '游戏'), ('11', 0, '收藏'),
+                                                    ('12', 1, '收藏')))
 def test_the_shortcut_row_sits_after_folder_unless_rockbox_is_missing_or_none(fw, theme, home, shortcut, shown, label):
     # None hides the row in every layout and theme; the carousel's card stays, naming the default as with no choice
     themed(fw, theme, SHORTCUT=shortcut, HOME=home)
@@ -3291,18 +3291,18 @@ def page_title(fw, body, caption, n):
 def test_minimal_s_page_title_is_its_own_row(fw):
     t = themed(fw, MINIMAL)
     ui = Ui(fw)
-    title = page_title(fw, ui.make(0, 'view'), b'Albums', 3)
-    assert ui.at(title) == (t['page_x'], 0, 375 - 2 * t['page_x'], t['page_title_h']) and ui[title].text == 'Albums'
+    title = page_title(fw, ui.make(0, 'view'), b'\xe4\xb8\x93\xe8\xbe\x91', 3)
+    assert ui.at(title) == (t['page_x'], 0, 375 - 2 * t['page_x'], t['page_title_h']) and ui[title].text == '专辑'
     assert ui[title].visible and not ui[title].name  # nothing for a bar to read
 
 
-@pytest.mark.parametrize('rows, width, hidden', ((3, 200, True), (3, 40, False), (0, 200, False)))
+@pytest.mark.parametrize('rows, width, hidden', ((3, 200, True), (3, 10, False), (0, 200, False)))
 def test_classic_s_bar_holds_the_caption_unless_it_is_all_the_page_says_or_won_t_fit(fw, scratch, rows, width, hidden):
     t = themed(fw, CLASSIC)
     ui = Ui(fw)
     bar_title(fw, ui, scratch, width)
-    title = page_title(fw, ui.make(0, 'view'), b'Albums', rows)
-    assert ui[title].name == '_page_title' and ui[title].text == 'Albums'  # what the bar reads
+    title = page_title(fw, ui.make(0, 'view'), b'\xe4\xb8\x93\xe8\xbe\x91', rows)
+    assert ui[title].name == '_page_title' and ui[title].text == '专辑'  # what the bar reads
     assert ui[title].visible == (not hidden)
     if not hidden:  # the page's first line, a row high, in the page's text column
         x, y, w, h = ui.at(title)
@@ -3320,9 +3320,9 @@ def test_an_empty_page_says_so_and_a_bar_still_reads_its_name(fw, theme):
     ui = Ui(fw)
     page = ui.make(0, 'window')
     body = ui.make(page, 'view')
-    page_list_or(fw, page, body, b'Photos', b'No photos', 0)
+    page_list_or(fw, page, body, b'Photos', b'\xe6\x9a\x82\xe6\x97\xa0\xe7\x85\xa7\xe7\x89\x87', 0)
     labels = ui.of('hscroll_label', body)
-    assert [ui[w].text for w in labels if ui[w].visible] == ['No photos']
+    assert [ui[w].text for w in labels if ui[w].visible] == ['暂无照片']
     read = [ui[w].text for w in labels if ui[w].name == '_page_title' and not ui[w].visible]
     assert read == (['Photos'] if theme == CLASSIC else [])
     assert ui.at(ui.of('list_view', body)[0])[3] == 0  # no rows
@@ -3334,12 +3334,12 @@ def test_a_page_list_s_rows_run_from_its_title_to_the_page_s_bottom_or_its_last_
     ui = Ui(fw)
     page = ui.make(0, 'window')
     body = ui.make(page, 'view')
-    view = page_list_or(fw, page, body, b'Albums', b'None', n)
+    view = page_list_or(fw, page, body, b'\xe4\xb8\x93\xe8\xbe\x91', b'None', n)
     lv, row = ui[view].parent, t['page_row']
     room = fw.fn('client_h', C.c_int)() - t['page_title_h']
     assert ui.at(lv) == (0, t['page_title_h'], 375, rows * row if rows else room)
     assert ui[lv].props['item_height'] == row and ui[view].props['virtual_h'] == n * row and ui[view].props['yslidable'] == 1
-    assert [ui[w].text for w in ui.of('hscroll_label', body)] == ['Albums'] and ui[body].visible
+    assert [ui[w].text for w in ui.of('hscroll_label', body)] == ['专辑'] and ui[body].visible
 
 
 def page_row_detail(fw, view, index, caption, detail, click=0x1234, into=False):
@@ -3351,11 +3351,11 @@ def page_row_detail(fw, view, index, caption, detail, click=0x1234, into=False):
 def test_a_row_with_a_detail_puts_its_caption_over_it_in_the_page_s_text_column(fw, theme):
     t = themed(fw, theme)
     ui = Ui(fw)
-    item = page_row_detail(fw, ui.make(0, 'scroll_view'), 2, b'Song', b'3 plays')
+    item = page_row_detail(fw, ui.make(0, 'scroll_view'), 2, b'Song', b'\xe6\x92\xad\xe6\x94\xbe 3 \xe6\xac\xa1')
     h = t['page_detail']
     assert ui.at(item) == (0, 2 * h, 375, h) and ui.handlers(item) == [(0x1234, 2)]  # the third of the taller rows
     caption, detail = ui.of('hscroll_label', item)
-    assert (ui[caption].text, ui[detail].text) == ('Song', '3 plays')
+    assert (ui[caption].text, ui[detail].text) == ('Song', '播放 3 次')
     (cx, cy, cw, ch), (dx, dy, dw, dh) = ui.at(caption), ui.at(detail)
     x = fw.fn('page_x', C.c_int)()
     assert cx == dx == x and cw == dw == 375 - 2 * x  # page_x's text column, its margins even
@@ -3371,7 +3371,7 @@ def test_an_empty_detail_centres_the_caption_above_the_theme_s_separators(fw, th
     t = themed(fw, theme)
     ui = Ui(fw)
     item = page_row_detail(fw, ui.make(0, 'scroll_view'), 0, b'Song', b'')
-    over = ui.of('hscroll_label', page_row_detail(fw, ui.make(0, 'scroll_view'), 0, b'Song', b'3 plays'))[0]
+    over = ui.of('hscroll_label', page_row_detail(fw, ui.make(0, 'scroll_view'), 0, b'Song', b'\xe6\x92\xad\xe6\x94\xbe 3 \xe6\xac\xa1'))[0]
     caption, detail = ui.of('hscroll_label', item)
     h, sep = t['page_detail'], len(t['sep'])
     _, y, _, ch = ui.at(caption)
@@ -3391,7 +3391,7 @@ def test_a_row_into_another_page_ends_its_labels_before_the_chevron(fw, theme):
     t = themed(fw, theme)
     ui = Ui(fw)
     view = ui.make(0, 'scroll_view')
-    item = page_row_detail(fw, view, 1, b'Albums', b'', into=True)
+    item = page_row_detail(fw, view, 1, b'\xe4\xb8\x93\xe8\xbe\x91', b'', into=True)
     h, sep, x = t['page_detail'], len(t['sep']), fw.fn('page_x', C.c_int)()
     caption, detail = ui.of('hscroll_label', item)
     (cx, cy, cw, ch), (dx, _, dw, _) = ui.at(caption), ui.at(detail)
@@ -3461,7 +3461,7 @@ def test_the_captions_name_the_centre_album_and_its_artist(fw):
     assert 'style:normal:font_name' not in ui[c.name].props  # Minimal's captions keep the style's face
 
 
-@pytest.mark.parametrize('scoped, card', ((ARTIST_ALBUMS, 'All albums'), (2, 'Sort: Rating')))
+@pytest.mark.parametrize('scoped, card', ((ARTIST_ALBUMS, '全部专辑'), (2, '排序：评价')))
 def test_the_card_after_the_albums_is_named_for_what_it_does(fw, scoped, card):
     _, ui, c, titles = captions(fw, MINIMAL, scoped)
     c.sort = SORT_RATING

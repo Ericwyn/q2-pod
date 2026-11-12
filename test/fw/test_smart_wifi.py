@@ -16,7 +16,7 @@ from test_streaming import Sp, Td
 
 IDLE, POLL, CONNECT = O['SMART_IDLE_MS'], O['SMART_POLL_MS'], O['SMART_CONNECT_MS']
 TICK, RET_REPEAT = 500, 8  # the held press's timer; one that answers RET_REPEAT runs again, any other is removed
-WAIT, NO_LINK = 'Connecting to Wi-Fi…', 'Connect to Wi-Fi first'
+WAIT, NO_LINK = '正在连接 Wi-Fi…', '请先连接 Wi-Fi'
 ACTION, TIMER = C.CFUNCTYPE(C.c_int, C.c_void_p, C.c_void_p), C.CFUNCTYPE(C.c_int, C.c_void_p)
 SAVED_ON, SAVED_OFF = (b'SYSSET', b'WIFI', 1), (b'SYSSET', b'WIFI', 0)
 
@@ -169,7 +169,7 @@ NEEDS = [('a USB cable in', flag('g_usbdet_value', 1), True),
          ('a scrobble upload', state('scrobble__up', Up, running=1), True),
          ('Network Update downloading', state('netupdate__nu', Nu, state=NU_RUNNING), True),
          ('an Apps job', state('netupdate__sh', Sh, job=JOB_INSTALL), True),
-         ('Download Album Lyrics', state('onlinematch__al', Al, running=1), True),
+         ('下载专辑歌词', state('onlinematch__al', Al, running=1), True),
          ('a Tidal download', state('tidal__td', Td, busy=1), True),
          ('a time sync pending on a link', lambda q: (q.set('g_syncnettime_flag', 1), q.up()), True),
          ('a time sync pending with no link', flag('g_syncnettime_flag', 1), False),
@@ -222,7 +222,7 @@ def test_what_needs_the_network_keeps_the_radio_on_and_nothing_else_does(q2, use
 
 
 @pytest.mark.parametrize('use,wakes', [(pages('addon_page'), True), (flag('g_usbdet_value', 1), True),
-                                       (pages('tidal_downloads'), False)], ids=['a card app\'s page', 'a cable', 'Tidal Downloads'])
+                                       (pages('tidal_downloads'), False)], ids=['a card app\'s page', 'a cable', 'Tidal 下载'])
 def test_a_use_brings_the_radio_back_at_the_next_poll_unsaved(q2, use, wakes):
     q2.idle()
     use(q2)

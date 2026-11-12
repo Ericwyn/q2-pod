@@ -6,7 +6,7 @@ extern int stock_specfolder_click_trampoline(void *, void *);
 #define TICK_COLUMN 81 /* the row click's slti: a tap left of it ticks, past it opens */
 
 /* The list shows folders only, so specfolder_enter refuses a folder with none inside and stock
- * says "Folder not found". An album's folder is what's picked here: that tap goes to the column.
+ * says "找不到文件夹". An album's folder is what's picked here: that tap goes to the column.
  * ponytail: a folder that does open is listed twice on the tap, here and by specfolder_enter. */
 int ringnav_specfolder_click(void *ctx, void *event) {
     void *row = table_row_of(P(event, EVENT_TARGET));

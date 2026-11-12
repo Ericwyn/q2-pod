@@ -270,7 +270,7 @@ def test_the_shelf_lists_each_book_by_path_under_its_name(fw):
 
 def test_an_empty_shelf_says_so(fw):
     shelf = Shelf(fw, {f'{ROOT}/notes.pdf': b''})
-    assert shelf.rows() == [] and 'No books' in shelf.w.text.values()
+    assert shelf.rows() == [] and '暂无书籍' in shelf.w.text.values()
 
 
 def test_the_page_opens_once(fw):
@@ -477,7 +477,7 @@ def test_an_empty_or_missing_book_says_it_can_t_open(fw, gone):
     if gone:
         del shelf.card.files[path]  # listed, then gone from the card before it opened
     shelf.click(0)
-    assert shelf.bk.state == BAD and shelf.caption() == "Can't open this book" and shelf.paint() == []
+    assert shelf.bk.state == BAD and shelf.caption() == '无法打开此书籍' and shelf.paint() == []
     shelf.back()
     assert MARKS not in shelf.card.files  # no page to keep
 
@@ -493,7 +493,7 @@ def epub_shelf(fw, data, **kw):
 def test_an_epub_is_prepared_once_then_read_a_chapter_a_page(fw):
     shelf, cache, tmp = epub_shelf(fw, epub('One two three', 'Four &amp; five'))
     shelf.click(0)
-    assert shelf.bk.state == PREPARING and shelf.caption() == 'Preparing…'
+    assert shelf.bk.state == PREPARING and shelf.caption() == '准备中…'
     assert shelf.paint() == [] and shelf.key(NEXT) == 1 and shelf.bk.pos == 0  # the wheel is the reader's, for nothing
     assert shelf.fire('poll') == RET_REPEAT  # still converting
     shelf.run_worker()
@@ -512,7 +512,7 @@ def test_an_epub_that_won_t_convert_says_so_and_keeps_no_page(fw):
     shelf.click(0)
     shelf.run_worker()
     assert shelf.fire('poll') == 0
-    assert shelf.bk.state == BAD and shelf.caption() == "Can't open this book" and tmp in shelf.unlinked
+    assert shelf.bk.state == BAD and shelf.caption() == '无法打开此书籍' and tmp in shelf.unlinked
     assert shelf.paint() == [] and cache not in shelf.card.files
     shelf.back()
     assert MARKS not in shelf.card.files
@@ -521,7 +521,7 @@ def test_an_epub_that_won_t_convert_says_so_and_keeps_no_page(fw):
 def test_no_worker_no_book(fw):
     shelf, _, _ = epub_shelf(fw, epub('One'), thread=11)
     shelf.click(0)
-    assert shelf.bk.state == BAD and shelf.caption() == "Can't open this book"
+    assert shelf.bk.state == BAD and shelf.caption() == '无法打开此书籍'
     assert not [fn for fn, _ in shelf.timers if fn == shelf.address('poll')]
 
 
@@ -677,7 +677,7 @@ def test_a_hostile_station_url_or_video_name_is_one_argument_of_q2video_and_no_s
     urls = [f'http://r.example/{h}' for h in HOSTILE] + [f'{h}://r.example/' for h in HOSTILE]
     lines = HOSTILE + urls + ['http://r.example/a\n-r', 'http://r.example/b\r$(reboot)']
     curl = Curl(fw, m3u(*((f'S{i}', line) for i, line in enumerate(lines))))
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
     urls += ['http://r.example/a', 'http://r.example/b']  # each cut at its newline: what follows is a line without "://"
     rows = p.rows('station_click')

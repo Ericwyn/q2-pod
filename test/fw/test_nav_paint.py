@@ -1514,13 +1514,13 @@ def sync(fw, win):
     fw.fn('bar_title_sync', None, C.c_void_p)(win)
 
 
-@pytest.mark.parametrize('name, title', [('playing_page', 'Now Playing'), ('playing_page_stock', 'Now Playing'),
+@pytest.mark.parametrize('name, title', [('playing_page', '正在播放'), ('playing_page_stock', '正在播放'),
                                          ('coverflow_page', 'Cover Flow'), ('equalizer_page', 'EQ'),
-                                         ('spotify_page', 'Spotify'), ('radionp_page', 'Internet Radio'),
+                                         ('spotify_page', 'Spotify'), ('radionp_page', '网络电台'),
                                          ('usbmode_page', '')])  # USB mode's: no wordmark
 def test_a_page_known_by_name_titles_the_bar(fw, world, st, name, title):
     label = bar_title(fw, world, st)
-    world[label].text = 'Albums'  # the page before
+    world[label].text = '专辑'  # the page before
     win = world.window(name)
     world.add(world.add(win, 'view_navbar'), 'label_name', 'hscroll_label', text='Its own label')
     sync(fw, win)
@@ -1540,7 +1540,7 @@ def test_cover_flow_s_landing_keeps_the_bar_s_title_until_it_lands(fw, world, st
     assert world[label].text in ('', None) and not world.timers
     flip.dir = 0
     sync(fw, win)
-    assert world[label].text == 'Now Playing'
+    assert world[label].text == '正在播放'
 
 
 @pytest.mark.parametrize('key, taken, stop', [('KEY_NEXT', 0, 0), ('KEY_RETURN', 1, 0), ('KEY_RETURN', 0, 1)])
@@ -1554,10 +1554,10 @@ def test_the_wheel_or_return_ends_cover_flow_s_landing_and_the_bar_names_now_pla
     land = fw.var('coverflow_land__land', Land)
     land.front, land.ms = LIBC.calloc(4, 1), -1  # clicked, not painted yet
     assert fw.fn('land_key', C.c_int, C.c_uint)(O[key]) == stop
-    assert not land.front and world[label].text == 'Now Playing'
+    assert not land.front and world[label].text == '正在播放'
 
 
-@pytest.mark.parametrize('name, kind, title', [('msginfo_dialog', 'dialog', 'Now Playing'),
+@pytest.mark.parametrize('name, kind, title', [('msginfo_dialog', 'dialog', '正在播放'),
                                               ('playerjumpinfo_page', 'window', 'Cover Flow')])
 def test_a_dialog_that_ends_cover_flow_s_landing_leaves_the_bar_naming_now_playing(fw, world, st, name, kind, title):
     """land_tick: a pop-up over Now Playing during the motion ends the landing. A dialog keeps the bar's title, which
@@ -1582,7 +1582,7 @@ def test_a_wheel_tick_after_the_landing_s_clock_but_before_its_last_frame_still_
     land = fw.var('coverflow_land__land', Land)
     land.front, land.ms, land.t0, land.len = LIBC.calloc(4, 1), 384, 4000, 400  # a stall: the clock 1000 on
     assert not fw.fn('coverflow_turning', C.c_int)() and fw.fn('land_key', C.c_int, C.c_uint)(O['KEY_NEXT']) == 0
-    assert not land.front and world[label].text == 'Now Playing'
+    assert not land.front and world[label].text == '正在播放'
     land.front, land.ms = LIBC.calloc(4, 1), 400  # the last frame drawn: the hold's, the key Now Playing's
     assert fw.fn('land_key', C.c_int, C.c_uint)(O['KEY_NEXT']) == 0 and land.front
     fw.fn('coverflow_land__land_end', None)()
@@ -1593,10 +1593,10 @@ def test_search_is_titled_though_a_dialog(fw, world, st):
     win = world.window('search_dialog', 'dialog')
     st('search_win', C.c_void_p).value = win
     sync(fw, win)
-    assert world[label].text == 'Search'
+    assert world[label].text == '搜索'
 
 
-def navbar_page(world, text='Albums', kind='hscroll_label'):
+def navbar_page(world, text='专辑', kind='hscroll_label'):
     win = world.window('albums_page')
     nav = world.add(win, 'view_navbar')
     world.add(nav, 'img_back', 'image')
@@ -1608,7 +1608,7 @@ def test_a_stock_page_s_navbar_title_titles_the_bar_and_is_followed(fw, world, s
     label = bar_title(fw, world, st)
     win, own = navbar_page(world, kind=kind)
     sync(fw, win)
-    assert world[label].text == 'Albums'
+    assert world[label].text == '专辑'
     sync(fw, win)
     assert len(fw.calls('widget_set_text_utf8')) == 1 and len(world.timers) == 1  # unchanged: not written
     world.set_text(own, 'Album Artists')
@@ -1616,7 +1616,7 @@ def test_a_stock_page_s_navbar_title_titles_the_bar_and_is_followed(fw, world, s
     assert world[label].text == 'Album Artists' and len(world.timers) == 2
 
 
-@pytest.mark.parametrize('text, title', [('Channel Balance', 'Balance'), ('(null)', ''), ('', '')])
+@pytest.mark.parametrize('text, title', [('Channel Balance', '声道平衡'), ('(null)', ''), ('', '')])
 def test_a_title_too_long_or_stock_s_null_name(fw, world, st, text, title):
     label = bar_title(fw, world, st)
     world.set_text(label, 'Before')
@@ -1629,7 +1629,7 @@ def test_a_payload_page_s_caption_on_show_titles_the_bar(fw, world, st):
     label = bar_title(fw, world, st)
     win = world.window('games_page')
     world.add(win, 'sheet', 'view')
-    hidden = world.add(win, 'caption', 'hscroll_label', box=(0, 0, 375, 48), text='Games')
+    hidden = world.add(win, 'caption', 'hscroll_label', box=(0, 0, 375, 48), text='游戏')
     world[hidden].visible = 0
     world.add(win, 'note', 'hscroll_label', box=(0, 60, 375, 30), text='Not a caption')
     body = world.add(win, 'body', 'view')
@@ -1641,11 +1641,11 @@ def test_a_payload_page_s_caption_on_show_titles_the_bar(fw, world, st):
 def test_a_hidden_caption_still_names_the_page(fw, world, st):
     label = bar_title(fw, world, st)
     win = world.window('games_page')
-    first = world.add(win, '_page_title', 'hscroll_label', box=(0, 0, 375, 32), text='Games')  # page_title's
+    first = world.add(win, '_page_title', 'hscroll_label', box=(0, 0, 375, 32), text='游戏')  # page_title's
     second = world.add(win, 'other', 'hscroll_label', box=(0, 0, 375, 48), text='Second')
     world[first].visible = world[second].visible = 0
     sync(fw, win)
-    assert world[label].text == 'Games'
+    assert world[label].text == '游戏'
 
 
 def test_a_dialog_keeps_the_window_s_title(fw, world, st):
@@ -1654,7 +1654,7 @@ def test_a_dialog_keeps_the_window_s_title(fw, world, st):
     sync(fw, win)
     dialog = world.window('confirminfo_dialog', 'dialog')
     sync(fw, dialog)
-    assert world[label].text == 'Albums'
+    assert world[label].text == '专辑'
 
 
 def test_only_the_top_window_titles_the_bar(fw, world, st):
@@ -1692,7 +1692,7 @@ def test_home_s_own_list_is_q2_pod(fw, world, st):
     assert world[label].text == 'Q2 Pod'
     win, _ = navbar_page(world)
     sync(fw, win)
-    assert world[label].text == 'Albums'
+    assert world[label].text == '专辑'
 
 
 def test_a_dark_page_s_title_is_the_dark_bar_s(fw, world, st):
@@ -1722,7 +1722,7 @@ def test_songs_action_bar_is_found_with_the_title(fw, world, st):
 
 def action_view(world, n):
     view = world.add(world.window('songs_page'), 'view_navbar_allplay', box=(0, 0, 375, 40))
-    made = [lambda: world.add(view, 'label', 'label', box=(40, 0, 200, 40), text='Play All'),
+    made = [lambda: world.add(view, 'label', 'label', box=(40, 0, 200, 40), text='顺序播放'),
             lambda: world.add(view, 'play', 'image', box=(0, 0, 40, 40), style='s_img_playall'),
             lambda: world.add(view, 'sort', 'image', box=(335, 0, 40, 40), style='s_img_sort')]
     return view, [make() for make in made[:n]]
@@ -1908,7 +1908,7 @@ def test_painting_the_bar_keeps_its_clock_and_title_current(fw, world, st):
     st('bar_title', C.c_void_p).value = title
     win, _ = navbar_page(world)
     paint_bg(fw, bar, Canvas(fw))
-    assert world[title].text == 'Albums'
+    assert world[title].text == '专辑'
     assert st('clock_timer', C.c_uint).value and len(world.timers) >= 2  # the clock's, at once, and the title's
     timers = len(world.timers)
     paint_bg(fw, win, Canvas(fw))  # the top window: the same, but the clock is armed
@@ -1937,7 +1937,7 @@ def test_home_keeps_its_title_while_music_plays_and_the_state_sits_by_the_batter
     assert on_home[:2] == ('Q2 Pod', 1) and on_home[2]
     assert st('bar_timer', C.c_uint).value  # mid-paint: the bar again after this frame
     navbar_page(world)
-    assert shown() == ('Albums', 1, on_home[2])  # over a page: the same image in the same img_state
+    assert shown() == ('专辑', 1, on_home[2])  # over a page: the same image in the same img_state
     world.top = home
     status[0] = 0  # stopped
     assert shown() == ('Q2 Pod', 1, 0)
@@ -2412,7 +2412,7 @@ def test_search_s_tabs_take_the_bin_s_words(fw, world, st):
     fw.mock('stock_search_init_trampoline', lambda *_: 9)
     init = fw.fn('ringnav_search_init', C.c_int, C.c_void_p, C.c_void_p)
     assert init(win, 0x77) == 9
-    assert [world[named(world, win, n)].text for n in TABS] == ['Songs', 'Artists', 'Albums', 'Genres']
+    assert [world[named(world, win, n)].text for n in TABS] == ['Songs', '表演者', '专辑', '流派']
     other = world.window('search_dialog', 'dialog')
     assert init(other, 0x77) == 9 and len(fw.calls('widget_set_text')) == 4  # another window's tabs: stock's words
 
@@ -2691,7 +2691,7 @@ def test_a_slider_page_s_caption_has_its_shadow_a_pixel_under_it(fw, world, st):
     props = world[caption].props
     (text, r, color, font), = canvas.texts
     assert text == world[caption].text and r == (x, y + 1, w, h)
-    assert font == (props['style:normal:font_name'], props['style:normal:font_size'])  # in its face and size
+    assert (font[0] or 'default', font[1]) == (props['style:normal:font_name'], props['style:normal:font_size'])  # in its face and size
     assert color & 0xffffff == 0 and 0 < color >> 24 < 255  # black, faint
 
 
@@ -2810,7 +2810,7 @@ def test_the_scan_dialog_is_classic_s_message_screen(fw, world, st):
     assert world[heading].text and world.at(heading)[3] > world.at(line)[3]  # a heading, taller than the line
     x, y, w, h = world.at(named(world, win, 'btn_no'))
     assert 2 * x + w == world.at(win)[2]  # centred
-    assert world[named(world, win, 'btn_no')].props['style:normal:font_name'] == 'classic-light'
+    assert world[named(world, win, 'btn_no')].props['style:normal:font_name'] == 'default'
     assert len(threads) == 1 and fw.calls('fw_pthread_detach')
     (fn, _, ms), = world.timers
     assert ms == 200 and st('msg_win', C.c_void_p).value == win
@@ -2878,7 +2878,7 @@ def test_the_scan_counts_against_the_library_before_it(fw, world, st, whole):
     count(fw, threads, 704)
     assert poll(world) == RET_REPEAT
     line, button = named(world, win, 'msg_line'), named(world, win, 'btn_no')
-    assert world[line].text == '312 of 704 songs'  # msg_sync's own example
+    assert world[line].text == '312 / 704 首歌曲'  # msg_sync's own example
     assert world[button].text not in ('Stop', '', None)  # over stock's word
     (target, box), = world.invalid
     after = msg_paint(fw, win)  # the line in its place, the bar drawn
@@ -3103,7 +3103,7 @@ def test_a_set_date_page_is_painted_as_the_time_form(fw, world, st):
     st('slider_win', C.c_void_p).value = win
     canvas = Canvas(fw)
     paint_bg(fw, win, canvas)
-    assert 'Save' in [t for t, *_ in canvas.texts] and canvas.art('classic_light_band_top') == []
+    assert '保存' in [t for t, *_ in canvas.texts] and canvas.art('classic_light_band_top') == []
 
 
 # The theme's boot, at the system bar's load (application_init's first window).

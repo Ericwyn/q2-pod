@@ -316,7 +316,7 @@ class Page:
         out = []
         for c in self.children(item):
             if self.images.get(c) in ('switch_on', 'switch_off'):
-                out.append('On' if self.images[c] == 'switch_on' else 'Off')
+                out.append('打开' if self.images[c] == 'switch_on' else '关闭')
             elif self.text.get(c):
                 out.append(self.text[c])
         return out
@@ -417,7 +417,7 @@ def test_no_page_is_refused(fw):
 def test_the_bar_s_halves_are_the_tabs(fw):
     p = page(fw).open()
     p.tab(300)
-    assert p.ui.tab == ADVANCED and p.captions()[:2] == ['Nothing to apply', 'Reset to defaults']
+    assert p.ui.tab == ADVANCED and p.captions()[:2] == ['无待应用更改', '恢复默认设置']
     p.tab(100)
     assert p.ui.tab == SIMPLE and p.e3.view and not p.rows()
     p.tab(100)  # the open tab: nothing to do
@@ -476,48 +476,48 @@ def test_advanced_s_rows_under_the_curve(fw):
     p = page(fw, s).advanced()
     rh, x = fw.fn('page_h', C.c_int, C.c_int)(48), fw.fn('page_x', C.c_int)()
     # a +6 dB peak: Auto cuts 6 dB at either rate; the other nine of the ten default bands are off
-    assert p.captions()[:9] == ['Nothing to apply', 'Reset to defaults', 'Enabled On', 'EQ per Output Off', 'Balance L 1.5 dB',
-                                'Preamp Auto (44.1: -6.0 / 48: -6.0)', 'Presets', '1  Peaking 1000 Hz +6.0 dB', '2  Peaking 63 Hz Off']
-    assert len(p.rows()) == 7 + 10 and p.captions()[-1] == '10  Peaking 16000 Hz Off'
+    assert p.captions()[:9] == ['无待应用更改', '恢复默认设置', '启用 打开', '按输出独立 EQ 关闭', '声道平衡 L 1.5 dB',
+                                '前级增益 自动 (44.1: -6.0 / 48: -6.0)', '预设', '1  峰值 1000 Hz +6.0 dB', '2  峰值 63 Hz 关闭']
+    assert len(p.rows()) == 7 + 10 and p.captions()[-1] == '10  峰值 16000 Hz 关闭'
     canvas = Canvas(fw)
     paint(fw, p.ui.graph, canvas)
     drawn = struct.unpack_from('<i', p.blocks[p.ui.graph], 4)[0] + max(t[3][1] + t[3][3] for t in canvas.texts)  # its scale, lowest
-    head = p.row_y('Nothing')
+    head = p.row_y('无待应用更改')
     assert head % rh == 0 and drawn <= head < drawn + rh  # the rows under the curve, from the first whole row clear of it
-    assert [p.row_y(t) for t in ('Nothing', 'Reset', '1  ')] == [head, head + rh, head + 7 * rh]
+    assert [p.row_y(t) for t in ('无待应用更改', '恢复默认设置', '1  ')] == [head, head + rh, head + 7 * rh]
     assert p.props[(p.ui.view, 'virtual_h')] == head + 17 * rh
     rows = dict((t.split()[0], item) for t, item in p.rows())
-    assert [p.chevron(rows[k]) for k in ('Reset', 'Enabled', 'Balance', 'Preamp', 'Presets', '1')] == [False, False, True, True, True, True]
+    assert [p.chevron(rows[k]) for k in ('恢复默认设置', '启用', '声道平衡', '前级增益', '预设', '1')] == [False, False, True, True, True, True]
     caption = lambda k: [c for c in p.children(rows[k]) if p.text.get(c, '').startswith(k + '  ')][0]
     dim = p.props.get((caption('2'), 'style:normal:text_color'))
     assert dim is not None and bright(dim) < WHITE  # an off band is dim; the on one keeps the row's white
     assert p.props.get((caption('1'), 'style:normal:text_color')) is None
-    assert all(struct.unpack_from('<i', p.blocks[c], 0)[0] == x for c in p.children(rows['Reset']))
+    assert all(struct.unpack_from('<i', p.blocks[c], 0)[0] == x for c in p.children(rows['恢复默认设置']))
     assert p.title() == '' and p.ui.bar == p.bar()  # the tabs' bar
 
 
 def test_nothing_to_apply_is_display_only_until_an_edit(fw):
     p = page(fw).advanced()
     before = dict(p.card.files)
-    p.click('Nothing to apply')
+    p.click('无待应用更改')
     assert p.ui.screen == HOME and p.card.files == before
     p.click('1  ')
-    p.click('Gain')
+    p.click('增益')
     p.click('+6.0 dB')
     p.ret()
-    assert p.captions()[0] == 'Apply changes'
-    p.click('Apply changes')
-    assert p.title() == 'Applied' and p.card.state().peq.bands[0].gain == 6 and p.card.state().mode == EQ_PEQ
-    assert p.captions()[0] == 'Nothing to apply'
+    assert p.captions()[0] == '应用更改'
+    p.click('应用更改')
+    assert p.title() == '已应用' and p.card.state().peq.bands[0].gain == 6 and p.card.state().mode == EQ_PEQ
+    assert p.captions()[0] == '无待应用更改'
 
 
 def test_auto_s_two_cuts_are_drawn_smaller_to_fit(fw):
     s = state(fw, EQ_PEQ, peq=peak(fw, 24))
     s.peq.balance = 12
     p = page(fw, s).advanced()
-    assert 'Balance R 12.0 dB' in p.captions()
-    preamp = [item for t, item in p.rows() if t.startswith('Preamp')][0]
-    value = [c for c in p.children(preamp) if p.text.get(c, '').startswith('Auto')][0]
+    assert '声道平衡 R 12.0 dB' in p.captions()
+    preamp = [item for t, item in p.rows() if t.startswith('前级增益')][0]
+    value = [c for c in p.children(preamp) if p.text.get(c, '').startswith('自动')][0]
     assert p.props[(value, 'style:normal:font_size')] < 20  # two double-digit cuts beside the caption
 
 
@@ -526,10 +526,10 @@ def test_a_preset_s_name_and_a_picked_preamp_show_as_set(fw):
     s.peq.automatic, s.peq.preamp = 2, -4.5
     files = {f'{SAVED}/Rock.peq': b'Q2PEQ02\0' + bytes(s.peq)}
     p = page(fw, s, files).advanced()
-    p.click('Presets')
+    p.click('预设')
     p.click('Rock.peq')
-    assert 'Presets Rock' in p.captions() and 'Preamp -4.5 dB' in p.captions()
-    assert p.title() == 'Preset loaded; choose Apply to activate'
+    assert '预设 Rock' in p.captions() and '前级增益 -4.5 dB' in p.captions()
+    assert p.title() == '预设已载入，请选择应用以启用'
 
 
 def test_a_long_preset_name_ellipsises_right_aligned_clear_of_its_caption(fw):
@@ -540,9 +540,9 @@ def test_a_long_preset_name_ellipsises_right_aligned_clear_of_its_caption(fw):
     s = state(fw, EQ_PEQ, peq=peak(fw, 3))
     name = 'LETSHUOER DEFIANT-to-iBASSO Exemplar'
     p = page(fw, s, {f'{SAVED}/{name}.peq': b'Q2PEQ02\0' + bytes(s.peq)}).advanced()
-    p.click('Presets')
+    p.click('预设')
     p.click(f'{name}.peq')
-    row = [item for t, item in p.rows() if t.startswith('Presets')][0]
+    row = [item for t, item in p.rows() if t.startswith('预设')][0]
     value = [c for c in p.children(row) if p.text.get(c) == name][0]
     x, _, w, _ = struct.unpack_from('<4i', p.blocks[value], 0)
     assert style[value] == 's_scrlabel_white20r' and p.props[(value, 'style:normal:margin_right')] == 0
@@ -614,7 +614,7 @@ def test_rings_mark_the_bands_in_use_and_the_edited_one(fw):
     fills = [rgb(a[1]) for _, a in fw.calls('vgcanvas_set_fill_color')]
     assert fills == [0, 0]  # hollow
     p.click('2  ')  # the off band, being edited
-    assert p.ui.screen == BAND and p.title() == 'Band 2'
+    assert p.ui.screen == BAND and p.title() == '频段 2'
     before = len(fw.calls('vgcanvas_arc'))
     paint(fw, p.ui.graph, Canvas(fw))
     assert len(fw.calls('vgcanvas_arc')) - before == 3
@@ -645,15 +645,15 @@ def test_no_vgcanvas_leaves_the_grid(fw):
 def test_a_band_s_screen(fw):
     p = page(fw, state(fw, EQ_PEQ, peq=peak(fw, 6))).advanced()
     p.click('1  ')
-    assert p.captions() == ['Band On', 'Channels Both', 'Type Peaking', 'Frequency 1000 Hz', 'Gain +6.0 dB', 'Q 1.00']
-    assert p.title() == 'Band 1' and p.ui.graph and p.ui.bar is None
-    p.click('Channels')
-    p.click('Type')
-    assert 'Channels Left' in p.captions() and 'Type Low shelf' in p.captions()
-    p.click('Band')
-    assert p.captions()[:2] == ['Band Off', 'Type Low shelf']  # an off band has no channels
+    assert p.captions() == ['频段 打开', '声道 双声道', '类型 峰值', '频率 1000 Hz', '增益 +6.0 dB', 'Q 1.00']
+    assert p.title() == '频段 1' and p.ui.graph and p.ui.bar is None
+    p.click('声道')
+    p.click('类型')
+    assert '声道 左声道' in p.captions() and '类型 低架滤波' in p.captions()
+    p.click('频段')
+    assert p.captions()[:2] == ['频段 关闭', '类型 低架滤波']  # an off band has no channels
     p.ret()
-    assert p.ui.screen == HOME and '1  Low shelf 1000 Hz Off' in p.captions()
+    assert p.ui.screen == HOME and '1  低架滤波 1000 Hz 关闭' in p.captions()
 
 
 def test_a_band_past_the_count_joins_the_preset(fw):
@@ -662,7 +662,7 @@ def test_a_band_past_the_count_joins_the_preset(fw):
     assert p.ui.draft.count == 2
 
 
-def adjust(fw, what='Frequency'):
+def adjust(fw, what='频率'):
     p = page(fw, state(fw, EQ_PEQ, peq=peak(fw, 6))).advanced()
     p.click('1  ')
     p.click(what)
@@ -671,13 +671,13 @@ def adjust(fw, what='Frequency'):
 
 def test_the_frequency_menu_and_its_edit(fw):
     p = adjust(fw)
-    assert p.ui.screen == ADJUST and p.captions() == ['Band 1 Frequency (Hz)', 'Raise 1 Hz', 'Lower 1 Hz', 'Step 1 Hz']
+    assert p.ui.screen == ADJUST and p.captions() == ['频段 1 频率 (Hz)', '增加 1 Hz', '减少 1 Hz', '步长 1 Hz']
     edit = p.edit()
     assert p.parent[edit] == p.page and p.text[edit] == '1000' and p.ui.edit == edit
     assert p.handlers(edit, EVT_FOCUS) and not p.handlers(edit, EVT_IM_ACTION)
-    p.click('Step')
-    p.click('Raise')
-    assert p.ui.draft.bands[0].frequency == 1010 and p.text[p.edit()] == '1010' and 'Step 10 Hz' in p.captions()
+    p.click('步长')
+    p.click('增加')
+    assert p.ui.draft.bands[0].frequency == 1010 and p.text[p.edit()] == '1010' and '步长 10 Hz' in p.captions()
 
 
 def test_a_typed_number_is_taken_and_anything_else_shows_the_value_again(fw):
@@ -703,12 +703,12 @@ def test_a_value_change_from_a_replaced_edit_is_ignored(fw):
 
 def test_q_s_menu_has_no_step(fw):
     p = adjust(fw, 'Q')
-    assert p.captions() == ['Band 1 Q', 'Raise 0.05', 'Lower 0.05'] and p.text[p.edit()] == '1.00'
+    assert p.captions() == ['频段 1 Q', '增加 0.05', '减少 0.05'] and p.text[p.edit()] == '1.00'
 
 
 def test_the_value_row_opens_t9_s_numbers_with_the_value_selected(fw):
     p = adjust(fw)
-    p.click('Band 1 Frequency')
+    p.click('频段 1 频率')
     assert p.focused[-1] == (p.edit(), 1) and not p.pending('render')  # a render would close it
     assert struct.unpack_from('<Q', p.im, IM_WIDGET)[0] == p.edit()
     assert p.run('numbers') == RET_REPEAT  # the keyboard isn't up yet
@@ -737,16 +737,16 @@ def test_a_render_lets_t9_go_before_replacing_its_edit(fw):
     p = adjust(fw)
     p.handler(p.edit(), EVT_FOCUS)()
     old = p.edit()
-    p.click('Raise')
+    p.click('增加')
     requests = p.requests
     assert requests[-1] == 0 and p.edit() != old and p.ui.keyboard_timer == 0
 
 
-@pytest.mark.parametrize('pick, value, title, rows, row', (('Balance', 0, 'Balance', 49, 24), ('Balance', -3, 'Balance', 49, 18),
-                                                          ('Preamp', None, 'Preamp', 74, 0), ('Preamp', -3, 'Preamp', 74, 31)))
+@pytest.mark.parametrize('pick, value, title, rows, row', (('声道平衡', 0, '声道平衡', 49, 24), ('声道平衡', -3, '声道平衡', 49, 18),
+                                                          ('前级增益', None, '前级增益', 74, 0), ('前级增益', -3, '前级增益', 74, 31)))
 def test_a_picker_opens_centred_on_its_value(fw, pick, value, title, rows, row):
     s = state(fw, EQ_PEQ, peq=peak(fw, 6))
-    if pick == 'Balance':
+    if pick == '声道平衡':
         s.peq.balance = value
     elif value is not None:
         s.peq.automatic, s.peq.preamp = 2, value
@@ -757,25 +757,25 @@ def test_a_picker_opens_centred_on_its_value(fw, pick, value, title, rows, row):
     assert p.props[(p.ui.view, '_ringnav_index')] == row and not p.ui.graph
     offset = p.props[(p.ui.view, 'offset')]
     assert offset == max(0, min(row * rh - (height - rh) // 2, rows * rh - height))
-    if pick == 'Balance':
-        assert p.captions()[0] == 'L 12.0 dB' and p.captions()[24] == 'Centre' and p.captions()[-1] == 'R 12.0 dB'
+    if pick == '声道平衡':
+        assert p.captions()[0] == 'L 12.0 dB' and p.captions()[24] == '居中' and p.captions()[-1] == 'R 12.0 dB'
     else:
-        assert p.captions()[0].startswith('Auto (') and p.captions()[1] == '+12.0 dB' and p.captions()[-1] == '-24.0 dB'
+        assert p.captions()[0].startswith('自动 (') and p.captions()[1] == '+12.0 dB' and p.captions()[-1] == '-24.0 dB'
 
 
 def test_a_picked_preamp_at_its_top_opens_on_its_row_not_auto(fw):
     s = state(fw, EQ_PEQ, peq=peak(fw, 6))
     s.peq.automatic, s.peq.preamp = 2, 15  # past the picker's +12.0
     p = page(fw, s).advanced()
-    p.click('Preamp')
+    p.click('前级增益')
     assert p.props[(p.ui.view, '_ringnav_index')] == 1
 
 
 def test_the_gain_picker_is_the_band_s(fw):
     p = page(fw, state(fw, EQ_PEQ, peq=peak(fw, 6))).advanced()
     p.click('1  ')
-    p.click('Gain')
-    assert p.title() == 'Band 1 Gain' and len(p.rows()) == 97 and p.props[(p.ui.view, '_ringnav_index')] == 36
+    p.click('增益')
+    assert p.title() == '频段 1 增益' and len(p.rows()) == 97 and p.props[(p.ui.view, '_ringnav_index')] == 36
     p.ret()
     assert p.ui.screen == BAND
 
@@ -784,19 +784,19 @@ def test_a_kept_screen_keeps_its_selection_and_scroll(fw):
     p = page(fw).advanced()
     view = p.ui.view
     p.props[(view, '_ringnav_index')], p.props[(view, 'yoffset')] = 5, 96
-    p.click('Reset to defaults')
+    p.click('恢复默认设置')
     assert p.props[(p.ui.view, '_ringnav_index')] == 5 and p.props[(p.ui.view, 'offset')] == 96
-    assert p.title() == 'Reset; choose Apply to activate'
+    assert p.title() == '已重置，请选择应用以启用'
 
 
 # The presets' screens.
 
 def test_the_presets_screen_lists_saved_presets_sorted(fw):
     p = page(fw, files={f'{SAVED}/b.peq': b'x', f'{SAVED}/a.peq': b'x', f'{SAVED}/notes.txt': b'x'}).advanced()
-    p.click('Presets')
-    assert p.captions() == ['Stock presets', 'Import from SD /EQ', 'Save editor preset', 'Rename a preset', 'Delete a preset',
+    p.click('预设')
+    assert p.captions() == ['内置预设', '从 SD /EQ 导入', '保存编辑中的预设', '重命名预设', '删除预设',
                             'a.peq', 'b.peq']
-    assert p.title() == 'Presets' and not p.ui.graph and p.ui.bar is None
+    assert p.title() == '预设' and not p.ui.graph and p.ui.bar is None
     rows = dict(p.rows())
     assert all(p.chevron(rows[t]) for t in p.captions()[:5]) and not p.chevron(rows['a.peq'])
 
@@ -804,119 +804,119 @@ def test_the_presets_screen_lists_saved_presets_sorted(fw):
 def test_more_than_a_page_of_presets_pages(fw):
     files = {f'{SAVED}/{k:03}.peq': b'x' for k in range(130)}
     p = page(fw, files=files).advanced()
-    p.click('Presets')
-    assert p.title() == 'Presets 1/2' and p.captions()[5:7] == ['Next page', '000.peq'] and p.captions()[-1] == '127.peq'
+    p.click('预设')
+    assert p.title() == '预设 1/2' and p.captions()[5:7] == ['下一页', '000.peq'] and p.captions()[-1] == '127.peq'
     assert len(p.rows()) == 5 + 1 + 128
-    p.click('Next page')
-    assert p.title() == 'Presets 2/2' and p.captions()[5:] == ['Previous page', '128.peq', '129.peq']
-    p.click('Previous page')
-    assert p.title() == 'Presets 1/2'
+    p.click('下一页')
+    assert p.title() == '预设 2/2' and p.captions()[5:] == ['上一页', '128.peq', '129.peq']
+    p.click('上一页')
+    assert p.title() == '预设 1/2'
 
 
 def test_a_page_the_card_no_longer_fills_is_its_last(fw):
     files = {f'{SAVED}/{k:03}.peq': b'x' for k in range(130)}
     p = page(fw, files=files).advanced()
-    p.click('Presets')
-    p.click('Next page')
+    p.click('预设')
+    p.click('下一页')
     del p.card.files[f'{SAVED}/128.peq'], p.card.files[f'{SAVED}/129.peq']  # gone from the card meanwhile
     p.props[(p.ui.view, '_ringnav_index')] = 7  # the wheel's row: 129.peq
     p.click('128.peq')
-    assert p.ui.file_page == 0 and p.title() == 'Cannot read preset; settings unchanged' and p.captions()[5] == '000.peq'
+    assert p.ui.file_page == 0 and p.title() == '无法读取预设，设置未变' and p.captions()[5] == '000.peq'
     assert p.props[(p.ui.view, 'offset')] == 0 and p.props[(p.ui.view, '_ringnav_index')] == 0
 
 
 def test_saving_offers_ten_slots_and_asks_before_replacing(fw):
     p = page(fw, state(fw, EQ_PEQ, peq=peak(fw, 6))).advanced()
-    p.click('Presets')
-    p.click('Save editor preset')
-    assert p.captions() == [f'Save as Manual {k:02}' for k in range(1, 11)] and p.title() == 'Presets'
-    p.click('Save as Manual 03')
-    assert f'{SAVED}/Manual 03.peq' in p.card.files and p.title() == 'Preset saved; active EQ unchanged'
-    p.click('Save as Manual 03')
-    assert p.captions() == ['Replace existing preset? Confirm', 'Cancel replacement'] and p.ui.screen == CONFIRM
-    p.click('Cancel replacement')
+    p.click('预设')
+    p.click('保存编辑中的预设')
+    assert p.captions() == [f'保存为 Manual {k:02}' for k in range(1, 11)] and p.title() == '预设'
+    p.click('保存为 Manual 03')
+    assert f'{SAVED}/Manual 03.peq' in p.card.files and p.title() == '预设已保存，当前均衡器未变'
+    p.click('保存为 Manual 03')
+    assert p.captions() == ['替换现有预设？确认', '取消替换'] and p.ui.screen == CONFIRM
+    p.click('取消替换')
     assert p.ui.screen == SAVES
 
 
 def test_a_failed_save_says_so(fw):
     p = page(fw).advanced()
-    p.click('Presets')
-    p.click('Save editor preset')
+    p.click('预设')
+    p.click('保存编辑中的预设')
     p.card.fail_writes = True
-    p.click('Save as Manual 01')
-    assert p.title() == 'Save failed; settings unchanged' and f'{SAVED}/Manual 01.peq' not in p.card.files
+    p.click('保存为 Manual 01')
+    assert p.title() == '保存失败，设置未变' and f'{SAVED}/Manual 01.peq' not in p.card.files
 
 
 def test_deleting_asks_then_deletes(fw):
     p = page(fw, files={f'{SAVED}/a.peq': b'x'}).advanced()
-    p.click('Presets')
-    p.click('Delete a preset')
+    p.click('预设')
+    p.click('删除预设')
     p.click('a.peq')
-    assert p.captions() == ['Delete a.peq? Confirm', 'Cancel']
+    assert p.captions() == ['删除 a.peq？确认', '取消']
     rh = fw.fn('page_h', C.c_int, C.c_int)(48)
     shrunk = [h for (w, k), h in p.props.items() if k == 'resized' and w in p.alive]
     assert shrunk == [2 * rh, 2 * rh]  # the list and its view end at the last row: no white below
-    p.click('Delete a.peq? Confirm')
-    assert f'{SAVED}/a.peq' not in p.card.files and p.title() == 'Deleted a.peq; active EQ unchanged'
+    p.click('删除 a.peq？确认')
+    assert f'{SAVED}/a.peq' not in p.card.files and p.title() == '已删除 a.peq，当前均衡器未变'
     p.ret()
     assert p.ui.screen == PRESETS
 
 
 def test_a_failed_delete_says_so(fw):
     p = page(fw, files={f'{SAVED}/a.peq': b'x'}).advanced()
-    p.click('Presets')
-    p.click('Delete a preset')
+    p.click('预设')
+    p.click('删除预设')
     p.click('a.peq')
     fw.mock('fw_unlink', lambda *_: -1)
-    p.click('Delete a.peq? Confirm')
-    assert p.title() == 'Delete failed; preset kept'
+    p.click('删除 a.peq？确认')
+    assert p.title() == '删除失败，预设已保留'
 
 
 def test_the_stock_presets(fw):
     p = page(fw).advanced()
-    p.click('Presets')
-    p.click('Stock presets')
-    assert p.captions() == ['Pop', 'Rock', 'Dance', 'Blues', 'Metal', 'Vocal', 'Classical', 'Jazz']
-    p.click('Jazz')
-    assert p.ui.screen == HOME and 'Presets Jazz' in p.captions() and p.captions()[0] == 'Apply changes'
+    p.click('预设')
+    p.click('内置预设')
+    assert p.captions() == ['流行', '摇滚', '舞曲', '布鲁斯', '金属', '人声', '古典', '爵士']
+    p.click('爵士')
+    assert p.ui.screen == HOME and '预设 爵士' in p.captions() and p.captions()[0] == '应用更改'
 
 
 def test_an_import_with_a_bad_line_says_which(fw):
     p = page(fw, files={f'{IMPORT}/x.txt': b'Preamp: -3 dB\nnonsense\n'}).advanced()
-    p.click('Presets')
-    p.click('Import from SD /EQ')
-    assert p.captions() == ['x.txt'] and p.title() == 'Presets'
+    p.click('预设')
+    p.click('从 SD /EQ 导入')
+    assert p.captions() == ['x.txt'] and p.title() == '预设'
     p.click('x.txt')
-    assert p.title() == 'Line 2: unsupported command' and f'{SAVED}/x.peq' not in p.card.files
+    assert p.title() == '第 2 行：不支持的命令' and f'{SAVED}/x.peq' not in p.card.files
 
 
 def test_no_imports_says_why(fw):
     p = page(fw).advanced()
-    p.click('Presets')
-    p.click('Import from SD /EQ')
-    assert p.captions() == [] and p.title() == 'Folder missing or unavailable'
+    p.click('预设')
+    p.click('从 SD /EQ 导入')
+    assert p.captions() == [] and p.title() == '文件夹不存在或不可用'
 
 
 def test_renaming_opens_the_name_with_the_keyboard_up(fw):
     p = page(fw, files={f'{SAVED}/Rock.peq': b'x'}).advanced()
-    p.click('Presets')
-    p.click('Rename a preset')
+    p.click('预设')
+    p.click('重命名预设')
     p.click('Rock.peq')
     edit = p.edit()
-    assert p.ui.screen == NAMING and p.captions() == ['Rename'] and p.text[edit] == 'Rock' and p.title() == ''
+    assert p.ui.screen == NAMING and p.captions() == ['重命名'] and p.text[edit] == 'Rock' and p.title() == ''
     assert p.props[(edit, 'select_none_when_focused')] == 1 and p.focused[-1] == (edit, 1)
     assert p.handlers(edit, EVT_IM_ACTION) and not p.handlers(edit, EVT_FOCUS)
     p.text[edit] = 'Jazz'
     p.handler(edit, EVT_IM_ACTION)()
     p.handler(edit, EVT_VALUE_CHANGED)()  # Done sends both: renamed once
     p.settle()
-    assert f'{SAVED}/Jazz.peq' in p.card.files and p.ui.screen == PRESETS and p.title() == 'Renamed to Jazz'
+    assert f'{SAVED}/Jazz.peq' in p.card.files and p.ui.screen == PRESETS and p.title() == '已重命名为 Jazz'
 
 
 def test_return_from_the_name_goes_back_to_the_list(fw):
     p = page(fw, files={f'{SAVED}/Rock.peq': b'x'}).advanced()
-    p.click('Presets')
-    p.click('Rename a preset')
+    p.click('预设')
+    p.click('重命名预设')
     p.click('Rock.peq')
     p.ret()
     assert p.ui.screen == RENAMES and p.captions() == ['Rock.peq'] and p.card.files[f'{SAVED}/Rock.peq'] == b'x'
@@ -924,21 +924,21 @@ def test_return_from_the_name_goes_back_to_the_list(fw):
 
 def test_a_tap_on_the_row_renames_through_the_edit_s_blur_once(fw):
     p = page(fw, files={f'{SAVED}/Rock.peq': b'x'}).advanced()
-    p.click('Presets')
-    p.click('Rename a preset')
+    p.click('预设')
+    p.click('重命名预设')
     p.click('Rock.peq')
     p.text[p.edit()] = 'Jazz'
     row = p.rows()[0][1]
     p.handler(p.edit(), EVT_VALUE_CHANGED)()  # the blur, as the touch leaves the edit
     p.handler(row, EVT_CLICK)()  # then the row's own click: renamed already
     p.settle()
-    assert sorted(p.card.files) == [ACTIVE, f'{SAVED}/Jazz.peq'] and p.ui.screen == PRESETS and p.title() == 'Renamed to Jazz'
+    assert sorted(p.card.files) == [ACTIVE, f'{SAVED}/Jazz.peq'] and p.ui.screen == PRESETS and p.title() == '已重命名为 Jazz'
 
 
 def test_return_steps_back_and_leaves_from_the_main_screen(fw):
     p = page(fw).advanced()
-    p.click('Presets')
-    p.click('Stock presets')
+    p.click('预设')
+    p.click('内置预设')
     p.ret()
     assert p.ui.screen == PRESETS
     p.ret()
@@ -949,10 +949,10 @@ def test_return_steps_back_and_leaves_from_the_main_screen(fw):
 
 def test_the_switch_and_per_output_rows(fw):
     p = page(fw, state(fw, EQ_OFF)).advanced()
-    p.click('Enabled')
-    assert p.card.state().mode == EQ_PEQ and 'Enabled On' in p.captions()
-    p.click('EQ per Output')
-    assert ('Q2POD', 'EQOUTPUT', 1) in p.config and 'EQ per Output On' in p.captions()
+    p.click('启用')
+    assert p.card.state().mode == EQ_PEQ and '启用 打开' in p.captions()
+    p.click('按输出独立 EQ')
+    assert ('Q2POD', 'EQOUTPUT', 1) in p.config and '按输出独立 EQ 打开' in p.captions()
 
 
 # Closing.
@@ -1004,7 +1004,7 @@ def test_closing_with_an_edit_up_lets_t9_go(fw):
 
 def test_closing_frees_the_preset_list(fw):
     p = page(fw, files={f'{SAVED}/a.peq': b'x'}).advanced()
-    p.click('Presets')
+    p.click('预设')
     assert p.ui.capacity and p.ui.names
     p.handler(p.page, EVT_DESTROY)()
     assert p.ui.capacity == 0 and p.ui.names is None and p.ui.file_page == 0
@@ -1019,14 +1019,14 @@ def test_simple_s_presets_play_a_stock_preset_at_once_and_come_back(fw):
     p.run('e3_single')
     p.settle()
     stocks = p.captions()
-    assert p.ui.screen == STOCKS and 'Rock' in stocks
-    p.click('Rock')
+    assert p.ui.screen == STOCKS and '摇滚' in stocks
+    p.click('摇滚')
     s = p.card.state()
-    rock = list(fw.var('peq_ui__stock_gains', (C.c_byte * 10) * len(stocks))[stocks.index('Rock')])  # its row in stock's table
+    rock = list(fw.var('peq_ui__stock_gains', (C.c_byte * 10) * len(stocks))[stocks.index('摇滚')])  # its row in stock's table
     assert s.mode == EQ_PEQ and not s.peq.bypass and [s.peq.bands[k].gain for k in range(10)] == rock
     assert [s.peq.bands[k].enabled for k in range(10)] == [int(g != 0) for g in rock]  # a band at 0 dB is off
     assert p.ui.tab == SIMPLE and p.e3.focus == E3_PRESETS and p.e3.status is None and p.e3.view
-    assert p.ui.applied == b'Rock'
+    assert p.ui.applied == b'\xe6\x91\x87\xe6\xbb\x9a'
 
 
 def test_back_from_simple_s_presets_changes_nothing(fw):
@@ -1047,8 +1047,8 @@ def test_a_failed_apply_from_simple_s_presets_says_so_on_simple(fw):
     p.run('e3_single')
     p.settle()
     p.card.fail_writes = True
-    p.click('Rock')
-    assert p.ui.tab == SIMPLE and p.e3.status == b'Apply failed; active EQ unchanged'
+    p.click('摇滚')
+    assert p.ui.tab == SIMPLE and p.e3.status == b'\xe5\xba\x94\xe7\x94\xa8\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x8c\xe5\xbd\x93\xe5\x89\x8d\xe5\x9d\x87\xe8\xa1\xa1\xe5\x99\xa8\xe6\x9c\xaa\xe5\x8f\x98'
 
 
 def test_unsaved_gains_keep_simple_when_presets_can_t_save_them(fw):
@@ -1096,7 +1096,7 @@ def test_a_tap_on_r_resets_the_sliders_and_a_drag_follows_the_finger(fw):
     assert p.touch(view, EVT_POINTER_DOWN, *centre('R')) == 0 and p.e3.focus == E3_RESET
     assert list(p.e3.gain) == [0, 0, 0] and [p.card.state().eq3.bands[k].gain for k in range(3)] == [0, 0, 0]  # saved at once
     assert fw.calls('stock_eq_trampoline') and not p.e3.dirty  # and heard
-    top, bottom, x = y(6), y(-6), centre('Mid')[0]  # the travel's ends: +-6 dB
+    top, bottom, x = y(6), y(-6), centre('中频')[0]  # the travel's ends: +-6 dB
     p.touch(view, EVT_POINTER_DOWN, x, (top + bottom) // 2)
     assert p.e3.focus == E3_MID and p.e3.dragging and p.e3.adjusting and p.e3.gain[1] == 0
     p.touch(view, EVT_POINTER_MOVE_BEFORE, x, bottom)
@@ -1119,7 +1119,7 @@ def e3_canvas(fw, p):
 def test_simple_paints_the_switch_the_sliders_and_their_values(fw):
     p = page(fw, state(fw, EQ_3, gains=(1.5, 0, -6))).open()
     c = e3_canvas(fw, p)
-    assert [t[0] for t in c.texts] == ['Enabled: On', 'Presets', 'R', 'Low', '+1.5 dB', 'Mid', '0 dB', 'High', '-6.0 dB']
+    assert [t[0] for t in c.texts] == ['启用：打开', '预设', 'R', '低频', '+1.5 dB', '中频', '0 dB', '高频', '-6.0 dB']
     y = fw.fn('peq_ui__e3_y', C.c_int, C.c_double)
     zero, up, down = y(0), y(1.5), y(-6)
     assert up < zero < down
@@ -1134,7 +1134,7 @@ def test_simple_paints_the_switch_the_sliders_and_their_values(fw):
     assert p.key(KEY_NEXT) == 1 and p.e3.focus == E3_MID
     turned = grid(e3_canvas(fw, p))
     (low,), (mid,) = [g for g in rects if g not in turned], [g for g in turned if g not in rects]
-    for card, name, value, bar in ((low, 'Low', '+1.5 dB', bars[0]), (mid, 'Mid', '0 dB', bars[1])):
+    for card, name, value, bar in ((low, '低频', '+1.5 dB', bars[0]), (mid, '中频', '0 dB', bars[1])):
         travel = (bar[1], y(6), bar[3], y(-6) - y(6))
         assert holds(card[1:], c.text(name)[0][3]) and holds(card[1:], travel) and holds(card[1:], c.text(value)[0][3])
     assert mid[1] - low[1] == xs[1] - xs[0] and mid[2:] == low[2:] and rects.index(low) < rects.index(bars[0])  # under its bar
@@ -1154,8 +1154,8 @@ def test_simple_off_is_grey_and_an_adjusted_slider_lit(fw):
     p = page(fw, state(fw, EQ_OFF, gains=gains)).open()
     y = fw.fn('peq_ui__e3_y', C.c_int, C.c_double)
     c = e3_canvas(fw, p)
-    assert c.text('Enabled: Off') and not [g for g in grid(c) if g[0] == tone(fw)]  # no accent anywhere
-    sliders = lambda c: [slider(c, name, y(gain)) for name, gain in zip(('Low', 'Mid', 'High'), gains)]
+    assert c.text('启用：关闭') and not [g for g in grid(c) if g[0] == tone(fw)]  # no accent anywhere
+    sliders = lambda c: [slider(c, name, y(gain)) for name, gain in zip(('低频', '中频', '高频'), gains)]
     before = sliders(c)
     p.centre()
     p.run('e3_single')
@@ -1167,7 +1167,7 @@ def test_simple_off_is_grey_and_an_adjusted_slider_lit(fw):
     assert all(bright(after[0][k]) > bright(other[k]) for other in after[1:] for k in (0, 1))  # the brighter
 
 
-@pytest.mark.parametrize('name, shown, small', (('', 'Advanced', False), ('Rock', 'Rock', False), ('Headphones', 'Headphones', True),
+@pytest.mark.parametrize('name, shown, small', (('', '高级', False), ('摇滚', '摇滚', False), ('Headphones', 'Headphones', True),
                                                 ('Headphones X', 'Headphones X', True), ('Sennheiser HD 600', 'Sennheiser H', True),
                                                 ('Café Del Mar!', 'Café Del Ma', True),  # 12 bytes, the e two of them
                                                 ('Bass Boost €€', 'Bass Boost ', True),  # byte 12 inside the euro: all of it goes
@@ -1179,22 +1179,22 @@ def test_a_playing_peq_shows_on_under_its_preset_s_name(fw, name, shown, small):
     c = e3_canvas(fw, p)
     switch = c.texts[0]
     assert switch[0] == shown and len(shown.encode()) <= 12
-    assert (switch[1] < c.text('Presets')[0][1]) == small  # past nine characters, smaller
-    names = [t[2] for t in c.texts if t[0] in ('Low', 'Mid', 'High')]
+    assert (switch[1] < c.text('预设')[0][1]) == small  # past nine characters, smaller
+    names = [t[2] for t in c.texts if t[0] in ('低频', '中频', '高频')]
     assert len(names) == 3 and all(bright(n) < bright(switch[2]) for n in names)  # dimmed: one takes over as 3EQ
 
 
-def test_a_stray_continuation_byte_is_drawn_as_itself(fw):
+def test_a_stray_continuation_byte_is_replaced(fw):
     p = page(fw, state(fw, EQ_PEQ)).open()
     p.ui.applied = b'a\x80b\xf0\x9f\x8e\xb5'
-    assert e3_canvas(fw, p).texts[0][0] == 'a\x80b\U0001f3b5'
+    assert e3_canvas(fw, p).texts[0][0] == 'a�b🎵'
 
 
 def test_the_tabs_paint_the_open_one_and_the_wheel_s(fw):
     p = page(fw).open()
     c = Canvas(fw)
     paint(fw, p.ui.bar, c)
-    (simple,), (advanced,) = c.text('Simple'), c.text('Advanced')
+    (simple,), (advanced,) = c.text('简单'), c.text('高级')
     assert bright(simple[2]) > bright(advanced[2])  # the open tab the brighter
     (accent,) = [g for g in grid(c) if g[0] == tone(fw)]
     left, width = simple[3][0], simple[3][2]
@@ -1209,7 +1209,7 @@ def test_the_tabs_paint_the_open_one_and_the_wheel_s(fw):
     x, w = advanced[3][0], advanced[3][2]
     assert card[1] <= x and x + w <= card[1] + card[3] and card[1] >= left + width  # under Advanced, clear of Simple
     assert card[0] != tone(fw)
-    p.e3.status = b'Save failed; EQ unchanged'
+    p.e3.status = b'\xe4\xbf\x9d\xe5\xad\x98\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x8c\xe5\x9d\x87\xe8\xa1\xa1\xe5\x99\xa8\xe6\x9c\xaa\xe5\x8f\x98'
     c = Canvas(fw)
     paint(fw, p.ui.bar, c)
     assert not c.texts  # the message has the bar
@@ -1314,7 +1314,7 @@ def test_the_page_opens_under_whose_eq_it_is(fw, key, caption):
     assert p.title() == caption and p.e3.caption
     assert p.key(KEY_NEXT) == 1 and p.title() == '' and not p.e3.caption  # the first turn clears it
     p.tab(300)
-    assert p.title() == '' and 'EQ per Output On' in p.captions()
+    assert p.title() == '' and '按输出独立 EQ 打开' in p.captions()
 
 
 def test_without_per_output_the_page_opens_bare(fw):
@@ -1340,10 +1340,10 @@ def test_unapplied_advanced_edits_follow_to_the_new_output(fw):
     p = Page(fw, card)
     fw.fn('eq_output', None, C.c_char_p)(b'3.5mm')
     p.advanced()
-    p.click('Reset to defaults')
+    p.click('恢复默认设置')
     fw.fn('eq_output', None, C.c_char_p)(b'usb')
     p.settle()
-    assert p.ui.draft.bands[0].gain == 0 and p.ui.dirty and p.captions()[0] == 'Apply changes' and p.captions()[2] == 'Enabled Off'
+    assert p.ui.draft.bands[0].gain == 0 and p.ui.dirty and p.captions()[0] == '应用更改' and p.captions()[2] == '启用 关闭'
 
 
 def test_an_output_change_waits_while_a_keyboard_is_up(fw):

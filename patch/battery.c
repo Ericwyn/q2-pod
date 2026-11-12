@@ -86,7 +86,7 @@ static void bh_text(char *s, unsigned size, unsigned i) {
         tk_snprintf(s, size, "%u%% | %02d:%02d", pct, tm[2], tm[1]);
     else if (tm)
         tk_snprintf(s, size, "%u%% | %d:%02d %s", pct, (tm[2] + 11) % 12 + 1, tm[1],
-                    tm[2] < 12 ? "AM" : "PM");
+                    tm[2] < 12 ? "上午" : "下午");
     else if (at >= from)
         tk_snprintf(s, size, "%u%% | +%u:%02u", pct, m / 60, m % 60);
     else /* the clock lost after the start */
@@ -115,7 +115,7 @@ unsigned battery_log(char *out, unsigned size) {
     unsigned len = 0;
     *out = 0;
     if (bh.rec.n && bh.rec.row[0].at < CLOCK_SET)
-        tk_snprintf(out, size, "Clock not set: times since the start\n");
+        tk_snprintf(out, size, "时钟未设置：显示开始后的时长\n");
     for (unsigned i = 0; i < bh.rec.n && (len = strlen(out)) < size; ++i) {
         char day[32], row[48];
         bh_day(day, sizeof day, i, 1);
@@ -131,15 +131,15 @@ unsigned battery_log(char *out, unsigned size) {
 static int bh_export(void *ctx, void *event) {
     char out[BH_ROWS * 64 + 64];
     if (navigator_window_is_exist("usbmode_page"))
-        toast("The card is in use over USB");
+        toast("存储卡正在通过 USB 使用");
     else if (!card_mounted())
-        toast("Storage unavailable");
+        toast("存储不可用");
     else if (!card_room(PEQ_ROOT "/mnt/mmc", 1, 0))
-        toast("The card is full");
+        toast("存储卡已满");
     else if (!blob_io(BH_LOG, BH_LOG ".tmp", out, battery_log(out, sizeof out), 1))
-        unlink(BH_LOG ".tmp"), toast("Couldn't save");
+        unlink(BH_LOG ".tmp"), toast("无法保存");
     else
-        toast("Saved to battery-log.txt");
+        toast("已保存到 battery-log.txt");
     return 0;
 }
 
@@ -159,8 +159,8 @@ static void bh_fill(void) {
         offset = bh.view ? widget_get_prop_int(bh.view, "yoffset", 0) : 0;
     bh.stale = 0;
     bh.graph = 0;
-    void *view = bh.view = page_list_or(bh.page, bh.page, "Battery History", "Unplug to start",
-                                        n ? (int)n + 1 : 0, 48);
+    void *view = bh.view =
+        page_list_or(bh.page, bh.page, "电池历史", "拔下充电线以开始", n ? (int)n + 1 : 0, 48);
     if (!n) return;
     void *list = P(view, W_PARENT);
     int rh = page_h(48), head = 2 * rh, y = I(list, W_Y),
@@ -169,7 +169,7 @@ static void bh_fill(void) {
     widget_move_resize(list, 0, y + head, 375, h);
     widget_resize(view, 375, h);
     bh.graph = widget_factory_create_widget(widget_factory(), "view", bh.page, 0, y, 375, head);
-    page_row_detail(view, 0, "Export Log", 0, bh_export);
+    page_row_detail(view, 0, "导出日志", 0, bh_export);
     for (unsigned i = 0; i < n; ++i) {
         char day[16], s[64];
         bh_text(s, sizeof s, i);

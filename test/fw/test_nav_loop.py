@@ -484,7 +484,7 @@ def test_the_syncs_failure_is_toasted_once(fw, power):
     assert seen == [C.string_at(err)] and not power('logo_err', C.c_void_p).value
 
 
-LOGO_BAD = 'Boot logo must be a 320x375 JPEG'
+LOGO_BAD = '开机图须为 320x375 JPEG'
 
 
 def power_on(fw, power, clock):
@@ -658,7 +658,7 @@ def test_the_card_copy_names_each_rated_song_and_album(fw, st):
     lib.song(b'/mnt/mmc/Fav/f.flac', table=lib.myfav)
     lib.song(b'/mnt/mmc/A/1.flac', b'Album', b'Artist')
     lib.song(b'/mnt/mmc/A/2.flac', b'Album', b'Artist')
-    lib.song(b'/mnt/mmc/B/3.flac', b'Other', b'Band')
+    lib.song(b'/mnt/mmc/B/3.flac', b'Other', b'\xe9\xa2\x91\xe6\xae\xb5')
     lib.rate(b'/mnt/mmc/A/2.flac', 3)
     lib.rate_album(b'Album', b'Artist', b'/mnt/mmc/A/1.flac', 4)
     assert lib.run()
@@ -2609,7 +2609,7 @@ def test_classic_paints_the_date_page(fw, keys, classic, edited):
     assert canvas.fill() == 0xff123456
 
 
-@pytest.mark.parametrize('twelve, hour, shown', [(True, 21, ['9', '05', 'PM']), (True, 0, ['12', '05', 'AM']), (True, 12, ['12', '05', 'PM']),
+@pytest.mark.parametrize('twelve, hour, shown', [(True, 21, ['9', '05', '下午']), (True, 0, ['12', '05', '上午']), (True, 12, ['12', '05', '下午']),
                                                  (False, 21, ['21', '05'])])
 def test_classic_paints_the_time_page(fw, keys, classic, twelve, hour, shown):
     ui = Ui(fw)

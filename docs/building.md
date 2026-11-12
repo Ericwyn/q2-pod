@@ -20,6 +20,12 @@
 4e298cab6c12d86cfc55565645f7e3ae11d3fb44677a93ca13991e7184ecec4e
 ```
 
+The Chinese fork also accepts Shanling's official V1.36 OTA TAR, pinned in full to
+`7f57884420e324ac3263571d96a35f04bbef79f35dac34162655c5822bdaa684`.
+The ZIP pin remains unchanged. Both inputs go through the same package and binary checks;
+`input_zip_sha256` in the manifest records the actual input archive's digest for compatibility.
+See [chinese-local.md](chinese-local.md).
+
 ## Build
 
 ```sh

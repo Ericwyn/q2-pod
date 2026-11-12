@@ -17,7 +17,7 @@ RET_REMOVE, RET_REPEAT = 7, 8
 EVT_DESTROY, EVT_VALUE_CHANGED, EVT_CLICK = O['EVT_DESTROY'], O['EVT_VALUE_CHANGED'], O['EVT_CLICK']
 W_X, W_Y, W_W, W_PARENT = O['W_X'], O['W_Y'], O['W_W'], O['W_PARENT']
 RING, TAP_SIZE = 65536, 24 + 65536 * 8
-NAMES = ['Spectrum', 'Oscilloscope', 'VU Meters', 'Halo']
+NAMES = ['频谱', '示波器', 'VU 表', '光环']
 
 
 class Vz(C.Structure):
@@ -1072,7 +1072,7 @@ def test_without_a_vgcanvas_the_style_s_name_still_shows(fw):
     canvas = Canvas(fw)
     fw.mock('canvas_get_vgcanvas', lambda *_: 0)
     paint(fw, now.win, canvas)
-    assert [t for t, _ in canvas.texts] == ['Oscilloscope'] and not [n for n, _ in fw.calls() if n.startswith('vgcanvas_')]
+    assert [t for t, _ in canvas.texts] == ['示波器'] and not [n for n, _ in fw.calls() if n.startswith('vgcanvas_')]
 
 
 def test_no_style_name_before_a_tap_even_just_after_boot(fw):
@@ -1457,7 +1457,7 @@ def test_the_style_s_name_and_the_track_s_take_one_place(fw):
     now.now += 5000
     track = quiet_paint(fw, now, 'Song', 'Band', full=True)
     (name,), (title,) = named.drawn, track.drawn
-    assert (name['text'], title['text']) == ('Oscilloscope', 'Song · Band')
+    assert (name['text'], title['text']) == ('示波器', 'Song · Band')
     for d in (name, title):
         x, y, w, h = d['rect']
         assert x + w / 2 == now.v.w / 2 and PAGE_H / 2 < y and y + h <= PAGE_H

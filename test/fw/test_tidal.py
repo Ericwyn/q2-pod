@@ -709,7 +709,7 @@ def test_a_card_that_refuses_the_delete_ends_the_trim(fw):
 # Download All.
 
 REPLY = '/tmp/tidalplayurl_77'
-ALL_ROW = 'Download Playing Songs'
+ALL_ROW = '下载播放中的歌曲'
 
 
 class All:
@@ -775,7 +775,7 @@ def test_download_all_saves_the_queue_s_tidal_songs_one_after_another_without_pl
     card, cdn = Card(fw), Cdn(fw, {URL: b'fLaC-1', NEXT: b'fLaC-2'})
     a = All(fw, queue, mcl, card, ['11', 'app:1:0', '', '22'])  # a card app's song and a row with no id aren't Tidal's
     assert a.row() == ALL_ROW and not a.busy()
-    assert a.row(press=1) == 'Downloading 1 of 2. Press to stop' and a.busy()  # Smart Wi-Fi keeps the radio on
+    assert a.row(press=1) == '正在下载 1/2 首，按下停止' and a.busy()  # Smart Wi-Fi keeps the radio on
     a.heart.value = 1  # the playing song's
     a.poll()
     assert a.asked() == '11' and len(a.posts) == 1  # the thread woken once
@@ -790,13 +790,13 @@ def test_download_all_saves_the_queue_s_tidal_songs_one_after_another_without_pl
     a.t.run()
     assert card.listing() == ['11-0.flac'] and card.files[cached('11-0.flac')] == b'fLaC-1'
     a.poll()
-    assert a.asked() == '22' and a.row() == 'Downloading 2 of 2. Press to stop'
+    assert a.asked() == '22' and a.row() == '正在下载 2/2 首，按下停止'
     assert a.answer(NEXT, '22') == 1
     a.t.run()
     a.poll()
     assert not a.busy() and a.row() == ALL_ROW and a.toasts == []  # ended: said at the next pass
     a.poll()
-    assert a.toasts == ['Downloaded 2 of 2 songs'] and a.t.played == [] and cdn.fetched == [URL, NEXT]
+    assert a.toasts == ['已下载 2/2 首歌曲'] and a.t.played == [] and cdn.fetched == [URL, NEXT]
     a.poll(3)
     assert len(a.toasts) == 1 and len(a.posts) == 2
 
@@ -821,7 +821,7 @@ def test_download_all_passes_the_songs_already_on_the_card_at_the_streaming_qual
     a = All(fw, queue, mcl, card, ['11', '22', '33'], level=5)  # HiRes and above is asked for as 3, as stock's thread does
     a.row(press=1)
     a.poll()
-    assert a.asked() == '33' and a.row() == 'Downloading 3 of 3. Press to stop' and a.t.td.saved == 2
+    assert a.asked() == '33' and a.row() == '正在下载 3/3 首，按下停止' and a.t.td.saved == 2
     assert not fw.calls('fw_curl_easy_init')
 
 
@@ -830,7 +830,7 @@ def test_download_all_of_songs_all_on_the_card_ends_at_once(fw, queue, mcl):
     a = All(fw, queue, mcl, card, ['11', '22'])
     a.row(press=1)
     a.poll(2)
-    assert a.toasts == ['Downloaded 2 of 2 songs'] and a.posts == [] and a.asked() is None
+    assert a.toasts == ['已下载 2/2 首歌曲'] and a.posts == [] and a.asked() is None
 
 
 @pytest.mark.parametrize('url', [None, '', 'https://cdn.example/a/noext'])
@@ -846,7 +846,7 @@ def test_a_song_tidal_gives_no_url_for_is_passed_and_three_in_a_row_end_it(fw, q
     a.poll()
     assert not a.busy() and a.asked() is None  # the Wi-Fi or the sign-in gone: 55 isn't asked for
     a.poll()
-    assert a.toasts == ['Downloaded 1 of 5 songs']
+    assert a.toasts == ['已下载 1/5 首歌曲']
 
 
 def test_a_saved_song_between_two_that_werent_keeps_download_all_going(fw, queue, mcl):
@@ -925,7 +925,7 @@ def test_the_song_download_all_asked_for_played_meanwhile_plays(fw, queue, mcl):
     assert a.answer(URL, '11') == 0 and a.t.played == [URL]  # the one stock asked for
     a.t.run()
     a.poll(2)
-    assert a.toasts == ['Downloaded 1 of 1 song']
+    assert a.toasts == ['已下载 1/1 首歌曲']
 
 
 def test_nothing_is_asked_while_stock_sets_up_a_song_to_play(fw, queue, mcl):
@@ -1005,7 +1005,7 @@ def test_a_second_press_ends_download_all_and_its_transfer(fw, queue, mcl):
     a.t.run()
     assert card.listing() == [] and not a.busy() and a.row() == ALL_ROW
     a.poll()
-    assert a.toasts == ['Downloaded 0 of 2 songs'] and a.asked() is None
+    assert a.toasts == ['已下载 0/2 首歌曲'] and a.asked() is None
 
 
 def test_an_answer_after_download_all_ended_starts_nothing_and_a_new_one_goes_on(fw, queue, mcl):
@@ -1015,7 +1015,7 @@ def test_an_answer_after_download_all_ended_starts_nothing_and_a_new_one_goes_on
     a.row(press=1)
     a.poll()
     a.row(press=1)  # ended, the thread still fetching 11
-    assert a.row(press=1) == 'Downloading 1 of 2. Press to stop'  # and started again
+    assert a.row(press=1) == '正在下载 1/2 首，按下停止'  # and started again
     a.poll()
     assert len(a.posts) == 1  # the answer still to come: asked once
     assert a.answer(URL, '11') == 1 and a.t.played == []  # the new one's first song as well: saved
@@ -1035,7 +1035,7 @@ def test_stop_streaming_services_ends_download_all(fw, queue, mcl):
     stop()
     assert not a.busy()
     a.poll()
-    assert a.toasts == ['Downloaded 0 of 1 song']
+    assert a.toasts == ['已下载 0/1 首歌曲']
 
 
 def test_clear_all_downloads_ends_download_all_and_says_nothing(fw, queue, mcl):
@@ -1057,7 +1057,7 @@ def test_download_all_ends_when_nothing_moves_for_two_minutes(fw, queue, mcl):
     a.poll(120)
     assert a.busy() and a.posts == []
     a.poll(2)
-    assert not a.busy() and a.toasts == ['Downloaded 0 of 1 song']
+    assert not a.busy() and a.toasts == ['已下载 0/1 首歌曲']
 
 
 def test_download_all_ends_on_a_full_card(fw, queue, mcl):
@@ -1065,7 +1065,7 @@ def test_download_all_ends_on_a_full_card(fw, queue, mcl):
     a = All(fw, queue, mcl, card, ['11'])
     a.row(press=1)
     a.poll(2)
-    assert a.toasts == ['Downloaded 0 of 1 song'] and a.posts == []
+    assert a.toasts == ['已下载 0/1 首歌曲'] and a.posts == []
 
 
 def test_download_all_on_a_card_without_the_cache_folder_makes_it_and_goes_on(fw, queue, mcl):
@@ -1090,7 +1090,7 @@ def test_the_count_is_told_once_the_screen_is_on(fw, queue, mcl):
     assert fw.calls('reset_poweroptions_timer') == fw.calls('reset_poweroptions_timer')[:1]  # nothing held once it ended
     fw.var('g_backlight_status', C.c_ubyte).value = 1
     a.poll()
-    assert a.toasts == ['Downloaded 1 of 1 song']
+    assert a.toasts == ['已下载 1/1 首歌曲']
 
 
 @pytest.mark.parametrize('kind, ids', [(0xf1, ['app:1:0', '']), (0xf1, []), (0xf001, ['11']), (1, ['11'])])
@@ -1098,7 +1098,7 @@ def test_download_all_needs_a_tidal_song_in_the_queue_playing(fw, queue, mcl, ki
     card = Card(fw)
     a = All(fw, queue, mcl, card, ids)
     mcl.type = kind
-    assert a.row(press=1) == ALL_ROW and a.toasts == ['Play a Tidal album or playlist first'] and not a.busy()
+    assert a.row(press=1) == ALL_ROW and a.toasts == ['请先播放 Tidal 专辑或播放列表'] and not a.busy()
     a.poll(2)
     assert a.posts == [] and len(a.toasts) == 1
 
@@ -1145,7 +1145,7 @@ def test_usb_storage_drops_download_all_s_waiting_song_and_waits_for_its_worker(
     assert usb_storage(fw, a, stock) == 3
     assert stock == [(None, 0, a.t.ms)] and len(sleeps) == 1 and card.listing() == [] and not fw.calls('fw_curl_easy_init')
     a.poll()
-    assert a.toasts == ['Downloaded 0 of 2 songs'] and a.asked() is None
+    assert a.toasts == ['已下载 0/2 首歌曲'] and a.asked() is None
 
 
 @pytest.mark.parametrize('all_run', [True, False])
@@ -1187,7 +1187,7 @@ def test_download_all_never_evicts_its_own_songs_it_ends_with_the_cache_full(fw,
         a.t.run()
     assert card.listing() == ['11-0.flac', '22-0.flac', '33-0.flac'] and a.t.td.full == 1
     a.poll(2)
-    assert a.toasts == ['Tidal Cache full: 3 of 4 songs saved'] and len(a.posts) == 3  # 44 never asked for
+    assert a.toasts == ['Tidal 缓存已满：已保存 3/4 首歌曲'] and len(a.posts) == 3  # 44 never asked for
     a.row(press=1)
     assert a.t.td.full == 0 and a.t.td.since == 0  # a new run starts afresh
 
@@ -1209,7 +1209,7 @@ def test_download_all_keeps_the_songs_it_passes_as_saved_and_counts_them_true(fw
     a.t.run()
     assert card.listing() == ['11-0.flac', '22-0.flac', '33-0.flac'] and a.t.td.full == 1
     a.poll(2)
-    assert a.toasts == ['Tidal Cache full: 3 of 4 songs saved']
+    assert a.toasts == ['Tidal 缓存已满：已保存 3/4 首歌曲']
 
 
 def test_a_run_whose_last_song_fills_the_cache_says_downloaded(fw, queue, mcl):
@@ -1227,7 +1227,7 @@ def test_a_run_whose_last_song_fills_the_cache_says_downloaded(fw, queue, mcl):
         a.t.run()
     assert card.listing() == ['11-0.flac', '22-0.flac'] and a.t.td.full == 1
     a.poll(2)
-    assert a.toasts == ['Downloaded 2 of 2 songs']
+    assert a.toasts == ['已下载 2/2 首歌曲']
 
 
 def test_a_run_the_cache_fills_passes_the_rest_already_saved_and_says_downloaded(fw, queue, mcl):
@@ -1245,7 +1245,7 @@ def test_a_run_the_cache_fills_passes_the_rest_already_saved_and_says_downloaded
     a.t.run()
     assert a.t.td.full == 1 and len(card.listing()) == 11
     a.poll(3)  # 2-9, then 10-11 and the end, then the toast
-    assert a.toasts == ['Downloaded 11 of 11 songs']
+    assert a.toasts == ['已下载 11/11 首歌曲']
 
 
 def test_tidal_poll_passes_at_most_8_saved_songs_a_second(fw, queue, mcl):

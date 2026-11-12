@@ -227,7 +227,7 @@ m.press(6000); assert m.hold()==11 and m.release()==0
 m.press(7000); assert m.release()==1; checks+=1
 m=now_playing(); m.options(1,2,0); calls=m.random_calls
 m.press(6000); assert m.hold()==11 and m.release()==0 and 'Up Next' not in m.labels()
-m.pick(m.labels().index('View Queue')); m.advance(0)
+m.pick(m.labels().index('查看队列')); m.advance(0)
 assert 'window_create' in [c[0] for c in m.calls] and m.random_calls==calls and not m.playback(); checks+=1
 
 # Album identity (name, then album artist, else folder) crosses folders with an album artist;
@@ -1228,20 +1228,20 @@ checks+=1
 # UI wiring: stock-style choice menu, selected marker, touch and wheel slider.
 m=PlaybackMachine(); m.top=m.node('window','playing_page'); m.stack=[m.top]; m.word(m.top+O['W_PARENT'],m.wm)
 m.press(100); assert m.hold()==11
-assert m.labels()[-3:]==['Shuffle','Repeat','Group by: Album']
-m.pick(m.labels().index('Shuffle')); m.advance(0,clear=False)
-assert m.labels()==['Off','All Songs','Songs in Album','Albums','Albums and Songs']
+assert m.labels()[-3:]==['随机播放','重复播放','分组：专辑']
+m.pick(m.labels().index('随机播放')); m.advance(0,clear=False)
+assert m.labels()==['关闭','全部歌曲','专辑内歌曲','专辑','专辑及歌曲']
 assert any(n.get('image')=='select' for n in m.nodes.values())
 m.pick(3); m.advance(0,clear=False); assert m.fn('playback_option',0)==3
 # Grouped by folder, the choices name folders.
 m=PlaybackMachine(); m.options(3,2,1); m.top=m.node('window','playing_page'); m.stack=[m.top]; m.word(m.top+O['W_PARENT'],m.wm)
-m.press(100); assert m.hold()==11; m.pick(m.labels().index('Repeat')); m.advance(0,clear=False)
-assert m.labels()==['Play One Song','Play One Folder','Play All','Repeat Song','Repeat Folder','Repeat All']
+m.press(100); assert m.hold()==11; m.pick(m.labels().index('重复播放')); m.advance(0,clear=False)
+assert m.labels()==['播放单曲','播放单个文件夹','顺序播放','单曲循环','文件夹循环','全部循环']
 for folder in (0,1):
     m=PlaybackMachine(); m.options(3,2,folder)
     m.top=m.node('window','playing_page'); m.stack=[m.top]; m.word(m.top+O['W_PARENT'],m.wm)
     m.press(100); assert m.hold()==11
-    assert m.labels()[:2]==(['Next Folder','Previous Folder'] if folder else ['Next Album','Previous Album'])
+    assert m.labels()[:2]==(['下一个文件夹','上一个文件夹'] if folder else ['下一张专辑','上一张专辑'])
     m.pick(0); m.advance(0,clear=False); assert m.current() not in (0,2,6)
     checks+=1
 m=PlaybackMachine(); m.handlers[ps['stock_display_trampoline']]='stock_display'
@@ -1250,7 +1250,7 @@ m.top=m.node('window','display_page',[lst]); m.stack=[m.top]
 for child,parent in ((view,lst),(lst,m.top),(m.top,m.wm)): m.word(child+O['W_PARENT'],parent)
 m.word(ps['display_sub'],3)  # Display's Controls page
 assert m.fn('ringnav_display',m.top,0)==0
-assert [n['text'] for n in m.nodes.values() if 'Wheel Sensitivity' in str(n.get('text'))]==['Wheel Sensitivity: 50%']  # the row, test/patch.py's
+assert [n['text'] for n in m.nodes.values() if '滚轮灵敏度' in str(n.get('text'))]==['滚轮灵敏度：50%']  # the row, test/patch.py's
 checks+=1
 
 # Manual Next/Prev at the queue ends runs stock player_change_music through ringnav_change. Stock
@@ -1351,7 +1351,7 @@ m=HeldMachine(); m.install([('book','/a/book.m4b','B',0,0,0,0)],0); m.word(O['MC
 m.poll(0,2); m.poll(100,3); place=m.places(); assert [s for _,s in place]==[100]
 def press(): del m.seen[:]; return signed(m.call(address=syms['player_change_music'],args=(0,0,0,0),gap=0))
 assert press()==0 and not m.seen and m.get(ps['restart_ask'])==1
-m.poll(100); assert m.places()==place and m.toasts[-1]=='Press again to restart'
+m.poll(100); assert m.places()==place and m.toasts[-1]=='再次按下以重新开始'
 assert press()==1 and m.seen; m.poll(0,3); assert m.places()==[] and not m.seeks
 checks+=1
 
@@ -1420,7 +1420,7 @@ class RealKeyMachine(KeyMixin,HeldMachine):
     sec=property(lambda self:self.play[0],lambda self,v:setattr(self,'play',(v,self.play[1])))
 m=RealKeyMachine(); m.install([('book','/a/book.m4b','B',0,0,0,0)],0); m.word(O['MCL_TYPE'],1); m.keys()
 m.poll(0,2); m.poll(100,3); place=m.places(); assert [s for _,s in place]==[100]
-assert m.key(PREV_KEY)=='ask'; m.word(ps['restart_ask'],1); m.poll(100); assert m.places()==place and m.toasts[-1]=='Press again to restart'
+assert m.key(PREV_KEY)=='ask'; m.word(ps['restart_ask'],1); m.poll(100); assert m.places()==place and m.toasts[-1]=='再次按下以重新开始'
 assert m.key(PREV_KEY,600)=='seek'; m.poll(0,3); assert m.places()==[]
 # The time is live, not the poll's: a scrub to 100 s before the next poll asks; a third Previous after a restart, with no
 # poll yet, restarts unasked; Previous within a second of Next, on a track at 0, doesn't ask for the one left.
@@ -1665,7 +1665,7 @@ r=m.items(m.get(syms['mcl_pdeqplaylist']))[2]
 m.word(r+O['REC_PATH'],m.string('/A/book.m4b'))
 assert m.fn('ringnav_start_player')==-1 and m.mp4_checks==['/A/book.m4b']
 m.fn('playback_poll'); m.fn('playback_poll')
-assert m.toasts==['Too long to play on the Q2: split it into parts']
+assert m.toasts==['文件过长，Q2 无法播放：请分割为多段']
 m.fits=1; assert m.fn('playback_start_fits')==1
 # The file last started, started again (a CUE book's next chapter), is not checked: its index is
 # freed first. Another file is, and so is a preload of the same file, which opens beside it.
@@ -1744,7 +1744,7 @@ m.fn('ringnav_speed',1); assert m.mcl('MCL_PRELOAD')==0
 for failure in ('write','close','rename'):
     m=PlaybackMachine(fresh.files); speed_at(m,0); before=dict(m.files); m.fail=failure
     m.fn('ringnav_speed',1)
-    assert m.sent_speed==(0 if failure=='close' else 2) and m.toasts==['Could not save folder speed']
+    assert m.sent_speed==(0 if failure=='close' else 2) and m.toasts==['无法保存文件夹播放速度']
     assert not [k for k,v in before.items() if m.files[k]!=v]
     assert not any(k.endswith(".tmp") for k in m.files)
 # Truncated, invalid and wrong-folder records cannot change a track's speed.

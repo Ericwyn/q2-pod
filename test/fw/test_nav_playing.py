@@ -547,7 +547,7 @@ def row_h(t):
 # Status Bar's look on every theme's row: Bluetooth and Wi-Fi on the look's rows off the layout's, and its battery
 # centred on the row's height, where the icons are, so each look's group reads as it does under its own theme.
 @pytest.mark.parametrize('t, look', [(t, look) for t in THEMES for look in range(4)],
-                         ids=lambda v: v['name'] if isinstance(v, dict) else ('Theme', 'Minimal', 'Modern', 'Classic')[v])
+                         ids=lambda v: v['name'] if isinstance(v, dict) else ('主题', '简约', '现代', '经典')[v])
 def test_a_look_keeps_its_icons_rows_and_its_battery_centred_on_any_row(fw, st, ui, t, look):
     b = (MINIMAL, MODERN, CLASSIC)[look - 1] if look else t
     theme(fw, st, t, BATTERY=0, STATUSBAR=look)
@@ -578,7 +578,7 @@ def test_classics_battery_reads_icon_and_percent_as_inside(fw, st, ui):
     theme(fw, st, CLASSIC, BATTERY=2)  # Icon + Percent is no Classic value: its default, inside
     bar = Bar(fw, ui)
     assert [x[0] for x in Paint(fw, ui, bar)().texts] == ['88', '88']
-    assert slot_width(ui, bar) == SETS[GEOM['Classic']].batt_w + 1 + NUB_W
+    assert slot_width(ui, bar) == SETS[GEOM['经典']].batt_w + 1 + NUB_W
 
 
 def test_with_a_bar_widget_missing_nothing_moves(fw, st, ui):
@@ -676,7 +676,7 @@ def test_classics_percent_is_centred_on_the_icons_row_not_the_bar(fw, st, ui, lo
     ui.place(bar.row, 240, 0, 135, row_h(CLASSIC))
     st.pct_digit, st.pct_sign = 8, 13
     (text, rect, *_), = Paint(fw, ui, bar)().texts
-    assert row_h(CLASSIC) < SETS[GEOM['Classic']].bar
+    assert row_h(CLASSIC) < SETS[GEOM['经典']].bar
     assert text == '88%' and rect == (0, 0, slot_width(ui, bar), row_h(CLASSIC))
 
 
@@ -786,7 +786,7 @@ def test_a_flat_status_bar_under_classic_is_minimals_battery(fw, st, ui, t, look
 def test_status_bar_classic_under_minimal_is_classics_battery_at_its_own_size(fw, st, ui):
     theme(fw, st, MINIMAL, BATTERY=0, STATUSBAR=3)
     bar = Bar(fw, ui)
-    g, y = SETS[GEOM['Classic']], (row_h(MINIMAL) + 1 - SETS[GEOM['Classic']].batt_h) // 2
+    g, y = SETS[GEOM['经典']], (row_h(MINIMAL) + 1 - SETS[GEOM['经典']].batt_h) // 2
     rows = level_rows(Paint(fw, ui, bar)('50%'), 2, y + 1, g.batt_h - 2)
     assert sorted(rows) == list(range(y + 1, y + g.batt_h - 1))
     assert all(runs[0][0] == g.batt_w - 2 for runs in rows.values())  # Classic's width, not Minimal's body
@@ -800,7 +800,7 @@ def test_status_bar_classic_keeps_the_digits_the_row_has_room_for(fw, st, ui):
     (text, _, (_, px), _, _), = canvas.texts
     assert (text, px) == ('100%', O['BATT_PX'])  # the theme's size, which BATT_PCT_W reserves, not Classic's 21
     # beside them the body rises to the digits' ink, as the flat icon does
-    assert min(r[1] for r in canvas.rects) == (row_h(MINIMAL) + 1 - SETS[GEOM['Classic']].batt_h) // 2 - O['BATT_PCT_DY']
+    assert min(r[1] for r in canvas.rects) == (row_h(MINIMAL) + 1 - SETS[GEOM['经典']].batt_h) // 2 - O['BATT_PCT_DY']
 
 
 @pytest.mark.parametrize('t', [MINIMAL, MODERN])
@@ -816,7 +816,7 @@ def test_status_bar_classic_puts_the_number_inside_when_icon_and_percent_has_no_
     st.pct_digit, st.pct_sign = 8, 12  # the built-in bar's face at 16 px
     paint = Paint(fw, ui, bar)
     assert [x[0] for x in paint().texts] == ['88', '88'] and st.batt_mode == 3  # dark on the level, white past it
-    assert slot_width(ui, bar) == SETS[GEOM['Classic']].batt_w + 1 + NUB_W
+    assert slot_width(ui, bar) == SETS[GEOM['经典']].batt_w + 1 + NUB_W
     ui.shown[bar.bt] = 0
     assert [x[0] for x in paint().texts] == ['88%'] and st.batt_mode == 2
 
@@ -863,7 +863,7 @@ def level_rows(canvas, x, y, ih):
 
 def test_classics_level_is_its_share_of_the_body_over_the_empty_rows(fw, st, ui):
     _, paint = classic_battery(fw, st, ui)
-    g = SETS[GEOM['Classic']]
+    g = SETS[GEOM['经典']]
     iw, ih, y = g.batt_w - 2, g.batt_h - 2, (g.bar - 2 - g.batt_h) // 2
     greens = {c for runs in level_rows(paint('100%'), 2, y + 1, ih).values() for _, c in runs[1:]}
     for text, share in (('88%', 88), ('50%', 50), ('0%', 0)):
@@ -877,7 +877,7 @@ def test_classics_level_is_its_share_of_the_body_over_the_empty_rows(fw, st, ui)
 
 def test_classic_low_is_a_red_sliver_and_charging_a_full_body(fw, st, ui):
     _, paint = classic_battery(fw, st, ui)
-    g = SETS[GEOM['Classic']]
+    g = SETS[GEOM['经典']]
     iw, ih, y = g.batt_w - 2, g.batt_h - 2, (g.bar - 2 - g.batt_h) // 2
     low = paint('60%', b'bar_lowcharge')
     assert (2, y + 1, CLASSIC['batt_low_w'], ih, rgba(CLASSIC['batt_low'])) in low.rects
@@ -892,13 +892,13 @@ def test_classic_shows_the_bolt_charging_and_the_plug_full_on_power(fw, st, ui, 
     fw.var('fw_ctx_g_power_chargestate', C.c_int).value = 2 if power else 1
     fw.var('g_usbdet_value', C.c_ubyte).value = power
     canvas = paint('100%', icon)
-    y = (SETS[GEOM['Classic']].bar - 2 - SETS[GEOM['Classic']].batt_h) // 2
+    y = (SETS[GEOM['经典']].bar - 2 - SETS[GEOM['经典']].batt_h) // 2
     assert canvas.images == ([(art, (2, y + 1, 12, 12))] if art else [])
 
 
 def test_classic_inside_has_no_bolt_and_its_digits_change_ink_at_the_level(fw, st, ui):
     _, paint = classic_battery(fw, st, ui, mode=3)
-    g = SETS[GEOM['Classic']]
+    g = SETS[GEOM['经典']]
     canvas = paint('50%', b'bar_charge')
     assert canvas.images == []
     canvas = paint('50%')
@@ -915,7 +915,7 @@ def test_classic_inside_digits_read_the_same_in_the_light_half(fw, st, ui):
 
 
 def test_classics_light_half_adds_a_soft_edge_and_an_emboss_outside_the_body(fw, st, ui):
-    g = SETS[GEOM['Classic']]
+    g = SETS[GEOM['经典']]
     _, paint = classic_battery(fw, st, ui, 0)
     dark = bbox(paint('50%').rects)
     assert dark[2:] == (g.batt_w + NUB_W, g.batt_h)  # the dark half: the body and its nub, nothing past them
@@ -955,7 +955,7 @@ def test_the_dark_bar_moves_the_icons_off_and_paints_its_own_battery(fw, st, ui)
     for w in (bar.bt, bar.wifi):
         x, _, ww, _ = ui.screen(w)
         assert x + ww <= 0  # off the screen's left
-    g = SETS[GEOM['Classic']]
+    g = SETS[GEOM['经典']]
     sx, sy, sw, sh = ui.screen(bar.slot)
     assert 375 // 2 <= sx and sx + sw <= 375 and 0 <= sy and sy + sh <= g.bar  # the bar's right end, on its rows
     assert ui.shown[bar.clock] == 0 and ui.box(bar.title)[::2] == (0, 375)  # the title across the screen
@@ -1096,7 +1096,7 @@ def test_modern_names_the_page_in_its_bold_and_the_clock_goes_back_to_stocks_fac
     st.np_win = top = window(ui, 'playing_page')
     bar_title(fw, bar, top)
     assert ui.prop(bar.clock, b'style:normal:font_name') == b'bold'
-    bar_title(fw, bar, window(ui, 'games_page', 'Games', navbar_shown=1))
+    bar_title(fw, bar, window(ui, 'games_page', '游戏', navbar_shown=1))
     assert ui.prop(bar.clock, b'style:normal:font_name') == b'default' and len(ui.due('clock_due')) == 1
 
 
@@ -1107,7 +1107,7 @@ def test_modern_clock_loses_a_cjk_titles_bold_mark_when_the_title_goes(fw, st, u
     bar = Bar(fw, ui)
     bar_title(fw, bar, window(ui, 'artist_page', '专辑'))
     assert ui.prop(bar.clock, b'_q2_bold_fallback') == 1
-    bar_title(fw, bar, window(ui, 'games_page', 'Games', navbar_shown=1))
+    bar_title(fw, bar, window(ui, 'games_page', '游戏', navbar_shown=1))
     assert ui.prop(bar.clock, b'_q2_bold_fallback') == 0
 
 
@@ -1145,7 +1145,7 @@ def test_classics_own_title_takes_the_clocks_room_up_to_eq(fw, st, ui):
     theme(fw, st, CLASSIC, TIMETITLE=0)
     bar = Bar(fw, ui, title=True, eq_x=10)
     st.bar_title, st.bar_eq = bar.title, bar.eq
-    ui.set_text(bar.title, 'Albums')
+    ui.set_text(bar.title, '专辑')
     bar_title(fw, bar, 0)
     assert ui.text(bar.clock) == '' and ui.box(bar.title)[2] == 240 + 10 - 20  # to EQ's left edge
     ui.set_text(bar.title, '')
@@ -1198,7 +1198,7 @@ def test_classics_home_keeps_the_clock_with_time_in_title_on(fw, st, ui):
 
 # The theme's faces (theme_font, theme_face): its own face where it has the text's characters, else bold.ttf,
 # else stock's, which has CJK.
-LATIN, CYRILLIC, CJK = 'Albums', 'Альбом', '专辑'
+LATIN, CYRILLIC, CJK = 'Album', 'Альбом', '专辑'
 TITLE_PX = CLASSIC['font_px[ROLE_TITLE]']
 FACES = [b'default', b'bold', b'classic-light']  # navigation.c's font_faces, by FONT_*
 
@@ -1376,7 +1376,7 @@ def now(fw, ui, mcl, st):
 
 
 def test_the_page_shows_its_tracks_place_album_and_time_left(fw, ui, now):
-    assert (ui.text(now.pos), ui.text(now.album), ui.text(now.remain)) == ('3 of 12', 'Blue Train', '-2:30')
+    assert (ui.text(now.pos), ui.text(now.album), ui.text(now.remain)) == ('3 / 12', 'Blue Train', '-2:30')
     sets = [(w, key) for w, key, _ in ui.int_log if w == now.slider]
     assert sets.index((now.slider, b'max')) < sets.index((now.slider, b'value'))  # the max first, or it clamps
     assert now.value() == 50 and ui.ints[now.slider, b'max'] == 200
@@ -1390,7 +1390,7 @@ def test_the_labels_are_written_only_when_their_source_changes(fw, ui, mcl, now,
     assert sync(now.win) == 1 and ui.text(now.remain) == '-2:20'
     mcl.pos = 3
     sync(now.win)
-    assert ui.text(now.pos) == '4 of 12' and ui.text(now.album) == ''  # the parsed tags are another track's
+    assert ui.text(now.pos) == '4 / 12' and ui.text(now.album) == ''  # the parsed tags are another track's
     assert sync(ui.wm) == 0
 
 
@@ -2475,7 +2475,7 @@ def test_classics_set_rewrites_the_low_halves_page_by_page(fw, st, code):
     baked(code, 0)
     theme(fw, st, CLASSIC)
     st.geom = 0
-    g = GEOM['Classic']
+    g = GEOM['经典']
     values = set_values(g)
     differ = sorted({a & ~(PAGE - 1) for a, name in SITES if values[name] != set_values(0)[name]})
     assert len(differ) > 1  # sites to rewrite on more than one page, or page by page proves nothing
@@ -2490,7 +2490,7 @@ def test_a_refused_page_puts_back_those_opened_and_writes_nothing(fw, st, code):
     baked(code, 0)
     theme(fw, st, CLASSIC)
     st.geom = 0
-    values = set_values(GEOM['Classic'])
+    values = set_values(GEOM['经典'])
     differ = sorted({a & ~(PAGE - 1) for a, name in SITES if values[name] != set_values(0)[name]})
     calls = boot(fw, fail_at=differ[-1])
     assert calls == [('mprotect', p, PAGE, RWX) for p in differ] + [('mprotect', p, PAGE, RX) for p in differ[:-1]]
@@ -2498,7 +2498,7 @@ def test_a_refused_page_puts_back_those_opened_and_writes_nothing(fw, st, code):
     assert st.geom == 0 and st.theme == 0  # Minimal's set is what the code holds: Minimal until the next boot
 
 
-@pytest.mark.parametrize('t', [MINIMAL, MODERN, CLASSIC], ids=['Minimal', 'Modern', 'Classic'])
+@pytest.mark.parametrize('t', [MINIMAL, MODERN, CLASSIC], ids=['简约', '现代', '经典'])
 def test_the_set_the_code_holds_already_makes_no_syscall(fw, st, code, t):
     baked(code, GEOM[t['name']])
     theme(fw, st, t)
@@ -2507,7 +2507,7 @@ def test_the_set_the_code_holds_already_makes_no_syscall(fw, st, code, t):
 
 
 def test_only_the_pages_with_a_stale_site_open(fw, st, code):
-    g = GEOM['Classic']
+    g = GEOM['经典']
     baked(code, g)
     a, name = next((a, n) for a, n in SITES if set_values(g)[n] != set_values(0)[n])
     code[a].value = 0x5a5a0000 | set_values(0)[name]
@@ -2518,17 +2518,17 @@ def test_only_the_pages_with_a_stale_site_open(fw, st, code):
     assert code[a].value == 0x5a5a0000 | set_values(g)[name]
 
 
-@pytest.mark.parametrize('rowart, label', [(1, 'On'), (0, 'Off')])
+@pytest.mark.parametrize('rowart, label', [(1, '打开'), (0, '关闭')])
 def test_row_art_picks_classics_set(fw, st, rowart, label):
     theme(fw, st, CLASSIC, ROWART=rowart)
     T = fw.fn('theme', C.c_void_p)()
     want = SETS.index(host.tools_theme.geometry(CLASSIC, {'ROWART': label}))
     assert fw.fn('theme_geom', C.c_int, C.c_void_p)(T) == want
     geom_with = fw.fn('navigation__geom_with', C.c_int, C.c_void_p, C.c_int, C.c_int, C.c_int)
-    assert geom_with(T, -1, 0, 1) == SETS.index(host.tools_theme.geometry(CLASSIC, {'ROWART': 'On'}))  # a switch presets On
+    assert geom_with(T, -1, 0, 1) == SETS.index(host.tools_theme.geometry(CLASSIC, {'ROWART': '打开'}))  # a switch presets On
 
 
-@pytest.mark.parametrize('t', [MINIMAL, MODERN], ids=['Minimal', 'Modern'])
+@pytest.mark.parametrize('t', [MINIMAL, MODERN], ids=['简约', '现代'])
 def test_a_theme_without_a_set_option_boots_its_own(fw, st, t):
     theme(fw, st, t, ROWART=0)
     T = fw.fn('theme', C.c_void_p)()
@@ -2538,7 +2538,7 @@ def test_a_theme_without_a_set_option_boots_its_own(fw, st, t):
 # A-B markers on Classic's bar fitted to the track (ringnav_ab_x): the same share of it.
 def test_an_ab_marker_keeps_its_share_of_a_fitted_bar(fw, ui, mcl, st):
     theme(fw, st, CLASSIC)
-    values = set_values(GEOM['Classic'])
+    values = set_values(GEOM['经典'])
     x0, w0 = values['np_bar_x'], values['np_bar_w']
     stock = {}
     fw.mock('ab_x', lambda t, *_: stock[t])
@@ -2596,13 +2596,13 @@ def test_a_slider_page_takes_classics_shape_and_every_stock_name_still_finds_its
     page = SliderPage(fw, ui, name)
     assert all(ui.shown[w] == 0 for w in page.hidden) and ui.lookup(page.win, 'img_dec', 1) == page.hidden[0]
     view = ui.box(page.view)
-    assert view == (0, 0, 375, 320 - SETS[GEOM['Classic']].bar)  # the whole page under the bar
+    assert view == (0, 0, 375, 320 - SETS[GEOM['经典']].bar)  # the whole page under the bar
     slider, caption = ui.box(page.slider), page.caption(ui)
     assert within(slider, view) and within(ui.box(caption), view)
     assert slider[1] + slider[3] <= ui.box(caption)[1] and ui.box(caption)[::2] == (0, 375)  # under it, centred across
     assert {ui.ints[page.slider, f'style:{s}:icon'.encode()] for s in ('normal', 'pressed', 'over', 'disable', 'focused')} == {0}
     assert ui.text(caption) == read_wide(C.addressof(fw.var('navigation__slider_caption', C.c_uint)))
-    assert ui.prop(caption, b'style:normal:font_name') == b'classic-light'
+    assert ui.prop(caption, b'style:normal:font_name') == b'default'
     assert (st.slider_win, st.slider_w, st.slider_kind) == (page.win, page.slider, list(SLIDERS).index(name))
 
 
@@ -2720,7 +2720,7 @@ def test_the_switch_lights_its_value_s_cell(fw, st, ui, image, on):
 def test_a_page_is_flat_in_its_halfs_home_pane_colour(fw, st, light):
     theme(fw, st, CLASSIC, light)
     canvas = Canvas(fw)
-    bar = SETS[GEOM['Classic']].bar
+    bar = SETS[GEOM['经典']].bar
     fw.fn('paint_page', None, C.c_void_p, C.c_void_p, C.c_int)(0, canvas.p, bar)
     (x, y, w, h, color), = canvas.rects
     assert (x, y, w, y + h) == (0, bar, 375, 320)  # under the bar to the screen's foot
@@ -2971,12 +2971,12 @@ def test_t9s_box_is_searchs_field_under_the_bar_with_its_hint(fw, st, ui):
     page = window(ui, 'playlist_page')
     edit = ui.widget(page, 'edit', 0, 100, 300, 40)
     box = fw.fn('t9_box', None, C.c_void_p, C.c_void_p, C.c_char_p)
-    box(page, edit, b'Playlist Name')
+    box(page, edit, b'\xe6\x92\xad\xe6\x94\xbe\xe5\x88\x97\xe8\xa1\xa8\xe5\x90\x8d\xe7\xa7\xb0')
     x, y, w, h = ui.box(edit)
-    assert ui.prop(edit, b'tips') == b'Playlist Name' and (x, w) == ui.box(item)[::2]  # Search's field with T9 up
+    assert ui.prop(edit, b'tips') == b'\xe6\x92\xad\xe6\x94\xbe\xe5\x88\x97\xe8\xa1\xa8\xe5\x90\x8d\xe7\xa7\xb0' and (x, w) == ui.box(item)[::2]  # Search's field with T9 up
     assert y + h <= 30  # its foot clears T9's top, page y 30: the keyboard doesn't move the page
     title = ui.lookup(page, '_page_title', 1)
-    assert ui.text(title) == 'Search' and ui.shown[title] == 0 and st.t9_page == page and st.t9_back
+    assert ui.text(title) == '搜索' and ui.shown[title] == 0 and st.t9_page == page and st.t9_back
     for key in (b'style:normal:margin_left', TYPED_PX):
         assert ui.ints[edit, key] == ui.ints[search_edit, key]  # Search's field's text
     assert ui.ints[edit, EMPTY_PX] == ui.ints[edit, TYPED_PX]  # a short hint fits at the typed text's size
@@ -2988,8 +2988,8 @@ def test_off_classic_t9s_box_only_takes_its_hint(fw, st, ui):
     theme(fw, st, MINIMAL)
     page = window(ui, 'playlist_page')
     edit = ui.widget(page, 'edit', 0, 100, 300, 40)
-    fw.fn('t9_box', None, C.c_void_p, C.c_void_p, C.c_char_p)(page, edit, b'Playlist Name')
-    assert ui.prop(edit, b'tips') == b'Playlist Name' and ui.box(edit) == (0, 100, 300, 40) and st.t9_page == 0
+    fw.fn('t9_box', None, C.c_void_p, C.c_void_p, C.c_char_p)(page, edit, b'\xe6\x92\xad\xe6\x94\xbe\xe5\x88\x97\xe8\xa1\xa8\xe5\x90\x8d\xe7\xa7\xb0')
+    assert ui.prop(edit, b'tips') == b'\xe6\x92\xad\xe6\x94\xbe\xe5\x88\x97\xe8\xa1\xa8\xe5\x90\x8d\xe7\xa7\xb0' and ui.box(edit) == (0, 100, 300, 40) and st.t9_page == 0
 
 
 def test_a_long_hint_takes_a_smaller_size_never_under_12(fw, st, ui):
@@ -3044,14 +3044,14 @@ def test_new_playlist_is_the_keyboards_page_with_a_field_and_its_name_on_the_bar
     assert pieces[0][:2] == (x, y) and pieces[-1][0] + pieces[-1][2] == x + w  # its image under the field
     due, = ui.due('pl_box_due')
     ui.run(due)  # the next pass: stock's init has written its own hint
-    assert ui.prop(edit, b'tips') == b'Playlist Name' and ui.text(bar.title) == 'New Playlist'
+    assert ui.prop(edit, b'tips') == b'\xe6\x92\xad\xe6\x94\xbe\xe5\x88\x97\xe8\xa1\xa8\xe5\x90\x8d\xe7\xa7\xb0' and ui.text(bar.title) == '新建播放列表'
     hint, ink = (ui.ints[edit, key] & 0xffffffff for key in (b'style:empty:tips_text_color', b'style:normal:text_color'))
     assert lum(hint) > lum(ink)  # a muted hint, lighter than the typed text on the white field
     ui.emit(win, O['EVT_DESTROY'], 0)
     assert st.pl_box == 0 and ui.run(ui.timer_add(ui.fn('classic_pages__pl_box_due'), 0, 0)) == 0
 
 
-@pytest.mark.parametrize('rows, at, tips', [(['Road Trip', 'Gym'], 1, b'Gym'), (['Road Trip'], 4, b'Rename'), ([None], 0, b'Rename')])
+@pytest.mark.parametrize('rows, at, tips', [(['Road Trip', 'Gym'], 1, b'Gym'), (['Road Trip'], 4, b'\xe9\x87\x8d\xe5\x91\xbd\xe5\x90\x8d'), ([None], 0, b'\xe9\x87\x8d\xe5\x91\xbd\xe5\x90\x8d')])
 def test_rename_hints_the_playlists_own_name(fw, st, ui, rename_row, rows, at, tips):
     theme(fw, st, CLASSIC, 1)
     deques = Deques(fw)
@@ -3075,3 +3075,12 @@ def test_a_playlist_dialog_missing_a_part_stays_stocks(fw, st, ui):
     ui.widget(win, 'ssedit', 0, 0, 300, 40)
     load(fw, ui, win)
     assert st.pl_box == 0 and ui.due('pl_box_due') == []
+
+
+@pytest.mark.parametrize('text,face,px', [('Finish', b'classic-light', 31), ('完成后按中心键', b'default', 26)])
+def test_classic_slider_captions_select_a_face_with_their_glyphs(fw, st, ui, ranges, text, face, px):
+    theme(fw, st, CLASSIC)
+    label = ui.widget(ui.wm, 'caption', text=text)
+    fw.fn('slider_label', None, C.c_void_p, *([C.c_int] * 5), C.c_char_p)(label, 0, 228, 375, 32, 31, b'classic-light')
+    assert label_font(ui, label) == (face, px)
+    # test_nav_paint checks the actual slider painter uses this same face/size for the shadow.

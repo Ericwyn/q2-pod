@@ -464,10 +464,14 @@ def test_a_card_that_cant_be_written_ends_the_job(fw):
     assert (state, len(asked)) == (LJ_CARD, 1) and card.log == [('unlink', b'/a/1.lrc.part')]
 
 
-def note(fw, n, **fields):
+def note_raw(fw, n, **fields):
     job, out = Job(**fields), block(fw, size=n)
     fw.fn('album_note', None, C.c_void_p, C.c_uint, C.POINTER(Job))(out, n, C.byref(job))
-    return C.string_at(out).decode()
+    return C.string_at(out)
+
+
+def note(fw, n, **fields):
+    return note_raw(fw, n, **fields).decode()
 
 
 def test_every_note_is_cut_at_any_size_never_past_it(fw):
@@ -475,15 +479,15 @@ def test_every_note_is_cut_at_any_size_never_past_it(fw):
              for a, b, c, d in ((0, 0, 0, 0), (12, 3, 1, 2), (0, 1, 0, 0), (0, 0, 5, 0), (0, 0, 0, 7))]
     for case in cases:
         whole = note(fw, 200, **case)
-        for n in range(1, len(whole) + 3):
-            assert note(fw, n, **case) == whole[:n - 1]
+        for n in range(1, len(whole.encode()) + 3):
+            assert note_raw(fw, n, **case) == whole.encode()[:n - 1]
 
 
 def test_the_rest_of_the_note(fw):
-    assert note(fw, 96, state=LJ_CANCELLED, saved=1, had=2) == 'Cancelled: 1 saved, 2 already had lyrics'
-    assert note(fw, 96, state=LJ_CARD) == "Can't write to the card"
-    assert note(fw, 96, state=LJ_OFFLINE, had=3) == "Can't reach LRCLIB"
-    assert note(fw, 96, state=LJ_OFFLINE, none=1, failed=1) == 'LRCLIB stopped answering: 1 not found, 1 failed'
+    assert note(fw, 96, state=LJ_CANCELLED, saved=1, had=2) == '已取消: 1 已保存, 2 已有歌词'
+    assert note(fw, 96, state=LJ_CARD) == '无法写入存储卡'
+    assert note(fw, 96, state=LJ_OFFLINE, had=3) == '无法连接 LRCLIB'
+    assert note(fw, 96, state=LJ_OFFLINE, none=1, failed=1) == 'LRCLIB 已停止响应: 1 未找到, 1 失败'
 
 
 def got(fw, b, data, size=1):
@@ -544,7 +548,7 @@ def test_the_row_says_where_the_job_is(fw):
     show()
     al.job.cancel = 1
     show()
-    assert seen == ['Download Album Lyrics', 'Downloading 2 of 5', 'Downloading 5 of 5', 'Cancelling…']
+    assert seen == ['下载专辑歌词', '正在下载 2 / 5', '正在下载 5 / 5', '正在取消…']
 
 
 class Net:
@@ -723,10 +727,11 @@ def keyinfo(title=b'', album=b'', artist=b''):
 def test_the_lyric_search_asks_again_while_busy_then_falls_back_to_kugou(fw):
     net = Net(fw, {LRCLIB: b'{"code":503}'})
     fw.mock('online_getkeyword_info', keyinfo(b'T', b'', b'A'))
-    fw.mock('stock_kugoulyric_trampoline', lambda *_: 2)
+    native = []
+    fw.mock('stock_kugoulyric_trampoline', lambda key, out, *_: native.append((C.string_at(key), C.string_at(out))) or 2)
     assert fw.fn('ringnav_lyric_search', C.c_int, C.c_char_p, C.c_char_p)(b'kw', b'/tmp/out') == 2
     assert len(net.urls) == 3 and [c[1][0] for c in fw.calls('fw_usleep')] == [2000000, 2000000]
-    assert [c[1][:2] for c in fw.calls('stock_kugoulyric_trampoline')] == [(b'kw', b'/tmp/out')]
+    assert native == [(b'kw', b'/tmp/out')]
 
 
 def test_the_lyric_search_falls_back_to_kugou_when_lrclib_finds_nothing(fw):
@@ -1040,10 +1045,10 @@ def test_a_copy_that_fails_leaves_the_card_as_it_was(fw, mcl, records):
 
 
 def test_an_accepted_lrclib_match_is_what_the_next_load_shows(fw, mcl, records):
-    Queue(fw, mcl, [records.song(b'/m/Y/song.flac', title=b'Song', artist=b'Band')])
+    Queue(fw, mcl, [records.song(b'/m/Y/song.flac', title=b'Song', artist=b'\xe9\xa2\x91\xe6\xae\xb5')])
     disk = Disk(fw, {'/mnt/mmc/.downpic/song.lrc': b'stock'})
     Net(fw, {LRCLIB: results('[00:01.00] Lyrics : Someone\n[00:02.50] la la\n[00:04.00] la\n')})
-    fw.mock('online_getkeyword_info', keyinfo(b'Song', b'', b'Band'))
+    fw.mock('online_getkeyword_info', keyinfo(b'Song', b'', b'\xe9\xa2\x91\xe6\xae\xb5'))
     assert fw.fn('ringnav_lyric_search', C.c_int, C.c_char_p, C.c_char_p)(b'Song&Band', b'/tmp/oslyric_1') == 1
     assert save(fw, b'song.lrc') == (1, ':') and '/mnt/mmc/.downpic/song.lrc' not in disk.files
     assert fw.fn('ringnav_lrc_utf8', C.c_int, C.c_char_p)(b'/m/Y/song.lrc') == 1  # stock's probe: no GB18030 conversion
@@ -1299,7 +1304,7 @@ def test_a_thread_that_wont_start_says_so(fw, mcl, records, more_rows):
 
 
 def test_only_the_albums_songs_files_on_the_card_are_fetched(fw, mcl, records, more_rows):
-    band = dict(album=b'Hits', album_artist=b'Band')  # one album by its album artist, whatever the folder
+    band = dict(album=b'Hits', album_artist=b'\xe9\xa2\x91\xe6\xae\xb5')  # one album by its album artist, whatever the folder
     playing = records.song(b'/m/1.flac', title=b'One', **band)
     queue = Queue(fw, mcl, [playing])
     queue.albums[b'Hits'] = [playing, records.song(b'/m/dir', kind=4, **band), records.song(b'http://h/2.flac', title=b'Two', **band),

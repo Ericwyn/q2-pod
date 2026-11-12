@@ -222,7 +222,7 @@ def row_of(label):
     if value:
         return label.text, value.text
     if switch:
-        return label.text, {b'switch_on': 'On', b'switch_off': 'Off'}[switch.props['image']]
+        return label.text, {b'switch_on': '打开', b'switch_off': '关闭'}[switch.props['image']]
     return label.text, None
 
 
@@ -239,7 +239,7 @@ def button_of(view, title):
     """The button of view's row titled title (its text up to any ': ')."""
     for item in view.children:
         for label in item.labels():
-            if label.name != '_setting_value' and label.text.split(': ')[0] == title:
+            if label.name != '_setting_value' and label.text.replace('：', ': ').split(': ')[0] == title:
                 return label.parent
     raise KeyError(title)
 
@@ -303,7 +303,7 @@ def test_display_adds_smart_awake_night_shift_and_its_two_pages_among_stocks_row
     view = page.view()
     # stock's first two, then Smart Awake and Night Shift, stock's third, then Appearance and Cover Flow; its fourth, Show
     # Navigation Bar, is not offered
-    assert titles(view) == ['stock_0', 'stock_1', 'Smart Awake', 'Night Shift', 'stock_2', 'Appearance', 'Cover Flow']
+    assert titles(view) == ['stock_0', 'stock_1', '智能唤醒', '夜间模式', 'stock_2', '外观', 'Cover Flow']
     # Night Shift and the two pages open a page, so they carry the chevron; Smart Awake changes in place
     into = [any(c.props.get('image') == b'list_into' for c in item.children[0].children) for item in view.children if not item.name]
     assert into == [False, True, True, True]
@@ -311,23 +311,23 @@ def test_display_adds_smart_awake_night_shift_and_its_two_pages_among_stocks_row
 
 def titles(view):
     """Each row's title (a stock row's name), its text up to any ': '."""
-    return [item.name or item.labels()[0].text.split(': ')[0] for item in view.children]
+    return [item.name or item.labels()[0].text.replace('：', ': ').split(': ')[0] for item in view.children]
 
 
 def appearance(fw, ui, **config):
     """Display, then its Appearance row: the sub-page over it."""
     page = display(fw, ui, **config)
-    ui.click(button_of(page.view(), 'Appearance'))
+    ui.click(button_of(page.view(), '外观'))
     return page
 
 
 # The payload's Appearance rows (setting_text, setting_keys[]): a setting's title, its stored key, and whether it is a
 # switch (list_toggle's On or Off). A theme's own option brings its own label and key, its accent the theme's key.
-PAYLOAD = {'SETTING_LIGHT': ('Light Mode', 'LIGHT', False), 'SETTING_ACCENT': ('Accent', None, False),
-           'SETTING_ROUNDED': ('Rounded Corners', 'ROUNDED', True), 'SETTING_HOME': ('Home', 'HOME', False),
-           'SETTING_SHORTCUT': ('Shortcut', 'SHORTCUT', False), 'SETTING_BATTERY': ('Battery', 'BATTERY', False),
-           'SETTING_TIMETITLE': ('Time in Title', 'TIMETITLE', True),
-           'SETTING_NPCENTRED': ('Centred Now Playing', 'NPCENTRED', True)}
+PAYLOAD = {'SETTING_LIGHT': ('浅色模式', 'LIGHT', False), 'SETTING_ACCENT': ('强调色', None, False),
+           'SETTING_ROUNDED': ('圆角', 'ROUNDED', True), 'SETTING_HOME': ('主菜单', 'HOME', False),
+           'SETTING_SHORTCUT': ('快捷入口', 'SHORTCUT', False), 'SETTING_BATTERY': ('电池显示', 'BATTERY', False),
+           'SETTING_TIMETITLE': ('标题显示时间', 'TIMETITLE', True),
+           'SETTING_NPCENTRED': ('居中显示正在播放', 'NPCENTRED', True)}
 # st's field for each stored key a theme's preset writes
 STATE = {'THEME': 'theme', 'LIGHT': 'light', 'ACCENT': 'accent', 'ROUNDED': 'rounded', 'HOME': 'home', 'SHORTCUT': 'shortcut',
          'BATTERY': 'battery', 'TIMETITLE': 'time_title', 'NPCENTRED': 'np_centred'}
@@ -336,8 +336,8 @@ STATE = {'THEME': 'theme', 'LIGHT': 'light', 'ACCENT': 'accent', 'ROUNDED': 'rou
 def appearance_titles(t):
     """Appearance's rows under theme t: Theme, t's options in its theme.xml's order, then the Home switches every
     theme has."""
-    return ['Theme'] + [o['label'] if o['setting'] == 'SETTING_OWN' else PAYLOAD[o['setting']][0] for o in t['opts']] + \
-        ['Hide Streaming', 'Hide Folder']
+    return ['主题'] + [o['label'] if o['setting'] == 'SETTING_OWN' else PAYLOAD[o['setting']][0] for o in t['opts']] + \
+        ['隐藏流媒体', '隐藏文件夹']
 
 
 def stored_key(t, o):
@@ -353,12 +353,12 @@ def preset(t, setting):
 def accent_name(t, v):
     """Accent value v's name: an ACCENTS row's, else the theme's own scheme's label."""
     names = host.tools_theme.ACCENT_NAMES
-    return names[v].capitalize() if v < len(names) else t['schemes'][v]['label']
+    return ['石墨', '绯红', '潮汐', '香槟', '钴蓝', '橘橙', '梅紫', '象牙白', '绿色'][v] if v < len(names) else t['schemes'][v]['label']
 
 
 def value_name(setting, v):
     """A payload setting's value v as its row reads it: tools/theme.py's name for it (Light Mode's on: On)."""
-    return {s: names for s, names in host.tools_theme.SETTINGS.values()}[setting][v].capitalize()
+    return {'SETTING_LIGHT': ['关闭', '打开', '自动'], 'SETTING_HOME': ['分栏', '全屏', '旋转封面'], 'SETTING_BATTERY': ['图标', '百分比', '图标与百分比', '图标内百分比'], 'SETTING_TIMETITLE': ['关闭', '打开']}[setting][v]
 
 
 def preset_writes(t, stored):
@@ -377,7 +377,7 @@ def readings(view):
     out = {}
     for row in rows(view):
         if row:
-            title, _, after = row[0].partition(': ')
+            title, _, after = row[0].replace('：', ': ').partition(': ')
             out[title] = row[1] if row[1] is not None else after
     return out
 
@@ -386,19 +386,19 @@ def test_appearance_lists_theme_then_minimals_options_in_its_order(fw):
     ui = Ui(fw)
     page = appearance(fw, ui)
     t = theme_of(MINIMAL)
-    assert len(page.pages) == 2 and page.title() == 'Appearance'
+    assert len(page.pages) == 2 and page.title() == '外观'
     assert titles(page.view()) == appearance_titles(t)
     # no set_text: a row reads "Title: value", a switch its On or Off
     switches = [PAYLOAD[o['setting']][0] for o in t['opts'] if o['setting'] in PAYLOAD and PAYLOAD[o['setting']][2]] + \
-        ['Hide Streaming', 'Hide Folder']
+        ['隐藏流媒体', '隐藏文件夹']
     assert switches and [row[0] for row in rows(page.view()) if row[1] is not None] == switches
     read = readings(page.view())
     # the running theme's name, and Accent at Minimal's own default, under its own key
-    assert read['Theme'] == t['name'] and read['Accent'] == accent_name(t, host.tools_theme.accent_default(t))
+    assert read['主题'] == t['name'] and read['强调色'] == accent_name(t, host.tools_theme.accent_default(t))
     # nothing stored: the payload's own defaults (dark, Minimal round, Split, the clock in the title); no Rockbox: Favorites
-    assert (read['Light Mode'], read['Rounded Corners'], read['Home'], read['Shortcut'], read['Time in Title']) == \
-        ('Off', 'On' if t['name'] == 'Minimal' else 'Off', 'Split', 'Favorites', 'On')
-    assert (read['Show Wordmark'], read['Hide Streaming'], read['Hide Folder']) == ('On', 'Off', 'Off')
+    assert (read['浅色模式'], read['圆角'], read['主菜单'], read['快捷入口'], read['标题显示时间']) == \
+        ('关闭', '打开' if t['name'] == '简约' else '关闭', '分栏', '收藏', '打开')
+    assert (read['显示品牌字样'], read['隐藏流媒体'], read['隐藏文件夹']) == ('打开', '关闭', '关闭')
 
 
 def test_classic_appearance_rows_read_title_and_value_and_its_own_options(fw):
@@ -409,12 +409,12 @@ def test_classic_appearance_rows_read_title_and_value_and_its_own_options(fw):
     assert [row[0] for row in rows(page.view())] == appearance_titles(t)
     read = dict(rows(page.view()))
     # Accent: the theme's own scheme, its default
-    assert read['Theme'] == t['name'] and read['Accent'] == accent_name(t, host.tools_theme.accent_default(t))
+    assert read['主题'] == t['name'] and read['强调色'] == accent_name(t, host.tools_theme.accent_default(t))
     own = [o for o in t['opts'] if o['setting'] == 'SETTING_OWN']
     assert own and [read[o['label']] for o in own] == [o['names'][o['def']] for o in own]  # each at its default
     # nothing stored: the payload's own defaults, Battery's Icon one of Classic's two
-    assert (read['Light Mode'], read['Home'], read['Shortcut'], read['Battery'], read['Time in Title']) == \
-        ('Off', 'Split', 'Favorites', 'Icon', 'On')
+    assert (read['浅色模式'], read['主菜单'], read['快捷入口'], read['电池显示'], read['标题显示时间']) == \
+        ('关闭', '分栏', '收藏', '图标', '打开')
 
 
 def clicks_of(fw, ui, page, title, n):
@@ -424,63 +424,63 @@ def clicks_of(fw, ui, page, title, n):
         before = len(writes(fw))
         ui.click(button_of(page.view(), title))
         label = button_of(page.view(), title).labels()[0]
-        seen.append((row_of(label)[1] or label.text.partition(': ')[2], writes(fw)[before:]))
+        seen.append((row_of(label)[1] or label.text.replace('：', ': ').partition(': ')[2], writes(fw)[before:]))
     return seen
 
 
 # Accent's stored values are its ACCENTS rows, in order: tools/theme.py names them from the same rows
-ACCENT_VALUE = {name.capitalize(): i for i, name in enumerate(host.tools_theme.ACCENT_NAMES)}
+ACCENT_VALUE = {name: i for i, name in enumerate(['石墨', '绯红', '潮汐', '香槟', '钴蓝', '橘橙', '梅紫', '象牙白', '绿色'])}
 
 
 def test_minimal_accent_runs_graphite_to_green_then_its_ivory(fw):
     ui = Ui(fw)
     page = appearance(fw, ui, MINIMAL_ACCENT=b'0')
-    seen = clicks_of(fw, ui, page, 'Accent', 9)
-    order = ['Crimson', 'Tidal', 'Champagne', 'Cobalt', 'Tangerine', 'Plum', 'Green', 'Ivory', 'Graphite']
+    seen = clicks_of(fw, ui, page, '强调色', 9)
+    order = ['绯红', '潮汐', '香槟', '钴蓝', '橘橙', '梅紫', '绿色', '象牙白', '石墨']
     assert seen == [(v, [('MINIMAL_ACCENT', ACCENT_VALUE[v])]) for v in order]
 
 
 def test_modern_accent_skips_ivory(fw):
     ui = Ui(fw)
     page = appearance(fw, ui, THEME=b'2', ACCENT=b'5')
-    assert [v for v, _ in clicks_of(fw, ui, page, 'Accent', 4)] == ['Plum', 'Green', 'Graphite', 'Crimson']
+    assert [v for v, _ in clicks_of(fw, ui, page, '强调色', 4)] == ['梅紫', '绿色', '石墨', '绯红']
     assert [k for k, _ in writes(fw)] == ['ACCENT'] * 4
 
 
 def test_classic_accent_takes_classic_blue_after_green_and_skips_ivory(fw):
     ui = Ui(fw)
     page = appearance(fw, ui, THEME=b'1', CLASSIC_LIGHT_ACCENT=b'6')
-    assert [v for v, _ in clicks_of(fw, ui, page, 'Accent', 4)] == ['Green', 'Classic Blue', 'Graphite', 'Crimson']
+    assert [v for v, _ in clicks_of(fw, ui, page, '强调色', 4)] == ['绿色', '经典蓝', '石墨', '绯红']
     assert [k for k, _ in writes(fw)] == ['CLASSIC_LIGHT_ACCENT'] * 4
 
 
 def test_shortcut_cycles_in_its_menu_order(fw):
     ui = Ui(fw)
     page = appearance(fw, ui, SHORTCUT=b'0')
-    seen = clicks_of(fw, ui, page, 'Shortcut', 11)
+    seen = clicks_of(fw, ui, page, '快捷入口', 11)
     # Rockbox, Favorites, Shuffle, Rated Albums, Playlists, Artists, Albums, Games, Podcasts, Audiobooks, None, Rockbox
-    assert [v for v, _ in seen] == ['Favorites', 'Shuffle', 'Rated Albums', 'Playlists', 'Artists', 'Albums', 'Games',
-                                    'Podcasts', 'Audiobooks', 'None', 'Rockbox']
+    assert [v for v, _ in seen] == ['收藏', '随机播放', '已评价专辑', '播放列表', '表演者', '专辑', '游戏',
+                                    '播客', '有声读物', '无', 'Rockbox']
     assert [w for _, w in seen] == [[('SHORTCUT', v)] for v in (3, 5, 4, 7, 1, 2, 6, 8, 9, 11, 0)]
 
 
 def test_shortcut_none_reads_as_none_and_goes_on_to_rockbox(fw):
     ui = Ui(fw)
     page = appearance(fw, ui, SHORTCUT=b'11')
-    assert [(v, w) for v, w in clicks_of(fw, ui, page, 'Shortcut', 1)] == [('Rockbox', [('SHORTCUT', 0)])]
+    assert [(v, w) for v, w in clicks_of(fw, ui, page, '快捷入口', 1)] == [('Rockbox', [('SHORTCUT', 0)])]
 
 
 def test_home_cycles_split_full_carousel(fw):
     ui = Ui(fw)
     page = appearance(fw, ui)
-    assert clicks_of(fw, ui, page, 'Home', 3) == [('Full', [('HOME', 1)]), ('Carousel', [('HOME', 2)]), ('Split', [('HOME', 0)])]
+    assert clicks_of(fw, ui, page, '主菜单', 3) == [('全屏', [('HOME', 1)]), ('旋转封面', [('HOME', 2)]), ('分栏', [('HOME', 0)])]
 
 
 def test_classic_battery_takes_only_its_three_styles(fw):
     ui = Ui(fw)
     page = appearance(fw, ui, THEME=b'1')
-    assert clicks_of(fw, ui, page, 'Battery', 3) == [('Percent', [('BATTERY', 1)]), ('Percent Inside', [('BATTERY', 3)]),
-                                                     ('Icon', [('BATTERY', 0)])]
+    assert clicks_of(fw, ui, page, '电池显示', 3) == [('百分比', [('BATTERY', 1)]), ('图标内百分比', [('BATTERY', 3)]),
+                                                     ('图标', [('BATTERY', 0)])]
 
 
 @pytest.fixture
@@ -501,7 +501,7 @@ def test_light_modes_auto_applies_from_its_click(fw, st, clock, hour, day):
     page = appearance(fw, ui, LIGHT=b'1')
     clock['hour'] = hour
     st('light_day').value = 1 - day
-    assert clicks_of(fw, ui, page, 'Light Mode', 1) == [('Auto', [('LIGHT', 2)])]
+    assert clicks_of(fw, ui, page, '浅色模式', 1) == [('自动', [('LIGHT', 2)])]
     assert st('light_day').value == day
 
 
@@ -515,14 +515,14 @@ def test_corners_drop_the_art_cache_only_where_art_takes_them(fw, theme):
     ui = Ui(fw)
     page = appearance(fw, ui, THEME=b'%d' % theme)
     before = repaints(fw)
-    assert clicks_of(fw, ui, page, 'Rounded Corners', 1)[0][1] == [('ROUNDED', int(theme != MINIMAL))]  # Minimal's starts round
+    assert clicks_of(fw, ui, page, '圆角', 1)[0][1] == [('ROUNDED', int(theme != MINIMAL))]  # Minimal's starts round
     after = repaints(fw)
     # a theme drawing its art square bakes the corners into its thumbnails: those cached images go
     unload = 1 if theme_of(theme)['art_square'] else 0
     assert after[0] - before[0] == unload and after[1] > before[1]  # the screen repaints either way
 
 
-@pytest.mark.parametrize('title, key', [('Time in Title', 'TIMETITLE'), ('Centred Now Playing', 'NPCENTRED')])
+@pytest.mark.parametrize('title, key', [('标题显示时间', 'TIMETITLE'), ('居中显示正在播放', 'NPCENTRED')])
 def test_a_switch_from_smart_awake_on_redraws_only_its_toggle(fw, title, key):
     ui = Ui(fw)
     page = appearance(fw, ui)
@@ -530,15 +530,15 @@ def test_a_switch_from_smart_awake_on_redraws_only_its_toggle(fw, title, key):
     was = row_of(label)[1]
     before = repaints(fw)
     ui.click(label.parent)
-    assert row_of(label)[1] == {'On': 'Off', 'Off': 'On'}[was]
-    assert writes(fw) == [(key, int(was == 'Off'))] and repaints(fw) == before
+    assert row_of(label)[1] == {'打开': '关闭', '关闭': '打开'}[was]
+    assert writes(fw) == [(key, int(was == '关闭'))] and repaints(fw) == before
 
 
 def test_accent_repaints_and_drops_the_cached_images(fw):
     ui = Ui(fw)
     page = appearance(fw, ui)
     before = repaints(fw)
-    clicks_of(fw, ui, page, 'Accent', 1)
+    clicks_of(fw, ui, page, '强调色', 1)
     after = repaints(fw)
     assert after[0] == before[0] + 1 and after[1] > before[1]
 
@@ -548,7 +548,7 @@ def test_library_on_home_toggles_without_a_restart(fw, st, geometry):
     st('geom').value = names['GEOM_CLASSIC_LIGHT']
     ui = Ui(fw)
     page = appearance(fw, ui, THEME=b'1')
-    assert clicks_of(fw, ui, page, 'Library on Home', 2) == [('Off', [('HOMELIB', 0)]), ('On', [('HOMELIB', 1)])]
+    assert clicks_of(fw, ui, page, '主菜单显示音乐', 2) == [('关闭', [('HOMELIB', 0)]), ('打开', [('HOMELIB', 1)])]
     assert not fw.calls('navigator_to_with_context')
 
 
@@ -559,8 +559,8 @@ def test_status_bar_steps_its_looks_and_repaints_the_bar_without_a_restart(fw, s
     page = appearance(fw, ui, THEME=b'1')
     st('pct_digit').value = 9
     before = repaints(fw)
-    assert clicks_of(fw, ui, page, 'Status Bar', 4) == [('Minimal', [('STATUSBAR', 1)]), ('Modern', [('STATUSBAR', 2)]),
-                                                        ('Classic', [('STATUSBAR', 3)]), ('Theme', [('STATUSBAR', 0)])]
+    assert clicks_of(fw, ui, page, '状态栏', 4) == [('简约', [('STATUSBAR', 1)]), ('现代', [('STATUSBAR', 2)]),
+                                                        ('经典', [('STATUSBAR', 3)]), ('主题', [('STATUSBAR', 0)])]
     assert not fw.calls('navigator_to_with_context') and st('pct_digit').value == 0  # the digits, measured again
     after = repaints(fw)
     assert after[0] == before[0] and after[1] == before[1] + 4  # the bar alone, no art dropped
@@ -585,18 +585,18 @@ def test_row_art_needs_a_restart_into_its_other_set(fw, st, geometry, answer):
     ui = Ui(fw)
     page = appearance(fw, ui, THEME=b'1')
     prompts = Prompts(fw, answer)
-    label = button_of(page.view(), 'Row Art').labels()[0]
+    label = button_of(page.view(), '列表封面').labels()[0]
     ui.click(label.parent)
-    assert prompts.seen == [('dialog/confirminfo_dialog', 1, 0, 'Restart to apply?')]
+    assert prompts.seen == [('dialog/confirminfo_dialog', 1, 0, '重启以应用？')]
     # the running state keeps the booted set's value either way; confirmed, the config takes Off and the Q2 restarts
-    assert row_of(label) == ('Row Art', 'On') and st('own', i=KEYS.index('ROWART')).value == 1
+    assert row_of(label) == ('列表封面', '打开') and st('own', i=KEYS.index('ROWART')).value == 1
     assert writes(fw) == ([('ROWART', 0)] if answer else [])
     assert len(fw.calls('stock_reboot_trampoline')) == (answer == 10)
 
 
 def themes_page(fw, ui, page):
     """Appearance's Theme row: the picker over it."""
-    ui.click(button_of(page.view(), 'Theme'))
+    ui.click(button_of(page.view(), '主题'))
     return page.pages[-1]
 
 
@@ -608,8 +608,8 @@ def test_the_theme_picker_lists_minimal_modern_classic_marking_the_running_one(f
     ui = Ui(fw)
     page = appearance(fw, ui, THEME=b'2')
     themes_page(fw, ui, page)
-    assert page.title() == 'Theme'
-    assert picks(page.view()) == [('Minimal', 'unselect'), ('Modern', 'select'), ('Classic', 'unselect')]
+    assert page.title() == '主题'
+    assert picks(page.view()) == [('简约', 'unselect'), ('现代', 'select'), ('经典', 'unselect')]
 
 
 def pick(ui, page, t):
@@ -645,7 +645,7 @@ def test_picking_modern_applies_its_preset_live(fw, st):
     # Appearance, under the picker, reads the new theme
     read = readings(under)
     assert list(read) == appearance_titles(modern)
-    assert (read['Theme'], read['Light Mode'], read['Accent'], read['Time in Title']) == (
+    assert (read['主题'], read['浅色模式'], read['强调色'], read['标题显示时间']) == (
         modern['name'], value_name('SETTING_LIGHT', preset(modern, 'SETTING_LIGHT')),
         accent_name(modern, preset(modern, 'SETTING_ACCENT')), value_name('SETTING_TIMETITLE', preset(modern, 'SETTING_TIMETITLE')))
     assert not fw.calls('navigator_to_with_context')
@@ -669,7 +669,7 @@ def test_picking_classic_asks_to_restart_and_saves_its_preset_alone(fw, st, answ
     themes_page(fw, ui, page)
     prompts = Prompts(fw, answer)
     pick(ui, page, classic)
-    assert [p[3] for p in prompts.seen] == ['Restart to apply?']
+    assert [p[3] for p in prompts.seen] == ['重启以应用？']
     # confirmed, THEME and what Classic's preset changes are saved; Light Mode's Auto is kept
     saved = writes(fw)
     assert saved == ([('THEME', CLASSIC)] + preset_writes(classic, stored) if answer else [])
@@ -701,8 +701,8 @@ def test_cover_flow_page_holds_artist_view_playlists_sort_refresh_and_large_libr
     ui.click(button_of(page.view(), 'Cover Flow'))
     assert page.title() == 'Cover Flow'
     found = titles(page.view())
-    assert len(found) == 7 and found[:2] == ['Artist View', 'Playlist View'] and found[2] == 'Sort'
-    assert found[3:] == ['Refresh Cover Flow', 'Fast Navigation', 'Scan Song Durations', 'Position Bar']
+    assert len(found) == 7 and found[:2] == ['表演者视图', '播放列表视图'] and found[2] == '排序'
+    assert found[3:] == ['刷新 Cover Flow', '快速导航', '扫描歌曲时长', '位置条']
 
 
 class Settings:
@@ -721,7 +721,7 @@ def test_system_settings_adds_its_rows_and_hides_five(fw):
     ui = Ui(fw)
     Config(fw)
     page = Settings(fw, ui)
-    assert titles(page.view) == ['stock_1', 'stock_2', 'stock_3', 'Controls', 'stock_4', 'system_time', 'stock_0', 'App Store',
+    assert titles(page.view) == ['stock_1', 'stock_2', 'stock_3', '控制', 'stock_4', 'system_time', 'stock_0', 'Q2 应用商店',
                                  'system_update', 'system_reset', 'stock_5', 'stock_6', 'stock_7', 'stock_8', 'system_about']
     # stock's Language (English only for now), Wheel Function, In-Vehicle, General and System
     assert [item.name for item in page.view.children if not item.visible] == ['stock_0', 'stock_5', 'stock_6', 'stock_7', 'stock_8']
@@ -739,13 +739,13 @@ def test_controls_opens_display_as_its_own_page(fw, keytone):
     Config(fw)
     settings = Settings(fw, ui, keytone)
     page = Display(fw, ui)
-    ui.click(button_of(settings.view, 'Controls'))
-    assert page.title() == 'Controls'
+    ui.click(button_of(settings.view, '控制'))
+    assert page.title() == '控制'
     found = titles(page.view())
-    assert found[:3] == ['Wheel Sensitivity', 'Hold Return', 'Single Press Scrub']
-    assert 'Click With Headphones' in found and 'system_keylock' in found
+    assert found[:3] == ['滚轮灵敏度', '长按返回', '单击快进/倒退']
+    assert '插耳机时按键音' in found and 'system_keylock' in found
     # Click With Headphones shows only while Key Tone is on
-    assert button_of(page.view(), 'Click With Headphones').parent.visible == keytone
+    assert button_of(page.view(), '插耳机时按键音').parent.visible == keytone
     # Key Lock opens stock's page
     opened = []
     fw.mock('navigator_to', lambda name, *_: opened.append(C.string_at(name).decode()))
@@ -778,7 +778,7 @@ class Power:
         fw.fn('ringnav_powermanager', C.c_int, C.c_void_p, C.c_void_p)(self.win.addr, None)
 
     def boot(self):
-        labels = [i.labels()[0] for i in self.view.children if i.labels()[0].text.startswith('Boot to: ')]
+        labels = [i.labels()[0] for i in self.view.children if i.labels()[0].text.startswith('默认启动：')]
         return labels[0] if labels else None
 
 
@@ -790,13 +790,13 @@ class Power:
 def test_boot_to_reads_what_the_boot_script_would(fw, saved, shown):
     ui = Ui(fw)
     page = Power(fw, ui, {} if saved is None else {BOOT: saved})
-    assert page.boot().text == f'Boot to: {shown}'
+    assert page.boot().text == f'默认启动：{shown}'
 
 
 def test_boot_to_a_file_that_fails_to_read_is_rockbox(fw):
     ui = Ui(fw)
     fw.mock('fw_ferror', lambda *_: 1)
-    assert Power(fw, ui, {BOOT: b'q2pod'}).boot().text == 'Boot to: Rockbox'
+    assert Power(fw, ui, {BOOT: b'q2pod'}).boot().text == '默认启动：Rockbox'
 
 
 def test_no_rockbox_no_boot_row(fw):
@@ -809,9 +809,9 @@ def test_boot_to_flips_and_saves_through_a_temporary_file(fw):
     page = Power(fw, ui, {})
     label = page.boot()
     ui.click(label.parent)
-    assert label.text == 'Boot to: Q2 Pod' and page.files.files == {BOOT: b'q2pod'}
+    assert label.text == '默认启动：Q2 Pod' and page.files.files == {BOOT: b'q2pod'}
     ui.click(label.parent)
-    assert label.text == 'Boot to: Rockbox' and page.files.files == {BOOT: b'rockbox'}
+    assert label.text == '默认启动：Rockbox' and page.files.files == {BOOT: b'rockbox'}
     assert {C.string_at(a[0]).decode() for _, a in fw.calls('fw_fopen')} >= {BOOT + '.tmp'}
 
 
@@ -821,8 +821,8 @@ def test_boot_to_not_saved_says_so_and_stays(fw):
     page.files.fail_rename = True
     label = page.boot()
     ui.click(label.parent)
-    assert label.text == 'Boot to: Rockbox' and page.files.files[BOOT] == b'rockbox'
-    assert [p[3] for p in page.prompts.seen] == ['Could not save boot choice']
+    assert label.text == '默认启动：Rockbox' and page.files.files[BOOT] == b'rockbox'
+    assert [p[3] for p in page.prompts.seen] == ['无法保存启动选项']
     assert [C.string_at(a[0]).decode() for _, a in fw.calls('fw_unlink')] == [BOOT + '.tmp']
 
 
@@ -832,8 +832,8 @@ def test_boot_to_after_rockbox_left_the_card(fw):
     page.card['card'] = False
     label = page.boot()
     ui.click(label.parent)
-    assert label.text == 'Boot to: Rockbox' and page.files.files == {}
-    assert [p[3] for p in page.prompts.seen] == ['Rockbox is not on the card']
+    assert label.text == '默认启动：Rockbox' and page.files.files == {}
+    assert [p[3] for p in page.prompts.seen] == ['卡内未安装 Rockbox']
 
 
 # Now Playing's info page.
@@ -851,7 +851,7 @@ INFO = ['label_album', 'label_genre', 'label_size', 'label_year', 'label_encode'
 class Info:
     """Now Playing's info page: a label per stock line, stock's np_info having written them; rows adds
     Classic's <name>_value labels."""
-    def __init__(self, fw, ui, texts, rows=False, location=b'Location'):
+    def __init__(self, fw, ui, texts, rows=False, location=b'\xe4\xbd\x8d\xe7\xbd\xae'):
         self.fw, self.ui = fw, ui
         self.win = ui.window('playing_page')
         self.view = ui.add('view', self.win, (0, 30, 375, 290), 'view_info')
@@ -886,9 +886,9 @@ def test_info_lines_get_a_space_and_their_units(fw):
     ui = Ui(fw)
     info = Info(fw, ui, STOCK_INFO)
     assert info() == {'label_album': 'Album: Kind of Blue', 'label_genre': '', 'label_size': 'Size: 35.92 MB',
-                      'label_year': 'Year: Unknown', 'label_encode': 'Format: FLAC', 'label_bits': 'Bits: 16-bit',
+                      'label_year': 'Year: 未知', 'label_encode': 'Format: FLAC', 'label_bits': 'Bits: 16-bit',
                       'label_kbps': 'Bitrate: 950 kbps', 'label_sample': 'Sample rate: 44.1 kHz',
-                      'label_location': 'Location: /mnt/mmc/Music/Miles'}
+                      'label_location': '位置: /mnt/mmc/Music/Miles'}
 
 
 def test_a_second_fill_rewrites_nothing(fw):
@@ -909,10 +909,10 @@ def test_info_units_only_after_a_number(fw, stock, shown):
 
 
 @pytest.mark.parametrize('stock, location, shown', [
-    ('Location:/mnt/mmc/A', b'Location', 'Location: /mnt/mmc/A'),  # already named
+    ('Location:/mnt/mmc/A', b'\xe4\xbd\x8d\xe7\xbd\xae', 'Location: /mnt/mmc/A'),  # already named
     ('/mnt/mmc/A', b'Ort', 'Ort: /mnt/mmc/A'),  # the language's word
-    ('/mnt/mmc/A', b'(player_location)', 'Location: /mnt/mmc/A'),  # a missing string reads "(key)"
-    ('/mnt/mmc/A', b'', 'Location: /mnt/mmc/A'),
+    ('/mnt/mmc/A', b'(player_location)', '位置: /mnt/mmc/A'),  # a missing string reads "(key)"
+    ('/mnt/mmc/A', b'', '位置: /mnt/mmc/A'),
 ])
 def test_the_folder_gets_its_location_label(fw, stock, location, shown):
     ui = Ui(fw)
@@ -927,8 +927,8 @@ def test_classic_rows_split_name_and_value_in_its_grey(fw, st):
     value = {name: info.win.find(name + '_value') for name in INFO}
     assert texts == {'label_album': 'Album', 'label_genre': 'Genre', 'label_size': 'Size', 'label_year': 'Year',
                      'label_encode': 'Format', 'label_bits': 'Bits', 'label_kbps': 'Bitrate', 'label_sample': 'Sample rate',
-                     'label_location': 'Location'}
-    assert [value[n].text for n in INFO] == ['Kind of Blue', 'Jazz', '35.92 MB', 'Unknown', 'FLAC', '16-bit', '950 kbps',
+                     'label_location': '位置'}
+    assert [value[n].text for n in INFO] == ['Kind of Blue', 'Jazz', '35.92 MB', '未知', 'FLAC', '16-bit', '950 kbps',
                                              '44.1 kHz', '/mnt/mmc/Music/Miles']
     assert info.genre() is None  # the genre is a row like the others: no marquee
     grey = next(t for t in THEMES if t['index'] == CLASSIC)['np_info_value']  # dark Light Mode: the dark grey as it is
@@ -1717,8 +1717,8 @@ def test_queues_label_goes_to_the_sets_text_inset(fw, st, geometry, geom):
     label = ui.add('hscroll_label', button, (10, 0, 260, 70))
     other = ui.add('hscroll_label', button, (72, 0, 200, 70))
     text = fw.fn('stock_row_text', C.c_int, C.c_void_p, C.c_char_p)
-    assert text(label.addr, b'Queue') == 0 and text(other.addr, b'Song') == 0
-    assert (label.text, other.text) == ('Queue', 'Song')
+    assert text(label.addr, b'\xe6\x92\xad\xe6\x94\xbe\xe9\x98\x9f\xe5\x88\x97') == 0 and text(other.addr, b'Song') == 0
+    assert (label.text, other.text) == ('播放队列', 'Song')
     if geom == 'GEOM_IPOD':
         assert label.box == (10, 0, 260, 70) and 'style:normal:font_name' not in label.props
     else:
@@ -2343,12 +2343,12 @@ def put(records, r, offset, value):
 
 @pytest.mark.parametrize('cls, artist_type, query', [
     (0xf004, 0, ('getMusicBySonger', b'Miles Davis')), (0xf004, 1, ('getMusicByAlbumArtist', b'Miles Davis')),
-    (0xf005, 0, ('getMusicByComposer', b'Gil Evans')), (0xf006, 0, ('getMusicByGenre', b'Jazz'))])
+    (0xf005, 0, ('getMusicByComposer', b'Gil Evans')), (0xf006, 0, ('getMusicByGenre', b'\xe7\x88\xb5\xe5\xa3\xab'))])
 def test_a_group_rows_menu_runs_the_query_its_row_opens(fw, st, records, cls, artist_type, query):
     fw.var('fw_ctx_g_artist_type', C.c_int).value = artist_type
     r = records.song(artist=b'Miles Davis') if cls == 0xf004 else records.song()
     if cls != 0xf004:
-        put(records, r, {0xf005: 0x20, 0xf006: 0x1c}[cls], {0xf005: b'Gil Evans', 0xf006: b'Jazz'}[cls])
+        put(records, r, {0xf005: 0x20, 0xf006: 0x1c}[cls], {0xf005: b'Gil Evans', 0xf006: b'\xe7\x88\xb5\xe5\xa3\xab'}[cls])
     st('qm_kind').value, st('qm_cls', C.c_uint).value = QM_GROUP, cls
     fw.fn('navigation__qm_query', C.c_int, C.c_void_p)(r)
     assert queried(fw) == [query]
@@ -2368,14 +2368,14 @@ def test_an_unknown_rows_menu_asks_for_the_untagged(fw, st, records):
     (0xff01, 0, 0, ('getMusicByAlbumAndSonger', b'Blue', b'Miles Davis')),
     (0xff01, 1, 0, ('getMusicByAlbumAndAlbumSonger', b'Blue', b'Miles Davis')),
     (0xff01, 0, 1, ('getMusicByAlbumAndSonger', b'Blue', None)),  # an Unknown artist's album
-    (0xff03, 0, 0, ('getMusicByAlbumAndGenre', b'Blue', b'Jazz'))])
+    (0xff03, 0, 0, ('getMusicByAlbumAndGenre', b'Blue', b'\xe7\x88\xb5\xe5\xa3\xab'))])
 def test_an_albums_menu_under_a_group_keeps_the_group(fw, st, records, cls, artist_type, unknown, query):
     fw.var('fw_ctx_g_artist_type', C.c_int).value = artist_type
     info = fw.var('fw_ctx_g_local_classinfo_save', C.c_char * 912)
     info[0xa + (cls & 0xf) - 1] = bytes([unknown])
     if cls == 0xff03:
         r = records.song(album=b'Blue')
-        put(records, r, 0x1c, b'Jazz')
+        put(records, r, 0x1c, b'\xe7\x88\xb5\xe5\xa3\xab')
     else:
         r = records.song(album=b'Blue', artist=b'Miles Davis')
     st('qm_kind').value, st('qm_cls', C.c_uint).value = QM_ALBUM, cls
@@ -2699,8 +2699,8 @@ def test_artists_follow_the_artist_pages_own_setting(fw, records, artist_type):
     assert fw.var('navigation__library_music', C.c_int).value == 0  # put back
 
 
-@pytest.mark.parametrize('cls, words', [(CLASS_ALBUMS, 'No albums'), (0xf004, 'No artists'), (0xf005, 'No composers'),
-                                        (0xf006, 'No genres')])
+@pytest.mark.parametrize('cls, words', [(CLASS_ALBUMS, '暂无专辑'), (0xf004, '暂无表演者'), (0xf005, '暂无作曲家'),
+                                        (0xf006, '暂无流派')])
 def test_an_empty_class_list_closes_its_page_once_open_and_says_so(fw, st, records, cls, words):
     ui = Ui(fw)
     lib = Library(fw)
@@ -2727,7 +2727,7 @@ def test_an_empty_list_whose_page_never_showed_only_says_so(fw, st, records):
     C.c_int.from_address(C.addressof(fw.var('fw_ctx_g_class_type', C.c_char))).value = 0xf005
     ui.window('localmusic_page')
     run(load.timers[-1][0])
-    assert not fw.calls('window_manager_close_window_force') and [p[3] for p in prompts.seen] == ['No composers']
+    assert not fw.calls('window_manager_close_window_force') and [p[3] for p in prompts.seen] == ['暂无作曲家']
 
 
 @pytest.mark.parametrize('page, shows', [('album_page', CLASS_ALBUMS), ('localclass_page', 0xf004)])
@@ -2742,7 +2742,7 @@ def test_an_empty_list_leaves_a_list_page_showing_another_class(fw, st, records,
     run(load.timers[-1][0])
     # the page on top lists another class: it stays, unpolled, and the toast says what was empty
     assert not fw.calls('window_manager_close_window_force') and len(load.timers) == 1
-    assert [p[3] for p in prompts.seen] == ['No composers']
+    assert [p[3] for p in prompts.seen] == ['暂无作曲家']
 
 
 def test_songs_load_straight_into_the_showlist(fw, records):

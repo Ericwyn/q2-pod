@@ -814,11 +814,11 @@ def test_network_update_checks_downloads_and_hands_the_tar_to_stocks_tf_update(w
     releases(w, during=lambda sent: (w.ui.run(500), seen.append(page.text)))
     assert page.buttons[1] and w.ui.get(page.buttons[1]).name == '2'  # stock's click (an atoi of it) passes it by
     page.press()
-    assert page.text == 'Checking…'
+    assert page.text == '正在检查…'
     w.ui.run(500)
-    assert seen == ['Downloading 25%', 'Downloading 50%', 'Downloading 75%', 'Downloading 100%']
+    assert seen == ['正在下载 25%', '正在下载 50%', '正在下载 75%', '正在下载 100%']
     assert w.card.files[TAR] == UPDATE_TAR and PART not in w.card.files
-    assert page.text == 'tr:update_online' and not w.ui.toasts
+    assert page.text == 'tr:上游英文固件更新' and not w.ui.toasts
     # the part whole on the card, renamed, and the rename's entry on the card, before stock flashes it
     steps = [e for e in w.log if e[0] in ('fsync', 'rename', 'fwupdate_tf')]
     assert steps == [('fsync', PART), ('rename', PART, TAR), ('fsync', '/mnt/mmc'), ('fwupdate_tf',)]
@@ -837,8 +837,8 @@ def test_network_update_on_the_latest_release_or_an_older_one_writes_nothing(w, 
     releases(w, tag)
     page.press()
     w.ui.run(500)
-    assert w.ui.toasts == ['Latest firmware installed'] and w.net.asked == [LATEST]
-    assert not w.card.tree() and page.text == 'tr:update_online' and not w.calls('fwupdate_tf')
+    assert w.ui.toasts == ['已是最新上游版本'] and w.net.asked == [LATEST]
+    assert not w.card.tree() and page.text == 'tr:上游英文固件更新' and not w.calls('fwupdate_tf')
 
 
 @pytest.mark.refusal('update:truncated')
@@ -850,7 +850,7 @@ def test_network_update_cut_off_midway_keeps_the_old_tar_and_carries_on_at_the_n
     releases(w, cut=half)  # the connection drops there, at every try
     page.press()
     w.ui.run(500)
-    assert w.ui.toasts == ["Can't reach GitHub"] and page.text == 'tr:update_online' and not w.calls('fwupdate_tf')
+    assert w.ui.toasts == ['无法连接 GitHub'] and page.text == 'tr:上游英文固件更新' and not w.calls('fwupdate_tf')
     assert w.card.tree() == {'update.tar': b'the release before', 'update.tar.part': UPDATE_TAR[:half]}
     assert w.net.asked.count(ASSET) == 4 and w.clock.slept.count(100) == 3 * 50  # 5 s between tries, in 100 ms steps
     # the network is back: the rest alone is fetched, and the whole is what the release names
@@ -858,7 +858,7 @@ def test_network_update_cut_off_midway_keeps_the_old_tar_and_carries_on_at_the_n
     releases(w, during=lambda sent: (w.ui.run(500), seen.append(page.text)))
     page.press()
     w.ui.run(500)
-    assert seen[0] == 'Downloading 74%' and seen[-1] == 'Downloading 100%'  # of the whole tar, not of the rest
+    assert seen[0] == '正在下载 74%' and seen[-1] == '正在下载 100%'  # of the whole tar, not of the rest
     assert w.card.tree() == {'update.tar': UPDATE_TAR} and ('fwupdate_tf',) in w.log
 
 
@@ -868,7 +868,7 @@ def test_network_update_with_no_network_asks_once(w):
     page = SystemUpdate(w)
     page.press()
     w.ui.run(500)
-    assert w.ui.toasts == ["Can't reach GitHub"] and w.net.asked == [LATEST] and not w.card.tree()
+    assert w.ui.toasts == ['无法连接 GitHub'] and w.net.asked == [LATEST] and not w.card.tree()
 
 
 @pytest.mark.refusal('update:oversize')
@@ -879,7 +879,7 @@ def test_network_update_on_a_card_without_the_room_says_how_much_and_downloads_n
     releases(w)
     page.press()
     w.ui.run(500)
-    assert w.ui.toasts == ['Needs 65 MB more space'] and w.net.asked == [LATEST, API + NEWER]  # the tar twice over, and 64 MB
+    assert w.ui.toasts == ['还需要 65 MB 空间'] and w.net.asked == [LATEST, API + NEWER]  # the tar twice over, and 64 MB
     assert not w.card.tree() and w.card.room == len(UPDATE_TAR) // 3
 
 
@@ -889,7 +889,7 @@ def test_network_update_on_a_card_that_fills_meanwhile_says_so_and_gives_the_roo
     releases(w, during=lambda sent: setattr(w.card, 'room', 0))
     page.press()
     w.ui.run(500)
-    assert w.ui.toasts == ["Can't write to the card"] and not w.card.tree() and w.card.room == len(UPDATE_TAR) // 4
+    assert w.ui.toasts == ['无法写入存储卡'] and not w.card.tree() and w.card.room == len(UPDATE_TAR) // 4
 
 
 def test_network_update_never_names_a_damaged_download_update_tar(w):
@@ -902,7 +902,7 @@ def test_network_update_never_names_a_damaged_download_update_tar(w):
     releases(w, sent=UPDATE_TAR[:-1] + b'!', during=lambda sent: sent == len(UPDATE_TAR) and seen.append(w.card.files[PART]))
     page.press()
     w.ui.run(500)
-    assert seen == [UPDATE_TAR[:-1] + b'!'] and w.ui.toasts == ['The download was damaged, try again']
+    assert seen == [UPDATE_TAR[:-1] + b'!'] and w.ui.toasts == ['下载文件已损坏，请重试']
     assert w.card.tree() == {'update.tar': b'the release before'} and not w.calls('fwupdate_tf')
 
 
@@ -912,7 +912,7 @@ def test_network_update_on_a_low_battery_asks_nothing_of_the_network(w):
     releases(w)
     page.press()
     w.ui.run(500)
-    assert w.ui.toasts == ['Charge the battery first'] and not w.net.asked and not w.card.tree() and not w.ui.started
+    assert w.ui.toasts == ['请先为电池充电'] and not w.net.asked and not w.card.tree() and not w.ui.started
 
 
 def test_a_second_press_cancels_the_download_and_a_third_before_it_ends_does_nothing(w):
@@ -927,11 +927,11 @@ def test_a_second_press_cancels_the_download_and_a_third_before_it_ends_does_not
     releases(w, during=during)
     page.press()
     w.ui.work()
-    assert seen == ['Cancelling…'] and w.net.asked == [LATEST, API + NEWER, ASSET]
+    assert seen == ['正在取消…'] and w.net.asked == [LATEST, API + NEWER, ASSET]
     page.press()  # the thread has ended, not yet joined
     w.ui.run(500)
-    assert w.ui.started == 1 and w.ui.toasts == ['Download cancelled']
-    assert w.card.tree() == {'update.tar': b'the release before'} and page.text == 'tr:update_online'
+    assert w.ui.started == 1 and w.ui.toasts == ['已取消下载']
+    assert w.card.tree() == {'update.tar': b'the release before'} and page.text == 'tr:上游英文固件更新'
 
 
 def test_leaving_system_update_cancels_its_download_and_keeps_what_came(w):
@@ -941,7 +941,7 @@ def test_leaving_system_update_cancels_its_download_and_keeps_what_came(w):
     releases(w, during=lambda sent: sent == quarter and w.ui.destroy(page.page))
     page.press()
     w.ui.run(500)
-    assert w.ui.toasts == ['Download cancelled'] and w.card.tree() == {'update.tar.part': UPDATE_TAR[:2 * quarter]}  # ended at the next progress call
+    assert w.ui.toasts == ['已取消下载'] and w.card.tree() == {'update.tar.part': UPDATE_TAR[:2 * quarter]}  # ended at the next progress call
     assert len(w.net.asked) == 3 and not w.calls('fwupdate_tf')
 
 
@@ -953,7 +953,7 @@ def test_a_download_that_ends_as_the_page_closes_says_where_it_is(w):
     w.ui.work()
     w.ui.destroy(page.page)  # after the rename, before the join
     w.ui.run(500)
-    assert w.ui.toasts == ['Update downloaded: use TF card update'] and w.card.files[TAR] == UPDATE_TAR
+    assert w.ui.toasts == ['上游英文固件已下载，请使用 TF 卡升级'] and w.card.files[TAR] == UPDATE_TAR
     assert not w.calls('fwupdate_tf')
 
 
@@ -1007,7 +1007,7 @@ class GitHub:
 
 class AppStore:
     """System settings' Apps page: Check for Updates, then a row per app in the list."""
-    CHECK = 'Check for Updates'
+    CHECK = '检查更新'
 
     def __init__(self, w):
         self.w = w
@@ -1047,9 +1047,9 @@ def test_the_app_store_lists_installs_and_streaming_finds_the_app(w):
     store = AppStore(w)
     shown = []
     _, data = hub.release('me/q2-foo', '1.0', app_zip('x' * 40000), during=lambda sent: (w.ui.run(500), shown.append(store.detail('Foo'))))
-    assert store.rows() == [] and store.detail(store.CHECK) == 'Checking…'  # no list on the card yet
+    assert store.rows() == [] and store.detail(store.CHECK) == '正在检查…'  # no list on the card yet
     w.ui.run(500)
-    assert store.rows() == [('Foo', 'Install')] and w.net.asked == [LIST_URL, api('me/q2-foo')]
+    assert store.rows() == [('Foo', '安装')] and w.net.asked == [LIST_URL, api('me/q2-foo')]
     assert not w.ui.toasts  # nothing installed to update, and the opening check isn't Check for Updates
     assert w.card.files['/mnt/mmc/.q2/sources.list'] == b'me/q2-foo Foo\n'  # the page's list offline
     store.press('Foo')
@@ -1057,10 +1057,10 @@ def test_the_app_store_lists_installs_and_streaming_finds_the_app(w):
     w.shell.watch = lambda cmd: (w.ui.run(500), shown.append(store.detail('Foo')))
     w.ui.run(500)
     stages = [x for i, x in enumerate(shown) if not i or shown[i - 1] != x]
-    assert stages[0] == 'Checking…' and stages[-2:] == ['Unpacking…', 'Installing…']
-    percents = [int(p) for x in stages[1:-2] for p in re.findall(r'^Downloading (\d+)%$', x)]
+    assert stages[0] == '正在检查…' and stages[-2:] == ['正在解压…', '正在安装…']
+    percents = [int(p) for x in stages[1:-2] for p in re.findall(r'^正在下载 (\d+)%$', x)]
     assert len(percents) == len(stages[1:-2]) and percents == sorted(percents) and percents[-1] == 100
-    assert w.ui.toasts == ['Foo is ready in Streaming'] and store.rows() == [('Foo', 'Installed')]
+    assert w.ui.toasts == ['Foo 已就绪，可在流媒体中打开'] and store.rows() == [('Foo', '已安装')]
     card = w.card.tree()
     assert set(card) == FOO_FILES | {'.q2/apps/foo.files', '.q2/apps/foo.tag', '.q2/sources.list'}
     assert card['.foo/q2-foo'] == b'x' * 40000 and card['.q2/apps/foo.tag'] == b'1.0'
@@ -1081,10 +1081,10 @@ def test_the_app_store_updates_an_app_stopping_it_first_and_keeping_what_it_save
     hub.release('me/q2-foo', '1.1', app_zip('binary 2', **{'.foo/lib.so': 'new'}))
     store = AppStore(w)
     w.ui.run(500)
-    assert store.rows() == [('Foo', 'Update')] and w.ui.toasts == ['1 app can be updated']  # the opening check's count
+    assert store.rows() == [('Foo', '更新')] and w.ui.toasts == ['可更新 1 个应用']  # the opening check's count
     store.press('Foo')
     w.ui.run(500)
-    assert w.ui.toasts[1:] == ['Foo is ready in Streaming'] and store.rows() == [('Foo', 'Installed')]
+    assert w.ui.toasts[1:] == ['Foo 已就绪，可在流媒体中打开'] and store.rows() == [('Foo', '已安装')]
     card = w.card.tree()
     assert card['.foo/q2-foo'] == b'binary 2' and card['.foo/lib.so'] == b'new' and card['.foo/settings.cfg'] == b'volume=3'
     assert card['.q2/apps/foo.tag'] == b'1.1' and '.foo/lib.so' in card['.q2/apps/foo.files'].decode().split('\n')
@@ -1102,13 +1102,13 @@ def test_the_app_store_removes_an_app_with_what_it_saved_and_without_wifi(w):
               sources='me/q2-foo Foo\nme/q2-bar Bar\n')
     assert streaming(w) == ['Bar', 'Foo']
     store = AppStore(w)
-    assert store.rows() == [('Foo', 'Installed'), ('Bar', 'Installed')]
+    assert store.rows() == [('Foo', '已安装'), ('Bar', '已安装')]
     store.press('Foo')
-    assert store.detail('Foo') == 'Press again to remove'
+    assert store.detail('Foo') == '再次按下以移除'
     store.press('Foo')
-    assert store.detail('Foo') == 'Removing…'
+    assert store.detail('Foo') == '正在移除…'
     w.ui.run(500)
-    assert w.ui.toasts == ['Foo removed'] and store.rows() == [('Foo', 'Install'), ('Bar', 'Installed')]
+    assert w.ui.toasts == ['已移除 Foo'] and store.rows() == [('Foo', '安装'), ('Bar', '已安装')]
     assert not [p for p in w.card.tree() if 'foo' in p] and '/mnt/mmc/.foo' not in w.card.dirs
     assert set(w.card.tree()) == {'.bar/q2-bar', '.bar/q2app', '.bar/run', '.q2/apps/bar.files', '.q2/apps/bar.tag', '.q2/sources.list'}
     assert not w.net.asked and streaming(w) == ['Bar']
@@ -1117,22 +1117,22 @@ def test_the_app_store_removes_an_app_with_what_it_saved_and_without_wifi(w):
 def test_wifi_gates_the_online_jobs_until_it_comes_up(w):
     store, page = AppStore(w), SystemUpdate(w)  # no list on the card yet; opened offline, no check
     before = w.ui.rows(store.page)
-    assert store.rows() == [] and store.detail(store.CHECK) == 'Connect to Wi-Fi to load the list'
+    assert store.rows() == [] and store.detail(store.CHECK) == '连接 Wi-Fi 以加载列表'
     store.press(store.CHECK)
     page.press()
-    assert w.ui.toasts == ['Connect to Wi-Fi first'] * 2 and not w.ui.started
+    assert w.ui.toasts == ['请先连接 Wi-Fi'] * 2 and not w.ui.started
     w.ui.run(1000)
     assert not w.net.asked and page.text == 'tr:update_online' and w.ui.rows(store.page) == before
     w.ui.wifi = 2  # it comes up: the same presses go out
     GitHub(w, 'me/q2-foo Foo\n').release('me/q2-foo', '1.0', app_zip('x'))
     releases(w, TAG)
     store.press(store.CHECK)
-    assert store.rows() == [] and store.detail(store.CHECK) == 'Checking…'  # the list is loading: no app rows yet
+    assert store.rows() == [] and store.detail(store.CHECK) == '正在检查…'  # the list is loading: no app rows yet
     w.ui.run(500)
-    assert store.rows() == [('Foo', 'Install')] and w.ui.toasts[2:] == []  # System Update's page covers it: no count
+    assert store.rows() == [('Foo', '安装')] and w.ui.toasts[2:] == []  # System Update's page covers it: no count
     page.press()
     w.ui.run(500)
-    assert w.ui.toasts[2:] == ['Latest firmware installed'] and w.ui.started == 2
+    assert w.ui.toasts[2:] == ['已是最新上游版本'] and w.ui.started == 2
 
 
 def test_a_job_whose_thread_cant_start_says_so_and_the_next_press_starts_it(w):
@@ -1148,13 +1148,13 @@ def test_a_job_whose_thread_cant_start_says_so_and_the_next_press_starts_it(w):
     store.press('Foo')
     store.press('Foo')  # Installed's second press removes it
     assert len(w.ui.toasts) == 2 and page.text == 'tr:update_online'  # one each, and both rows as before
-    assert store.rows() == [('Foo', 'Installed')] and FOO_FILES <= set(w.card.tree()) and not w.ui.timers
+    assert store.rows() == [('Foo', '已安装')] and FOO_FILES <= set(w.card.tree()) and not w.ui.timers
     w.mock('fw_pthread_create', w.ui.create)
     page.press()
     store.press('Foo')
     store.press('Foo')
     w.ui.run(500)
-    assert w.ui.toasts[2:] == ['Latest firmware installed', 'Foo removed']
+    assert w.ui.toasts[2:] == ['已是最新上游版本', '已移除 Foo']
 
 
 @pytest.mark.refusal('addon:oversize')
@@ -1169,8 +1169,8 @@ def test_an_install_without_room_says_how_much_more_and_downloads_nothing(w):
     store.press('Foo')
     w.ui.run(500)
     short = -(-(len(data) + 64 * MB - have) // MB)  # its zip and 64 MB beside it, in whole MB
-    assert w.ui.toasts == [f'Needs {short} MB more space'] and url not in w.net.asked
-    assert set(w.card.tree()) == {'.q2/sources.list'} and store.rows() == [('Foo', 'Install')]
+    assert w.ui.toasts == [f'还需要 {short} MB 空间'] and url not in w.net.asked
+    assert set(w.card.tree()) == {'.q2/sources.list'} and store.rows() == [('Foo', '安装')]
 
 
 @pytest.mark.refusal('addon:truncated')
@@ -1183,7 +1183,7 @@ def test_an_install_cut_off_midway_leaves_the_card_as_it_was(w):
     room = w.card.room
     store.press('Foo')
     w.ui.run(500)
-    assert w.ui.toasts == ["Can't reach GitHub"] and store.rows() == [('Foo', 'Install')]
+    assert w.ui.toasts == ['无法连接 GitHub'] and store.rows() == [('Foo', '安装')]
     assert set(w.card.tree()) == {'.q2/sources.list'} and STAGING not in w.card.dirs and w.card.room == room
 
 
@@ -1202,8 +1202,8 @@ def test_a_second_press_cancels_an_install_and_another_app_waits(w):
     w.ui.run(500)
     store.press('Foo')
     w.ui.run(500)
-    assert seen == ['Cancelling…'] and w.ui.toasts == ['Wait for the one in progress', 'Download cancelled']
-    assert store.rows() == [('Foo', 'Install'), ('Bar', 'Install')]
+    assert seen == ['正在取消…'] and w.ui.toasts == ['请等待当前操作完成', '已取消下载']
+    assert store.rows() == [('Foo', '安装'), ('Bar', '安装')]
     assert set(w.card.tree()) == {'.q2/sources.list'} and STAGING not in w.card.dirs
     assert not [u for u in w.net.asked if 'q2-bar.zip' in u]
 
@@ -1233,7 +1233,7 @@ class Foo:
             self.w.card.put('/tmp/q2-foo.library', f'7\nscan\nimport {LIB_DIR}Foo Mix.m3u\n'.encode())
             return q2spot(request, msg=b'Syncing 1 playlist')
         return q2spot(request, rows=[(b'action', b'sync', b'Sync now', b'From your server', b'', b''),
-                                     (b'list', b'albums', b'Albums', b'', b'', b'')])
+                                     (b'list', b'albums', b'\xe4\xb8\x93\xe8\xbe\x91', b'', b'', b'')])
 
 
 class Library:
@@ -1289,12 +1289,12 @@ def test_an_installed_app_draws_its_page_and_its_sync_updates_the_library_once_t
     page = w.ui.top()
     assert w.shell.ran.count('/bin/sh /mnt/mmc/.foo/run') == 1
     w.ui.run(250)
-    assert w.ui.texts(page) == ['Starting Foo…']  # no socket yet
+    assert w.ui.texts(page) == ['正在启动 Foo…']  # no socket yet
     w.ui.run(1000)
-    assert w.ui.rows(page) == [('Sync now', 'From your server'), ('Albums', '')]
+    assert w.ui.rows(page) == [('Sync now', 'From your server'), ('专辑', '')]
     w.ui.press(page, 'Sync now')
     w.ui.run(1500)  # its page shows no library records: the request runs under it
-    assert w.ui.toasts == ['Syncing 1 playlist', 'Playlists updated'] and app.ops == [b'menu', b'sync', b'menu']
+    assert w.ui.toasts == ['Syncing 1 playlist', '播放列表已更新'] and app.ops == [b'menu', b'sync', b'menu']
     assert w.card.files['/tmp/q2-foo.library.done'] == b'7 ok\n'
     steps = [e for e in w.log if e[0] in ('scan', 'import')]
     assert steps == [('scan',), ('import', ['Foo Mix'])]  # the app's playlist alone, after the scan
@@ -1319,7 +1319,7 @@ def test_a_card_app_reply_that_lands_before_pthread_create_returns_is_still_take
     w.fn('addon_open', C.c_int, C.c_void_p, C.c_void_p)(0, None)
     page = w.ui.top()
     w.ui.run(3000)
-    assert w.ui.rows(page) == [('Sync now', 'From your server'), ('Albums', '')]
+    assert w.ui.rows(page) == [('Sync now', 'From your server'), ('专辑', '')]
 
 
 # Spotify: Streaming's row, librespot on the card, the hand-over both ways and the idle stop
@@ -1415,23 +1415,23 @@ def picked_spotify(w):
     sp = Spotify(w)
     w.playing = 2
     browser = sp.open()
-    assert w.shell.ran.count(RUN) == 1 and w.ui.texts(browser) == ['Loading…']
+    assert w.shell.ran.count(RUN) == 1 and w.ui.texts(browser) == ['加载中…']
     w.ui.run(500)  # no socket yet: librespot starting
-    assert w.ui.texts(browser) == ['Loading…'] and not sp.lib.listening()
+    assert w.ui.texts(browser) == ['加载中…'] and not sp.lib.listening()
     w.ui.run(1500)
-    assert w.ui.rows(browser) == [('Open Spotify on your phone and choose Q2', 'Both on the same Wi-Fi')]
+    assert w.ui.rows(browser) == [('手机打开 Spotify 并选择 Q2', '两台设备需连接同一 Wi-Fi')]
     sp.lib.paired = True
     w.ui.run(2500)  # the prompt asks again every 2 s
     menu = w.ui.rows(browser)
-    assert 'Liked Songs' in menu and 'Now Playing' not in menu  # no track yet
-    w.ui.press(browser, 'Liked Songs')
+    assert '喜欢的歌曲' in menu and '正在播放' not in menu  # no track yet
+    w.ui.press(browser, '喜欢的歌曲')
     w.ui.run(500)
     assert w.ui.rows(browser) == [('Song 1', 'Artist A'), ('Song 2', 'Artist B')]
     w.ui.press(browser, 'Song 2')
     w.ui.run(500)
     assert sp.lib.plays == [(b'spotify:collection', b'1', b'spotify:track:2')]
     np = w.ui.top()
-    assert np != browser and w.ui.texts(np) == ['Loading…', 'Starting playback']
+    assert np != browser and w.ui.texts(np) == ['加载中…', '正在开始播放']
     return sp, browser, np
 
 
@@ -1447,7 +1447,7 @@ def playing_spotify(w):
 def test_spotify_launches_pairs_and_plays_taking_the_dac_from_local_music(w):
     sp, browser, np, before = playing_spotify(w)
     shown = w.ui.texts(np)
-    assert {'Song 2', 'Artist B', 'Album B'} <= set(shown) and 'Starting playback' not in shown
+    assert {'Song 2', 'Artist B', 'Album B'} <= set(shown) and '正在开始播放' not in shown
     names = [c[0] for c in w.fw.calls()[before:]]
     readied = [i for i, name in enumerate(names) if name in DAC]
     assert readied and 'player_stop' in names[:readied[0]]  # local music lets go before the DAC is readied
@@ -1493,14 +1493,14 @@ def test_a_track_key_spotify_refuses_ends_the_wait_with_one_kill_and_says_why(w)
     w.card.put('/mnt/mmc/.spotify/spot.log', b'[old] error audio key\n', count=False)  # a line from before the play
     sp, browser, np = picked_spotify(w)
     w.ui.run(2000)
-    assert sp.lib.kills == 0 and w.ui.texts(np) == ['Loading…', 'Starting playback']
+    assert sp.lib.kills == 0 and w.ui.texts(np) == ['加载中…', '正在开始播放']
     w.card.files['/mnt/mmc/.spotify/spot.log'] += b'[new] librespot_playback: error audio key 403\n'
     w.ui.run(1000)
-    assert sp.lib.kills == 1 and w.ui.texts(np) == ['Spotify refused this account', "Its tracks can't play on the Q2"]
+    assert sp.lib.kills == 1 and w.ui.texts(np) == ['Spotify 拒绝了此账号', '其歌曲无法在 Q2 上播放']
     w.ui.run(5000)
     sp.lib.run(None)  # its launcher's loop starts it again, with no track
     w.ui.run(15000)
-    assert sp.lib.kills == 1 and len(sp.lib.plays) == 1 and w.ui.texts(np)[0] == 'Spotify refused this account'  # no play sent again
+    assert sp.lib.kills == 1 and len(sp.lib.plays) == 1 and w.ui.texts(np)[0] == 'Spotify 拒绝了此账号'  # no play sent again
     sp.lib.write('playing', TRACKS[0])  # any track that plays later clears it
     w.ui.run(1000)
     assert 'Song 1' in w.ui.texts(np)
@@ -1509,7 +1509,7 @@ def test_a_track_key_spotify_refuses_ends_the_wait_with_one_kill_and_says_why(w)
 def test_spotify_not_on_the_card_says_so_and_runs_nothing(w):
     sp = Spotify(w, on_card=False)
     page = sp.open()
-    assert w.ui.texts(page) == ["Spotify isn't on the card", 'See the Q2 Pod guide to add it']
+    assert w.ui.texts(page) == ['存储卡未安装 Spotify', '请参照 Q2 Pod 指南安装']
     w.ui.run(2000)
     assert RUN not in w.shell.ran and not w.card.reads.get(SPOT_STATE)
 
@@ -1537,12 +1537,12 @@ def test_updating_spotify_in_the_app_store_stops_librespot_keeps_its_login_and_s
         '.spotify/.cache-size': '2G'}, during=meanwhile)
     store = AppStore(w)
     w.ui.run(500)
-    assert store.rows() == [('Spotify', 'Update')] and w.ui.toasts == ['1 app can be updated']  # the opening check's count
+    assert store.rows() == [('Spotify', '更新')] and w.ui.toasts == ['可更新 1 个应用']  # the opening check's count
     store.press('Spotify')
     assert sp.lib.kills == 1 and not sp.lib.listening()  # stopped on the UI thread as the job starts
     w.ui.run(500)
-    assert sp.lib.runs == 2 and w.ui.toasts[1:] == ['Spotify is ready in Streaming']  # said away from the page
-    assert AppStore(w).rows() == [('Spotify', 'Installed')]
+    assert sp.lib.runs == 2 and w.ui.toasts[1:] == ['Spotify 已就绪，可在流媒体中打开']  # said away from the page
+    assert AppStore(w).rows() == [('Spotify', '已安装')]
     card = w.card.tree()
     assert card['.spotify/librespot'] == b'ELF 1.1' and card['.spotify/run'] == b'#!/bin/sh\n# 1.1\n'
     assert card['.spotify/cache/credentials.json'] == b'{"login":"me"}' and card['.spotify/.cache-size'] == b'1G'  # never the zip's
@@ -1564,7 +1564,7 @@ def test_a_spotify_reply_that_lands_before_pthread_create_returns_is_still_taken
     w.ui.eager = True  # each worker runs to its end before pthread_create returns
     browser = sp.open()
     w.ui.run(3000)
-    assert 'Liked Songs' in w.ui.rows(browser)
+    assert '喜欢的歌曲' in w.ui.rows(browser)
 
 
 # Tidal: a track list paged whole, and the card's copy of each stream
@@ -1911,10 +1911,13 @@ def test_lyrics_on_a_full_card_leave_it_as_it_was_and_run_nothing(w, lyrics):
     assert SHADOW + '.part' not in w.card.files
 
 
-def test_lyrics_with_lrclib_unreachable_leave_nothing_to_take(w, lyrics):
+def test_lyrics_with_lrclib_unreachable_resume_native_search(w, lyrics):
     w.net.up = False
-    assert w.fn('ringnav_lyric_search', C.c_int, C.c_char_p, C.c_char_p)(b'Song 2', b'/tmp/oslyric_0') == 1
-    assert len(w.net.asked) == 1 and '/tmp/oslyric_0' not in w.card.files  # once: offline is not busy
+    asked = []
+    w.mock('stock_kugoulyric_trampoline', lambda key, out, *_: asked.append((C.string_at(key), C.string_at(out))) or 7)
+    assert w.fn('ringnav_lyric_search', C.c_int, C.c_char_p, C.c_char_p)(b'Song 2', b'/tmp/oslyric_0') == 7
+    assert asked == [(b'Song 2', b'/tmp/oslyric_0')]
+    assert len(w.net.asked) == 1 and '/tmp/oslyric_0' not in w.card.files
 
 
 MB_SEARCH = 'https://musicbrainz.org/ws/2/release/?fmt=json&limit=10&query=release%3A%22Album%20B%22%20AND%20artist%3A%22Artist%20B%22'

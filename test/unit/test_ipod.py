@@ -103,7 +103,7 @@ def test_ipod_home():
     assert [c[2]['name'] for c in carousel[3]] == ['btn_playing', 'btn_localmusic', 'btn_coverflow', 'btn_folder', 'btn_rockbox',
                                                    'btn_stream', 'btn_playset', 'btn_sysset']
     assert carousel[3][2][3][1][2]['text'] == 'Cover Flow' and carousel[3][4][3][1][2]['text'] == 'Rockbox'
-    assert carousel[3][1][3][1][2] == {'name': 'label_library', 'text': 'Library'}
+    assert carousel[3][1][3][1][2] == {'name': 'label_library', 'text': '音乐'}
     assert carousel[3][2][3][1][2]['name'] == 'label_cover_flow' and carousel[3][2][3][0][2]['draw'] == 'menu_music'  # ours, cloned; stock's card is gone
     assert [n[2]['name'] for n in rows[2][3]] == ['label_cover_flow', 'img_cover_flow'] and carousel[3][2][3][0][2]['name'] == 'img_cover_flow'
     for n in root[3][3:]:
@@ -684,7 +684,7 @@ def test_confirm_dialog():
     root = dialog()
     ipod.confirm_dialog(root)
     assert clear_borders(root[2])
-    for i, (n, text) in enumerate(zip(root[3], ('Cancel', 'OK'))):
+    for i, (n, text) in enumerate(zip(root[3], ('取消', '确定'))):
         assert n[0] == 'button' and n[1] == [0, ipod.CONFIRM_TOP + i * ipod.CONFIRM_ROW, 375, ipod.CONFIRM_ROW]
         assert 'other' not in n[2]
         assert (n[2]['name'], n[2]['text'], n[2]['focusable']) == (('img_cancel', 'img_enter')[i], text, 'false')

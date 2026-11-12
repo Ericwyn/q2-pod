@@ -513,9 +513,9 @@ int app_urls_play(const char *path) {
         tk_snprintf(id, sizeof id, "app:%u:%u", gen, n);
         unsigned rec[0x58 / 4] = { 0 }; /* stSongInfo: _deque_push_back copies it */
         P(rec, REC_TIDAL_ID) = strdup(id);
-        P(rec, REC_NAME) = strdup(*fld[1] ? fld[1] : "Unknown"); /* printed with %s: never NULL */
+        P(rec, REC_NAME) = strdup(*fld[1] ? fld[1] : "未知"); /* printed with %s: never NULL */
         P(rec, REC_PATH) = strdup(web(fld[0]) ? "" : fld[0]);
-        P(rec, REC_TITLE) = strdup(*fld[1] ? fld[1] : "Unknown");
+        P(rec, REC_TITLE) = strdup(*fld[1] ? fld[1] : "未知");
         if (*fld[2]) P(rec, REC_ARTIST) = strdup(fld[2]);
         if (*fld[3]) P(rec, REC_ALBUM) = strdup(fld[3]);
         if (web(fld[4])) P(rec, REC_COVER) = strdup(fld[4]); /* stock's cover thread curls it */
@@ -792,7 +792,7 @@ void tidal_all(int press, char *out, unsigned size) {
             td.all = all, td.at = td.saved = td.idle = td.told = td.since = 0,
             td.tried = td.misses = td.full = 0;
         pthread_mutex_unlock(td.lock);
-        if (!td.all) deque_destroy(all), toast("Play a Tidal album or playlist first");
+        if (!td.all) deque_destroy(all), toast("请先播放 Tidal 专辑或播放列表");
         /* The folder, as tidal_play makes it before its card_space: tidal_poll's statfs of a
          * missing one fails, which reads as a full card and ends the run at once. */
         else
@@ -800,9 +800,9 @@ void tidal_all(int press, char *out, unsigned size) {
     }
     unsigned n = td.all ? deque_size(td.all) : 0;
     if (n)
-        tk_snprintf(out, size, "Downloading %u of %u. Press to stop", td.at < n ? td.at + 1 : n, n);
+        tk_snprintf(out, size, "正在下载 %u/%u 首，按下停止", td.at < n ? td.at + 1 : n, n);
     else
-        tk_snprintf(out, size, "Download Playing Songs");
+        tk_snprintf(out, size, "下载播放中的歌曲");
 }
 
 /* ringnav_sleep, every UI loop pass, paced to a second while Download All runs or has its count to
@@ -825,9 +825,8 @@ void tidal_poll(void) {
         if (!g_backlight_status) return;
         /* td.full: the run's next song would have deleted one of its own (trim) */
         tk_snprintf(s, sizeof s,
-                    td.full ? "Tidal Cache full: %u of %u song%s saved"
-                            : "Downloaded %u of %u song%s",
-                    td.told - 1, td.of, td.of == 1 ? "" : "s");
+                    td.full ? "Tidal 缓存已满：已保存 %u/%u 首歌曲" : "已下载 %u/%u 首歌曲",
+                    td.told - 1, td.of);
         td.told = 0;
         toast(s);
         return;

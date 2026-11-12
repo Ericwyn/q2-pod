@@ -229,7 +229,7 @@ def main():
     db = e2e.Library(tags)
     db.scan(files)
     arena = Arena()
-    for name, action in (('Songs', songs), ('Albums', albums), ('CoverFlow', coverflow), ('MostPlayed', most_played),
+    for name, action in (('Songs', songs), ('专辑', albums), ('CoverFlow', coverflow), ('MostPlayed', most_played),
                          ('SongsMostPlayed', songs_most_played), ('CoverFlowMostPlayed', coverflow_most_played)):
         measure(name, action, library, scratch, arena, files, db, n)
     shutil.rmtree(out)

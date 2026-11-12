@@ -118,9 +118,9 @@ def opt(setting, default=-1, preset=-1, keep=-1, values=0):
 
 def own(key, label, names, sets, default=-1, preset=-1, keep=-1):  # a theme's own option, as resolve() keeps it
     return {**opt('SETTING_OWN', default, preset, keep), 'key': key, 'label': label, 'names': list(names), 'sets': sets and list(sets)}
-HOMELIB, ROWPREVIEW = (own(k, label, ('Off', 'On'), None, default=1, preset=1) for k, label in (('HOMELIB', 'Library on Home'), ('ROWPREVIEW', 'Row Preview')))
-STATUSBAR = own('STATUSBAR', 'Status Bar', ('Theme', 'Minimal', 'Modern', 'Classic'), None, default=0, preset=0)
-SHOWQ2POD = own('SHOWQ2POD', 'Show Wordmark', ('Off', 'On'), None, default=1)
+HOMELIB, ROWPREVIEW = (own(k, label, ('关闭', '打开'), None, default=1, preset=1) for k, label in (('HOMELIB', '主菜单显示音乐'), ('ROWPREVIEW', '列表预览')))
+STATUSBAR = own('STATUSBAR', '状态栏', ('主题', '简约', '现代', '经典'), None, default=0, preset=0)
+SHOWQ2POD = own('SHOWQ2POD', '显示品牌字样', ('关闭', '打开'), None, default=1)
 
 
 CLASSIC_THUMB = dict(thumb=1, ticks_turn=36, ticks_album=7, fast_at=23, fast_full=90, top_speed=20, track=30, snap=25, spin=130, far_left=250,
@@ -148,7 +148,7 @@ MOTION_TODAY = {**{f'motion.{k}.{a}': 0 for k in ('page', 'playing', 'coverflow'
 MINIMAL = {
     **MOTION_TODAY,
     'page_row': 48, 'page_detail': 64, 'page_title_h': 48, 'page_x': 36, 'page_cap_y': 4, 'page_cap_h': 32, 'page_det_y': 36, 'page_det_h': 24,
-    'id': 'minimal', 'index': 0, 'name': 'Minimal', 'accents': 0x1ff, 'accent_key': 'MINIMAL_ACCENT',
+    'id': 'minimal', 'index': 0, 'name': '简约', 'accents': 0x1ff, 'accent_key': 'MINIMAL_ACCENT',
     'painter[PAINT_SELECTION]': 0, 'painter[PAINT_BAR]': 0, 'painter[PAINT_BATTERY]': 0, 'chevron_home': 0, 'chevron_sel': 0, 'caps_mark': 1, 'caps_home': 1, 'caps_np': 1,
     'icons_mono': 1, 'icons_badge_muted': 1, 'icons_addon_mono': 1, 'icons_badge_ink': 0, 'art_final': 0, 'font[ROLE_NP]': 0, 'font[ROLE_INFO]': 0, 'font_px[ROLE_INFO]': 0, 'np_info_value': 0, 'np_album_op': 0, 'np_state_op': 0,
     'home_top': 8, 'home_full_row': 375, 'home_text_x': 39, 'home_label_end[0]': 8, 'home_label_end[1]': 33,
@@ -160,7 +160,7 @@ MINIMAL = {
              opt('SETTING_SHORTCUT'), opt('SETTING_BATTERY'), opt('SETTING_NPCENTRED')], 'undeclared': [], **CF_TODAY}
 # Modern: the hand-written table's Classic, before Classic took Classic Light's look.
 MODERN = {
-    **MINIMAL, 'id': 'modern', 'index': 2, 'name': 'Modern', 'accents': 0x17f, 'accent_key': 'ACCENT',
+    **MINIMAL, 'id': 'modern', 'index': 2, 'name': '现代', 'accents': 0x17f, 'accent_key': 'ACCENT',
     'painter[PAINT_SELECTION]': 2, 'chevron_home': 1, 'caps_mark': 0, 'caps_home': 0, 'caps_np': 0,
     'icons_mono': 0, 'icons_badge_muted': 0, 'icons_addon_mono': 0, 'font[ROLE_NP]': 1, 'np_album_op': 255, 'np_state_op': 255,
     'home_top': 0, 'home_full_row': 369, 'home_text_x': 33, 'home_label_end[0]': 33, 'home_label_end[1]': 33,
@@ -460,7 +460,7 @@ def test_resolve_takes_a_long_name():
     assert resolved('', f'id="t" name="{"é" * 24}" index="2" extends="minimal"')['name'] == 'é' * 24
 
 
-MINIMAL_FIELDS = [('name', '"Minimal"'), ('painter[PAINT_SELECTION]', 'SEL_CARD'), ('painter[PAINT_BAR]', 'BAR_FLAT'), ('painter[PAINT_BATTERY]', 'BATT_STOCK'), ('chevron_home', 0), ('chevron_sel', 0), ('art_x', 0), ('art_text_x', 0), ('art_text_end', 0), ('art_placeholder', 0), ('row_text_end', 0), ('sep', '{{0}, {0}}'), ('font[ROLE_TALL]', 'FONT_DEFAULT'), ('font_px[ROLE_TALL]', 0), ('chevron_x', 0), ('home_chevron_x', 0), ('letter_raw', 0), ('letter_px', 0), ('caps_mark', 1),
+MINIMAL_FIELDS = [('name', '"\\u7b80\\u7ea6"'), ('painter[PAINT_SELECTION]', 'SEL_CARD'), ('painter[PAINT_BAR]', 'BAR_FLAT'), ('painter[PAINT_BATTERY]', 'BATT_STOCK'), ('chevron_home', 0), ('chevron_sel', 0), ('art_x', 0), ('art_text_x', 0), ('art_text_end', 0), ('art_placeholder', 0), ('row_text_end', 0), ('sep', '{{0}, {0}}'), ('font[ROLE_TALL]', 'FONT_DEFAULT'), ('font_px[ROLE_TALL]', 0), ('chevron_x', 0), ('home_chevron_x', 0), ('letter_raw', 0), ('letter_px', 0), ('caps_mark', 1),
                   ('caps_home', 1), ('caps_np', 1), ('icons_mono', 1), ('icons_badge_muted', 1), ('icons_addon_mono', 1), ('icons_badge_ink', 0),
                   ('font[ROLE_NP]', 'FONT_DEFAULT'), ('font_px[ROLE_NP]', 0), ('font[ROLE_INFO]', 'FONT_DEFAULT'), ('font_px[ROLE_INFO]', 0), ('np_info_value', '{0, 0}'), ('np_album_op', 0), ('np_state_op', 0), ('home_top', 8), ('home_full_row', 375),
                   ('home_text_x', 39), ('home_label_end[0]', 8), ('home_label_end[1]', 33), ('font[ROLE_HOME]', 'FONT_DEFAULT'), ('font_px[ROLE_HOME]', 0), ('home_pane', '{{0}, {0}}'), ('pane_shadow', 0), ('pane_shadow_w', 0), ('pane_shadow_a', '{0}'), ('pane_light_a', 0), ('pane_icon_x', 0), ('pane_icon_y', 0), ('pane_note_x', 0), ('pane_note_y', 0), ('pane_count_y', 0), ('pane_count_w', 0), ('pane_count_px', 0), ('pane_svc_x', 0), ('pane_svc_y', 0), ('pane_svc_px', 0), ('set_top', 8), ('set_text', 0), ('painter[PAINT_SCRUB]', 'SCRUB_STOCK'), ('painter[PAINT_VOLUME]', 'VOL_STOCK'), ('painter[PAINT_CONFIRM]', 'CONFIRM_STOCK'), ('painter[PAINT_PAGES]', 'PAGES_STOCK'), ('art_final', 0), ('np_rows[0]', '{0}'), ('np_rows[1]', '{0}'), ('np_rows[2]', '{0}'), ('np_rows[3]', '{0}'), ('np_bar', 4),
@@ -963,7 +963,7 @@ def test_modern_home_rows_are_stock_and_its_title_bold():
 def test_classic_blue_own_scheme():
     classic_light = theme.builtins()[1]
     blue = classic_light['schemes'][9]
-    assert (blue['label'], blue['base'], blue['sel'], blue['light']['sel_top'], blue['sel_edge']) == ('Classic Blue', 4, theme.GLOSS, theme.GLOSS_TOP, theme.GLOSS_EDGE)
+    assert (blue['label'], blue['base'], blue['sel'], blue['light']['sel_top'], blue['sel_edge']) == ('经典蓝', 4, theme.GLOSS, theme.GLOSS_TOP, theme.GLOSS_EDGE)
     # the light rim is the light half's; on black the dark half's top row is the band's first stop, no rim
     # (as emitted: half() fills a dark 0 from the light half), and a tall row's second row too; it ends on its dark edge
     for i, s in enumerate(classic_light['schemes']):
@@ -1007,16 +1007,16 @@ def test_own_scheme_restated_is_its_row():
 def test_emit_own_scheme(tmp_path):
     inc = boot_inc(tmp_path, theme.builtins())
     assert '    { .tones = accents[4], ' in inc.split('static const scheme_t classic_light_schemes[] = {')[1].split('\n')[10]
-    assert '.label = "Classic Blue" }' in inc and inc.count('.n_schemes = 9,') == 2 and '.n_schemes = 10,' in inc
+    assert '.label = "\\u7ecf\\u5178\\u84dd" }' in inc and inc.count('.n_schemes = 9,') == 2 and '.n_schemes = 10,' in inc
     assert inc.count('/ sizeof *minimal_schemes >= ACCENT_N') == 1
 
 
 def test_own_option():
     m, n, c = theme.builtins()
-    row_art = own('ROWART', 'Row Art', ('Off', 'On'), ('classic-light-text', 'classic-light'), default=1, preset=1)
+    row_art = own('ROWART', '列表封面', ('关闭', '打开'), ('classic-light-text', 'classic-light'), default=1, preset=1)
     assert n['opts'][-1] == row_art and [o['key'] for o in m['opts'] + c['opts'] if o.get('key')] == ['STATUSBAR', 'SHOWQ2POD', 'STATUSBAR', 'SHOWQ2POD']
-    assert theme.geometry(n) == CLASSIC_LIGHT and theme.geometry(n, {'ROWART': 'Off'}) == CLASSIC_LIGHT_TEXT
-    assert theme.geometry(n, {'ROWART': 'On'}) == CLASSIC_LIGHT and theme.geometry(m, {'ROWART': 'Off'}) is SET0
+    assert theme.geometry(n) == CLASSIC_LIGHT and theme.geometry(n, {'ROWART': '关闭'}) == CLASSIC_LIGHT_TEXT
+    assert theme.geometry(n, {'ROWART': '打开'}) == CLASSIC_LIGHT and theme.geometry(m, {'ROWART': '关闭'}) is SET0
     assert theme.theme_keys([m, n]) == {'STATUSBAR': (4, 0, STATUSBAR), 'SHOWQ2POD': (2, 1, SHOWQ2POD), 'CLASSIC_LIGHT_ACCENT': (10, 9, None), 'HOMELIB': (2, 1, HOMELIB), 'ROWPREVIEW': (2, 1, ROWPREVIEW), 'ROWART': (2, 1, row_art)}
     assert {'ACCENT', 'MINIMAL_ACCENT', 'HOME', 'BATTERY', 'THEME', 'LIGHT', 'VIS'} <= theme.PAYLOAD_KEYS
     assert not {'ROWART', 'CLASSIC_LIGHT_ACCENT'} & theme.PAYLOAD_KEYS and set(theme.ACCENT_KEYS) == {'ACCENT', 'MINIMAL_ACCENT'}
@@ -1082,7 +1082,7 @@ def test_builtins_rejects_a_shared_own_key(tmp_path):
     put('a', 2, 'Art', ' preset="On"'); put('b', 3, 'Art', ' preset="Off" keep="On"')
     assert list(theme.theme_keys(theme.builtins(tmp_path))) == ['STATUSBAR', 'SHOWQ2POD', 'ART']  # one key, one slot each
     assert {t['id']: (t['opts'][-1]['preset'], t['opts'][-1]['keep']) for t in theme.builtins(tmp_path)[2:]} == {'a': (1, -1), 'b': (0, 1)}
-    put('b', 3, 'Row Art')
+    put('b', 3, '列表封面')
     assert error(theme.builtins, tmp_path) == "b/theme.xml:1: ART is a's, with other values or default"
 
 
@@ -1092,12 +1092,12 @@ def test_emit_own_options(tmp_path):
     assert classic_light_opts[-1] == '    { .setting = SETTING_OWN + 5, .def = 1, .preset = 1, .keep = -1, .values = 0x0 },'
     assert inc.count('.accent_slot = &st.own[2],') == 1 and 'classic_light_accent' not in inc
     assert ('const theme_key_t theme_keys[THEME_KEYS] = {\n'
-            '    { .key = "STATUSBAR", .label = "Status Bar", .names = (const char *const[]){"Theme", "Minimal", "Modern", "Classic"}, .sets = 0, .n = 4, .def = 0 },\n'
-            '    { .key = "SHOWQ2POD", .label = "Show Wordmark", .names = (const char *const[]){"Off", "On"}, .sets = 0, .n = 2, .def = 1 },\n'
+            '    { .key = "STATUSBAR", .label = "\\u72b6\\u6001\\u680f", .names = (const char *const[]){"\\u4e3b\\u9898", "\\u7b80\\u7ea6", "\\u73b0\\u4ee3", "\\u7ecf\\u5178"}, .sets = 0, .n = 4, .def = 0 },\n'
+            '    { .key = "SHOWQ2POD", .label = "\\u663e\\u793a\\u54c1\\u724c\\u5b57\\u6837", .names = (const char *const[]){"\\u5173\\u95ed", "\\u6253\\u5f00"}, .sets = 0, .n = 2, .def = 1 },\n'
             '    { .key = "CLASSIC_LIGHT_ACCENT", .label = 0, .names = 0, .sets = 0, .n = 10, .def = 9 },\n'
-            '    { .key = "HOMELIB", .label = "Library on Home", .names = (const char *const[]){"Off", "On"}, .sets = 0, .n = 2, .def = 1 },\n'
-            '    { .key = "ROWPREVIEW", .label = "Row Preview", .names = (const char *const[]){"Off", "On"}, .sets = 0, .n = 2, .def = 1 },\n'
-            '    { .key = "ROWART", .label = "Row Art", .names = (const char *const[]){"Off", "On"}, '
+            '    { .key = "HOMELIB", .label = "\\u4e3b\\u83dc\\u5355\\u663e\\u793a\\u97f3\\u4e50", .names = (const char *const[]){"\\u5173\\u95ed", "\\u6253\\u5f00"}, .sets = 0, .n = 2, .def = 1 },\n'
+            '    { .key = "ROWPREVIEW", .label = "\\u5217\\u8868\\u9884\\u89c8", .names = (const char *const[]){"\\u5173\\u95ed", "\\u6253\\u5f00"}, .sets = 0, .n = 2, .def = 1 },\n'
+            '    { .key = "ROWART", .label = "\\u5217\\u8868\\u5c01\\u9762", .names = (const char *const[]){"\\u5173\\u95ed", "\\u6253\\u5f00"}, '
             '.sets = (const unsigned char[]){GEOM_CLASSIC_LIGHT_TEXT, GEOM_CLASSIC_LIGHT}, .n = 2, .def = 1 },\n};') in inc
     assert inc.index('const theme_key_t theme_keys') > inc.index('enum { GEOM_IPOD, GEOM_CLASSIC_LIGHT, GEOM_CLASSIC_LIGHT_TEXT, GEOM_N };')
     assert '#define OWN_STATUSBAR 0\n#define OWN_SHOWQ2POD 1\n#define OWN_CLASSIC_LIGHT_ACCENT 2\n#define OWN_HOMELIB 3\n#define OWN_ROWPREVIEW 4\n#define OWN_ROWART 5\n' in inc
@@ -1230,10 +1230,10 @@ def test_emit_refuses_a_set0_redirect(tmp_path):
 
 def test_classic_light_builtin():
     m, n, c = theme.builtins()
-    assert (n['id'], n['name'], n['index'], n['geom_set'], n['accent_key'], n['accents']) == ('classic-light', 'Classic', 1, 'classic-light', 'CLASSIC_LIGHT_ACCENT', 0x37f)
+    assert (n['id'], n['name'], n['index'], n['geom_set'], n['accent_key'], n['accents']) == ('classic-light', '经典', 1, 'classic-light', 'CLASSIC_LIGHT_ACCENT', 0x37f)
     assert n['opts'] == [STATUSBAR, opt('SETTING_TIMETITLE', preset=1), SHOWQ2POD, opt('SETTING_LIGHT', preset=1, keep=2),
                          opt('SETTING_ACCENT', default=9, preset=9, values=0x37f), opt('SETTING_HOME', preset=0), opt('SETTING_SHORTCUT'),
-                         opt('SETTING_BATTERY', default=3, values=0b1011), HOMELIB, ROWPREVIEW, own('ROWART', 'Row Art', ('Off', 'On'), ('classic-light-text', 'classic-light'), default=1, preset=1)]
+                         opt('SETTING_BATTERY', default=3, values=0b1011), HOMELIB, ROWPREVIEW, own('ROWART', '列表封面', ('关闭', '打开'), ('classic-light-text', 'classic-light'), default=1, preset=1)]
     assert theme.geometry_sets([m, c, n]) == [SET0, CLASSIC_LIGHT, CLASSIC_LIGHT_TEXT]
 
 

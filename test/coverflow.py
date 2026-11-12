@@ -2241,7 +2241,7 @@ static void artist_only(void) {
     row->click(row->ctx, 0); run();
     assert(!strcmp(title(), "B"));
     key(KEY_RETURN); /* tracks return to the text list */
-    assert(!strcmp(title(), "Albums") && loads == before);
+    assert(!strcmp(title(), "专辑") && loads == before);
     close_page();
     artist_view = 0;
 }
@@ -4401,7 +4401,7 @@ static void flip_turn(void) {
     snprintf(away, sizeof away, "%.600s.away", paths[a]);
     rename(paths[a], away);
     row->click(row->ctx, 0);
-    assert(navs == 1 && !strcmp(label_in(panel, 0)->text, "Storage unavailable"));
+    assert(navs == 1 && !strcmp(label_in(panel, 0)->text, "存储不可用"));
     rename(away, paths[a]);
     /* Centre while it stands: the panel stays. Return turns back; a key mid-turn does nothing. */
     w[s->kids[a]].click(w[s->kids[a]].ctx, 0);
@@ -4475,7 +4475,7 @@ static void scoped_pages(void) {
     rename(paths[6], away);
     w[s->kids[2]].click(w[s->kids[2]].ctx, 0);
     run();
-    assert(navs == 1 && !strcmp(album_caption(cv), "Storage unavailable"));
+    assert(navs == 1 && !strcmp(album_caption(cv), "存储不可用"));
     rename(away, paths[6]);
     widget *artist_page = make(0, "artistinfo_page");
     wm_stack[0] = artist_page, wm_stack[1] = page, wm_n = 2;
@@ -4494,7 +4494,7 @@ static void scoped_pages(void) {
     s = slide();
     int n = s->nkids - 1, lib = saved_sort();
     unlink(PEQ_ROOT "/mnt/data/ringnav-ratedsort");
-    static const char *const steps[] = { "Sort: Album", "Sort: Artist" };
+    static const char *const steps[] = { "排序：专辑", "排序：表演者" };
     for (int k = 0; k < 2; ++k) {
         w[s->kids[n]].click(w[s->kids[n]].ctx, 0);
         run();
@@ -4543,7 +4543,7 @@ static void cancel_build(void) {
     home.click(home.ctx, 0);
     while (!blocked) usleep(1000);
     widget *row = row_under(page, 0);
-    assert(!strncmp(title(), "Preparing artwork", 17) && row && !strcmp(label_in(row, 0)->text, "Cancel"));
+    assert(!strncmp(title(), "正在准备封面", strlen("正在准备封面")) && row && !strcmp(label_in(row, 0)->text, "取消"));
     row->click(row->ctx, 0);
     pthread_t t;
     joining = 0;
@@ -7970,7 +7970,7 @@ int main(void) {
 
     /* An empty library, or one being scanned, shows the message and builds nothing. */
     open_page();
-    assert(!strcmp(title(), "Update Library first") && !slide() && queries == 1);
+    assert(!strcmp(title(), "请先更新音乐资料库") && !slide() && queries == 1);
     /* Every list (message, progress, tracks) comes from list(): iPod rows are transparent, so its
        list_view paints black itself rather than the theme's light card. */
     int lists = 0;
@@ -7980,7 +7980,7 @@ int main(void) {
     album("Cover", "cover.jpg");
     *(volatile int *)SCAN_THREAD = 1;
     open_page();
-    assert(!strcmp(title(), "Update Library first") && queries == 1 && !calls);
+    assert(!strcmp(title(), "请先更新音乐资料库") && queries == 1 && !calls);
     close_page();
     *(volatile int *)SCAN_DONE = 1;
 
@@ -8041,7 +8041,7 @@ int main(void) {
     page = &w[nw + 1];
     home.click(home.ctx, 0);
     while (!blocked) usleep(1000);
-    assert(!strncmp(title(), "Preparing artwork", 17));
+    assert(!strncmp(title(), "正在准备封面", strlen("正在准备封面")));
     int e[16] = {0}; e[EVENT_KEY / 4] = KEY_RETURN;
     w[8190].click(0, e);
     pthread_t t;

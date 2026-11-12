@@ -1462,7 +1462,7 @@ def test_a_failed_save_says_so_when_it_can(fw):
     p.s.dirty = 1
     p.card.fail = True
     p.g.flush(1)
-    assert toasts == [b"Couldn't save"] and not p.s.dirty
+    assert toasts == [b'\xe6\x97\xa0\xe6\xb3\x95\xe4\xbf\x9d\xe5\xad\x98'] and not p.s.dirty
 
 
 def test_flush_writes_only_the_dirty_games(fw):
@@ -1892,7 +1892,7 @@ def test_the_chooser_lists_its_games_then_the_card_s_by_name_and_each_row_opens_
     texts = []
     fw.mock('widget_set_text_utf8', lambda w, s, *_: texts.append(C.string_at(s).decode()))
     p = Page(fw, files)
-    assert texts[-6:] == ['Sudoku', 'Vortex', 'Solitaire', 'Snake', 'Blocks', 'Zork']  # Tunes isn't a game
+    assert texts[-6:] == ['数独', '旋涡', '纸牌', '贪吃蛇', 'Blocks', 'Zork']  # Tunes isn't a game
     rows = handlers(fw, EVT_CLICK)
     assert len(rows) == 6
     fw.mock('fw_fork', lambda *_: 4242)
@@ -1964,7 +1964,7 @@ def test_a_record_that_can_t_be_written_says_so_and_still_shows(fw):
     p.s.vx.score = 50
     p.card.fail = True
     fw.fn('games__game_over', None)()
-    assert toasts == [b"Couldn't save"] and p.s.record and p.s.best.score == 50
+    assert toasts == [b'\xe6\x97\xa0\xe6\xb3\x95\xe4\xbf\x9d\xe5\xad\x98'] and p.s.record and p.s.best.score == 50
 
 
 # The sheet. games_paint draws on a canvas whose every call is recorded with the colour it reached stock in.
@@ -2224,12 +2224,12 @@ def test_sudoku_paint_asks_over_the_board_and_says_when_it_is_solved(fw):
     assert banner(paint(p)) == []
     p.key(PLAY)
     (ask, white), (keys, quiet) = banner(paint(p))
-    assert ask == 'NEW GAME?' and 'CENTRE' in keys and 'RETURN' in keys and light(white) and darker(quiet, white)
+    assert ask == '开始新游戏？' and '中心键' in keys and '返回键' in keys and light(white) and darker(quiet, white)
     p.key(RETURN)
     assert banner(paint(p)) == []
     s.sud.cell[:] = SOLVED
     (said, color), _ = banner(paint(p))
-    assert said == 'SOLVED!' and light(color)
+    assert said == '解答完成！' and light(color)
 
 
 def test_a_canvas_that_won_t_round_gets_square_boxes_and_frames_in_their_place(fw):
@@ -2275,9 +2275,9 @@ def test_vortex_paint_waiting_to_launch_is_a_ball_and_the_lives_and_a_hint_to_pr
     ops = paint(p)
     ball, *lives = [o.color for o in ops if o.kind == 'dot']  # no trail
     assert light(ball) and len(lives) == 3 and len(set(lives)) == 1 and grey(lives[0]) and darker(lives[0], ball)
-    assert 'CENTRE' in texts(ops)
+    assert '中心键' in texts(ops)
     p.key(CENTER)
-    assert 'CENTRE' not in texts(paint(p))
+    assert '中心键' not in texts(paint(p))
 
 
 def test_vortex_paint_the_ball_trails_its_last_frames_in_the_tone_fading_behind_it(fw):
@@ -2334,7 +2334,7 @@ def test_vortex_paint_the_hud_shows_the_score_the_best_and_the_level_counted_fro
     s = p.s
     s.vx.score, s.best.score, s.vx.level = 1230, 4560, 2
     hud = words(paint(p))[:6]  # then the hint to press Centre
-    assert [t for t, _, _ in hud] == ['SCORE', '1230', '4560', 'BEST', 'LEVEL', '3']
+    assert [t for t, _, _ in hud] == ['得分', '1230', '4560', '最高', '关卡', '3']
     (_, quiet, name), (_, loud, score), (_, _, best), (_, _, best_name), (_, _, level), _ = hud
     assert light(loud) and grey(quiet) and darker(quiet, loud)  # the names quiet, the numbers loud
     assert name[0] < score[0] and best_name[0] < best[0] and best[0] + best[2] > 375 - 40 and name[1] == best[1] < level[1]
@@ -2380,7 +2380,7 @@ def test_arcade_paint_return_s_menu_marks_the_choice_with_home_s_dot_in_minimal(
     def menu():
         ops = popup_ops(paint(p))
         (title, _, _), (a, ca, ra), (b, cb, rb) = words(ops)
-        assert (title, a, b) == ('PAUSED', 'CONTINUE', 'QUIT') and ra[0] == rb[0] and ra[1] < rb[1]  # spaced capitals
+        assert (title, a, b) == ('已暂停', '继续', '退出') and ra[0] == rb[0] and ra[1] < rb[1]  # spaced capitals
         dot, = [o for o in ops if o.kind == 'round' and max(o.rect[2:]) < 10]
         return (ca, cb), (ra, rb)[[r[1] <= dot.rect[1] < r[1] + r[3] for r in (ra, rb)].index(True)], dot
     (ca, cb), row, dot = menu()
@@ -2398,7 +2398,7 @@ def test_arcade_paint_return_s_menu_puts_the_choice_on_the_accent_s_bar_in_moder
     p.key(RETURN)
     ops = popup_ops(paint(p))
     (title, _, _), (a, ca, ra), (b, cb, rb) = words(ops)
-    assert (title, a, b) == ('Paused', 'Continue', 'Quit')  # as written: no capitals
+    assert (title, a, b) == ('已暂停', '继续', '退出')  # as written: no capitals
     box, bar = [o for o in ops if o.kind == 'round']
     assert encloses(box.rect, bar.rect) and ra[1] <= bar.rect[1] and bar.rect[1] + bar.rect[3] <= ra[1] + ra[3] < rb[1] + rb[3]
     assert bar.color == ink(fw, rgba(fw.fn('accent_tone', C.c_uint, C.c_int)(0))) and not grey(bar.color)
@@ -2415,7 +2415,7 @@ def test_arcade_paint_return_s_menu_is_classic_s_panel_the_choice_on_its_band(fw
     p.key(RETURN)
     ops = popup_ops(paint(p))
     (title, ct, rt), (a, ca, ra), (b, cb, rb) = words(ops)
-    assert (title, a, b) == ('Paused', 'Continue', 'Quit') and not [o for o in ops if o.kind in ('round', 'frame')]
+    assert (title, a, b) == ('已暂停', '继续', '退出') and not [o for o in ops if o.kind in ('round', 'frame')]
     def panel_rows(ops):
         """The panel a row at a time, between its rounded corners: the rows as wide as the widest but the ring's."""
         fills = [o for o in ops if o.kind == 'fill' and o.rect[3] == 1 and o.rect[2] > 200]
@@ -2484,14 +2484,14 @@ def test_arcade_paint_pause_and_the_game_over_banners(fw, screen):
     assert banner(paint(p)) == []
     p.key(PLAY)
     (title, _), (hint, _) = banner(paint(p))
-    assert title == 'PAUSED' and 'PLAY/PAUSE' in hint
+    assert title == '已暂停' and '播放/暂停键' in hint
     p.key(PLAY)
     assert banner(paint(p)) == []
     end(p, screen, 40)
-    assert banner(paint(p))[0][0] == 'NEW BEST!'  # it raised Best
+    assert banner(paint(p))[0][0] == '新纪录！'  # it raised Best
     p.key(CENTER)
     end(p, screen, 0)
-    assert banner(paint(p))[0][0] == 'GAME OVER'
+    assert banner(paint(p))[0][0] == '游戏结束'
 
 
 # Snake.
@@ -2644,14 +2644,14 @@ def test_solitaire_paint_asks_before_a_new_deal_and_says_when_it_is_won(fw):
     p.go(SOLITAIRE)
     s = p.s
     p.key(PLAY)
-    assert banner(paint(p))[0][0] == 'NEW GAME?'
+    assert banner(paint(p))[0][0] == '开始新游戏？'
     p.key(RETURN)
     assert banner(paint(p)) == []
     game_table(s)
     for f in range(FOUND, TABLEAU):
         put(s.sol, f, [(f - FOUND) * 13 + k | UP for k in range(13)])
     (said, color), _ = banner(paint(p))
-    assert said == 'YOU WIN!' and light(color)
+    assert said == '你赢了！' and light(color)
 
 
 def config(fw, **values):
@@ -2720,7 +2720,7 @@ def test_classic_s_snake_is_an_lcd_in_a_bezel_with_square_dots(fw, light_mode):
     apple = dots[-1].rect
     hole = [o for o in ops if o.kind == 'fill' and o.color == lcd.color and encloses(apple, o.rect) and o.rect != apple]
     assert len(hole) == 1
-    score, = [c for t, c, _ in words(ops) if t == 'Score']
+    score, = [c for t, c, _ in words(ops) if t == '得分']
     assert grey(score) and (max(rgb(score)) < 0x80) == (light_mode == b'1')  # the page's own ink, flipped as the page is
 
 
@@ -2740,7 +2740,7 @@ def test_classic_s_vortex_is_a_flat_night_sky_each_ring_its_colour_with_a_light_
     halo, ball, *lives = [o.color for o in ops if o.kind == 'dot']
     assert alpha(halo) < 128 and rgb(ball) == (255, 255, 255) and len(lives) == 3
     hud = words(ops)[:6]
-    assert [t for t, _, _ in hud] == ['Score', '0', '0', 'Best', 'Level', '1'] and rgb(hud[1][1]) == (255, 255, 255)
+    assert [t for t, _, _ in hud] == ['得分', '0', '0', '最高', '关卡', '1'] and rgb(hud[1][1]) == (255, 255, 255)
 
 
 @pytest.mark.parametrize('light_mode', (b'0', b'1'))
@@ -2768,7 +2768,7 @@ def test_classic_s_sudoku_puts_the_cursor_s_cell_on_the_band_and_frames_it_only_
     assert not band(ops) and len([o for o in ops if o.kind == 'fill' and 2 in o.rect[2:] and max(o.rect[2:]) == rows[0].rect[2] + 2]) == 4
 
 
-@pytest.mark.parametrize('theme, names', ((CLASSIC, ['Solitaire', 'Games']), (MINIMAL, [])))
+@pytest.mark.parametrize('theme, names', ((CLASSIC, ['纸牌', '游戏']), (MINIMAL, [])))
 def test_the_bar_names_the_game_where_the_theme_s_bar_holds_the_page_s_caption(fw, theme, names):
     said = []
     fw.mock('widget_lookup', lambda w, name, *_: 0x7777 if C.string_at(name) == b'_page_title' else 0)

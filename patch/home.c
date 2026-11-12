@@ -70,25 +70,25 @@ int ringnav_localmusic(void *win, void *ctx) {
     for (int i = 0; i < L_STOCK; i++) stock[i] = widget_get_child(view, i);
     unsigned n = 0; /* each row moves to n as it comes, so Update Library, left, ends last */
     if (library_search())
-        widget_restack(library_row(view, (void *)0, stock_search, 0, "Search", 1), n++);
-    widget_restack(library_row(view, "local_shuffle", shuffle_menu, 0, "Shuffle", 1), n++);
+        widget_restack(library_row(view, (void *)0, stock_search, 0, "搜索", 1), n++);
+    widget_restack(library_row(view, "local_shuffle", shuffle_menu, 0, "随机播放", 1), n++);
     static const unsigned char middle[] = { L_ARTISTS,   L_ALBUMS, L_SONGS, L_GENRES,
                                             L_PLAYLISTS, L_FAV,    L_ADDED, L_RECENT };
     for (unsigned i = 0; i < sizeof middle; i++)
         if (middle[i] == L_GENRES) { /* browsing by a tag, as Genre */
             widget_restack(stock[L_GENRES], n++);
-            widget_restack(library_row(view, "local_era", era_menu, 0, "Era", 1), n++);
+            widget_restack(library_row(view, "local_era", era_menu, 0, "年代", 1), n++);
         } else if (middle[i] == L_FAV) { /* My Fav is Ratings' Loved, its row kept hidden */
-            widget_restack(library_row(view, "local_fav", ratings_menu, 0, "Ratings", 1), n++);
+            widget_restack(library_row(view, "local_fav", ratings_menu, 0, "评价", 1), n++);
             widget_set_visible(stock[L_FAV], 0, 0);
             widget_restack(stock[L_FAV], n++);
         } else
             widget_restack(stock[middle[i]], n++);
-    widget_restack(library_row(view, "local_frequentplay", most_played, 0, "Most Played", 1), n++);
+    widget_restack(library_row(view, "local_frequentplay", most_played, 0, "播放最多", 1), n++);
     widget_set_visible(stock[L_FREQUENT], 0, 0); /* Most Played is its list, from every listen */
     widget_restack(stock[L_FREQUENT], n++);
     widget_restack(stock[L_HIRES], n++);
-    widget_restack(library_row(view, "local_longsongs", long_songs, 0, "Long Songs", 1), n++);
+    widget_restack(library_row(view, "local_longsongs", long_songs, 0, "长曲目", 1), n++);
     /* Podcasts, Audiobooks, Photos, Books and Videos, each only with its folder; then iPod's Games.
      */
     static const char *const icons[] = { "local_podcasts", "local_audiobooks", "local_photos",
@@ -97,11 +97,12 @@ int ringnav_localmusic(void *win, void *ctx) {
     for (int k = 0; k < VIDEOS; k++)
         if (media_find(k + 1, path))
             widget_restack(
-                library_row(view, icons[k], media_click, (void *)(long)(k + 1), MEDIA[k], 1), n++);
-    widget_restack(library_row(view, "local_games", games_open, 0, "Games", 1), n++);
+                library_row(view, icons[k], media_click, (void *)(long)(k + 1), MEDIA_LABELS[k], 1),
+                n++);
+    widget_restack(library_row(view, "local_games", games_open, 0, "游戏", 1), n++);
     if (scrobble_ready())
-        widget_restack(
-            library_row(view, "local_scrobble", upload_scrobbles, 0, "Upload Scrobbles", 0), n++);
+        widget_restack(library_row(view, "local_scrobble", upload_scrobbles, 0, "上传听歌记录", 0),
+                       n++);
     library_look(view);
     return result;
 }
@@ -138,7 +139,7 @@ static int shows_image(void *w, const char *name) {
 void home_pane_read(int *services, int *games, int *free_tenths) {
     char hide[SVC_HIDE];
     unsigned card[36], mnt[36], fs[32];
-    int n = 0, total = (st.svc_n = addon_scan()) + 5;
+    int n = 0, total = (st.svc_n = addon_scan()) + SVC_FIXED;
     svc_hidden(hide);
     for (int i = 0; i < total; ++i)
         if (!svc_find(hide, i)) ++n;
@@ -158,8 +159,9 @@ static void svc_row(void *row, int i, char *hide) {
     if (svc_find(hide, i)) widget_set_visible(row, 0, 0);
 }
 
-/* stream_page_init: stock's rows but Baidu Netdisk (a Chinese cloud drive, signed in to from
- * Baidu's app: its row, the one with list_baidu's icon, removed), then Spotify (spotify.c), which
+/* stream_page_init: keep stock's rows, including Baidu Netdisk and its native sign-in/click
+ * handlers. Tag Baidu after the other services so existing visibility keys keep their meaning.
+ * Then Spotify (spotify.c), which
  * opens its browser, the card apps on the card (addon.c: Deezer, Soulseek, File Browser… as System
  * settings' Apps or the user put them there), Tidal Downloads, Internet Radio (radio.c), AirPlay
  * and Configuration. Their buttons have no name, so stock's row click never sees them. Smart
@@ -168,9 +170,6 @@ int ringnav_stream(void *win, void *ctx) {
     smart_wake();
     int result = stock_stream_trampoline(win, ctx);
     void *view = win ? widget_lookup(win, "scroll_view_streamsset", 1) : (void *)0;
-    for (int i = view ? (int)widget_count_children(view) : 0; i-- > 0;)
-        if (shows_image(widget_get_child(view, (unsigned)i), "list_baidu"))
-            widget_destroy(widget_get_child(view, (unsigned)i));
     if (view) {
         char hide[SVC_HIDE];
         int i = 1;
@@ -179,15 +178,16 @@ int ringnav_stream(void *win, void *ctx) {
         for (unsigned c = 0, stock = widget_count_children(view); c < stock; ++c)
             if (shows_image(widget_get_child(view, c), "list_tidal"))
                 svc_row(widget_get_child(view, c), 0, hide);
+            else if (shows_image(widget_get_child(view, c), "list_baidu"))
+                svc_row(widget_get_child(view, c), st.svc_n + SVC_FIXED - 1, hide);
         svc_row(library_row(view, "stream_spotify", spot_open, 0, "Spotify", 1), i++, hide);
         for (int k = 0; k < st.svc_n; ++k)
             svc_row(library_row(view, addon_icon(k), addon_open, (void *)(long)k, addon_name(k), 1),
                     i++, hide);
-        svc_row(library_row(view, "list_tidal", tidal_downloads, 0, "Tidal Downloads", 1), i++,
-                hide);
-        svc_row(library_row(view, "stream_radio", radio_open, 0, "Internet Radio", 1), i++, hide);
+        svc_row(library_row(view, "list_tidal", tidal_downloads, 0, "Tidal 下载", 1), i++, hide);
+        svc_row(library_row(view, "stream_radio", radio_open, 0, "网络电台", 1), i++, hide);
         svc_row(library_row(view, "stream_airplay", airplay_open, 0, "AirPlay", 1), i, hide);
-        library_row(view, "stream_config", stream_config, 0, "Configuration", 1);
+        library_row(view, "stream_config", stream_config, 0, "流媒体设置", 1);
     }
     return result;
 }

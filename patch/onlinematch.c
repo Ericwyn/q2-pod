@@ -247,21 +247,19 @@ int album_lyrics(lyr_job *job, const lyr_track *t, int n,
 
 /* The toast that sums up job, into out. */
 void album_note(char *out, unsigned n, const lyr_job *job) {
-    static const char *const head[] = { "Album lyrics", "LRCLIB stopped answering",
-                                        "Can't write to the card", "Cancelled" };
-    static const char *const what[] = { "saved", "not found", "already had lyrics", "failed" };
+    static const char *const head[] = { "专辑歌词", "LRCLIB 已停止响应", "无法写入存储卡",
+                                        "已取消" };
+    static const char *const what[] = { "已保存", "未找到", "已有歌词", "失败" };
     const int count[] = { job->saved, job->none, job->had, job->failed };
     int answered = job->saved || job->none, any = answered || job->had || job->failed;
-    unsigned at = (unsigned)snprintf(out, n, "%s",
-                                     job->state == LJ_OFFLINE && !answered ? "Can't reach LRCLIB"
-                                                                           : head[job->state]);
+    unsigned at = (unsigned)snprintf(
+        out, n, "%s", job->state == LJ_OFFLINE && !answered ? "无法连接 LRCLIB" : head[job->state]);
     for (int i = 0, first = 1; i < 4 && at < n && (job->state != LJ_OFFLINE || answered); ++i)
         if (count[i])
             at += (unsigned)snprintf(out + at, n - at, "%s%d %s", first ? ": " : ", ", count[i],
                                      what[i]),
                 first = 0;
-    if (!any && job->state == LJ_DONE && at < n)
-        snprintf(out + at, n - at, ": no songs on the card");
+    if (!any && job->state == LJ_DONE && at < n) snprintf(out + at, n - at, "：存储卡内没有歌曲");
 }
 
 #ifndef PEQ_HOST
@@ -383,14 +381,16 @@ static int lrclib(const char *title, const char *artist, const char *out, volati
 /* kugou_obtainlyric(keyword, out), online_lyricthd's first source: try LRCLIB's synced lyrics,
  * retrying busy replies as Download Album Lyrics does. If it saves nothing, resume stock's Kugou
  * search with the original keyword and output path. Its return value still decides whether stock
- * tries NetEase next. LRCLIB's first synced result has no duration check; Kugou can mismatch too. */
+ * tries NetEase next. LRCLIB's first synced result has no duration check; Kugou can mismatch too.
+ */
 extern int stock_kugoulyric_trampoline(const char *keyword, const char *out);
 int ringnav_lyric_search(const char *keyword, const char *out) {
     /* stock's keyinfo, copied under its lock: file name, title (+0x200), album, artist (+0x500) */
     char key[0x600];
     int found;
     online_getkeyword_info(key);
-    for (int k = 1; (found = lrclib(key + 0x200, key + 0x500, out, 0)) == LRC_BUSY && k < LJ_BUSY_TRIES; ++k)
+    for (int k = 1;
+         (found = lrclib(key + 0x200, key + 0x500, out, 0)) == LRC_BUSY && k < LJ_BUSY_TRIES; ++k)
         usleep(LJ_RETRY_US);
     return found == LRC_SAVED ? 1 : stock_kugoulyric_trampoline(keyword, out);
 }
@@ -481,7 +481,7 @@ int ringnav_cover_copy(char *cmd, unsigned n, const char *fmt, const char *from,
  * Lyrics on Now Playing's ⋯ page saves LRCLIB's lyrics beside every song of the playing song's
  * album, found as that search finds them, on a thread of its own that outlives the page. */
 extern void *list_row(void *view, const char *icon, int (*click)(void *, void *), void *ctx);
-static const char AL_TITLE[] = "Download Album Lyrics";
+static const char AL_TITLE[] = "下载专辑歌词";
 static struct {
     lyr_job job;
     lyr_track *tracks;
@@ -520,9 +520,9 @@ static void al_show(void) {
         return;
     }
     if (al.job.cancel)
-        snprintf(s, sizeof s, "Cancelling…");
+        snprintf(s, sizeof s, "正在取消…");
     else
-        snprintf(s, sizeof s, "Downloading %d of %d", al.job.done + (al.job.done < al.job.total),
+        snprintf(s, sizeof s, "正在下载 %d / %d", al.job.done + (al.job.done < al.job.total),
                  al.job.total);
     widget_set_text_utf8(al.label, s);
 }
@@ -590,7 +590,7 @@ static int al_click(void *ctx, void *event) {
     if (list) deque_destroy(list);
     if (!k) {
         free(t);
-        toast("No album songs on the card");
+        toast("存储卡内没有此专辑的歌曲");
         return 0;
     }
     memset(&al.job, 0, sizeof al.job);
@@ -598,7 +598,7 @@ static int al_click(void *ctx, void *event) {
     if (pthread_create(&al.thread, 0, al_worker, 0)) {
         al.thread = 0, al.running = 0;
         free(t), al.tracks = 0;
-        toast("Can't start the download");
+        toast("无法开始下载");
         return 0;
     }
     timer_add(al_wait, (void *)0, 500);

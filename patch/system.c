@@ -385,7 +385,7 @@ static void standby_poll(void) {
 #define LOGO_ROT "/tmp/boot-logo.jpg"
 #define LOGO_MAX (512 * 1024)
 #define LOGO_SEEN "/mnt/data/boot-logo.bad" /* the refused card file: size, mtime */
-static const char logo_refused[] = "Boot logo must be a 320x375 JPEG";
+static const char logo_refused[] = "开机图须为 320x375 JPEG";
 /* tools/build.py's jpeg_size: w << 16 | h of a baseline 8-bit three-component JPEG, the only kind
  * stock display_logo draws right; 0 for anything else. */
 static unsigned jpeg_size(const unsigned char *b, unsigned n) {
@@ -437,7 +437,7 @@ static void *logo_sync(void *unused) {
             blob_io(LOGO_DST, LOGO_DST ".tmp", b, n, 1))
             err = 0; /* the same bytes are not written again each boot */
         else
-            unlink(LOGO_DST ".tmp"), err = "Could not save boot logo";
+            unlink(LOGO_DST ".tmp"), err = "无法保存开机图";
     }
     free(b), free(old);
     unsigned sb[36], seen[2], key[2];

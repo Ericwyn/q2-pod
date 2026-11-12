@@ -445,3 +445,11 @@ def test_notes_needs_this_versions_entry(repo):
 def test_release_body(repo):
     assert release.release_body(release.notes(), {release.ASSET: 'abc'}) == (
         f'**{release.VERSION}**\n- One.\n\nSHA-256:\n- update.tar ({release.TAG}): `abc`\n')
+
+
+def test_validate_accepts_the_pinned_official_ota(tmp_path, scripts):
+    d = built(tmp_path/'ota')
+    m = json.loads((d/'manifest.json').read_text())
+    m['input_zip_sha256'] = release.OTA_SHA
+    (d/'manifest.json').write_text(json.dumps(m))
+    release.validate(d)

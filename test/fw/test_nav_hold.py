@@ -619,8 +619,8 @@ def editor(fw, ui, recs, st):
 
 def test_edit_playlist_lists_its_songs_under_add_and_done(editor, ui):
     assert ui.nodes[ui.top()].name == 'playlistedit_page' and editor.ple.dest == 3
-    assert editor.rows() == ['Add Songs', 'Done', 'One', 'Two', 'Three']
-    assert editor.title() == 'Editing: Road Trip'
+    assert editor.rows() == ['添加歌曲', '完成', 'One', 'Two', 'Three']
+    assert editor.title() == '正在编辑：Road Trip'
     assert ui.nodes[editor.view()].props['_ringnav_index'] == 2  # the first song, below Add Songs and Done
 
 
@@ -643,19 +643,19 @@ def test_a_second_open_is_the_page_already_open(editor, ui):
 
 def test_move_down_saves_the_new_order_and_follows_the_song(editor, ui):
     editor.pick('Two')
-    assert editor.rows() == ['Move Up', 'Move Down', 'Remove from Playlist'] and editor.title() == 'Song Actions: Road Trip'
-    editor.pick('Move Down')
+    assert editor.rows() == ['上移', '下移', '从播放列表移除'] and editor.title() == '歌曲操作：Road Trip'
+    editor.pick('下移')
     assert editor.table.songs(3) == ['One', 'Three', 'Two'] and editor.rows()[2:] == ['One', 'Three', 'Two']
     assert ui.nodes[editor.view()].props['_ringnav_index'] == 4 and editor.table.log[-1] == 'commit'
 
 
 def test_move_up_saves_the_new_order(editor):
     editor.pick('Three')
-    editor.pick('Move Up')
+    editor.pick('上移')
     assert editor.table.songs(3) == ['One', 'Three', 'Two'] and editor.ple.selected == 1
 
 
-@pytest.mark.parametrize('song, move', [('One', 'Move Up'), ('Three', 'Move Down')])
+@pytest.mark.parametrize('song, move', [('One', '上移'), ('Three', '下移')])
 def test_a_move_past_either_end_changes_nothing(editor, song, move):
     editor.pick(song)
     editor.pick(move)
@@ -666,31 +666,31 @@ def test_a_move_past_either_end_changes_nothing(editor, song, move):
 def test_a_move_that_cant_be_saved_says_so_and_keeps_the_order(editor, ui):
     editor.table.fail = ('update',)
     editor.pick('Two')
-    editor.pick('Move Down')
-    assert ui.toasts == ['Could not save playlist'] and editor.table.songs(3) == ['One', 'Two', 'Three']
+    editor.pick('下移')
+    assert ui.toasts == ['无法保存播放列表'] and editor.table.songs(3) == ['One', 'Two', 'Three']
     assert editor.table.log[-1] == 'rollback'
 
 
 def test_a_song_changed_under_the_editor_is_not_moved(editor, ui):
     editor.table.rows[102] = (3, '/mnt/mmc/e.flac')  # Two's row is another song now
     editor.pick('Two')
-    editor.pick('Move Down')
-    assert ui.toasts == ['Could not save playlist'] and editor.table.log[-1] == 'rollback'
+    editor.pick('下移')
+    assert ui.toasts == ['无法保存播放列表'] and editor.table.log[-1] == 'rollback'
 
 
 def test_remove_asks_then_takes_the_song_out(editor):
     editor.pick('Two')
-    editor.pick('Remove from Playlist')
-    assert editor.rows() == ['Remove from Playlist', 'Cancel'] and editor.title() == 'Remove song?: Road Trip'
-    editor.pick('Remove from Playlist')
-    assert editor.table.songs(3) == ['One', 'Three'] and editor.rows() == ['Add Songs', 'Done', 'One', 'Three']
+    editor.pick('从播放列表移除')
+    assert editor.rows() == ['从播放列表移除', '取消'] and editor.title() == '移除歌曲？：Road Trip'
+    editor.pick('从播放列表移除')
+    assert editor.table.songs(3) == ['One', 'Three'] and editor.rows() == ['添加歌曲', '完成', 'One', 'Three']
 
 
 def test_cancel_keeps_the_song(editor):
     editor.pick('Two')
-    editor.pick('Remove from Playlist')
-    editor.pick('Cancel')
-    assert editor.table.songs(3) == ['One', 'Two', 'Three'] and editor.rows()[0] == 'Add Songs' and not editor.table.log
+    editor.pick('从播放列表移除')
+    editor.pick('取消')
+    assert editor.table.songs(3) == ['One', 'Two', 'Three'] and editor.rows()[0] == '添加歌曲' and not editor.table.log
 
 
 def test_the_last_song_removed_leaves_the_selection_on_the_list(fw, ui, recs, st):
@@ -698,106 +698,106 @@ def test_the_last_song_removed_leaves_the_selection_on_the_list(fw, ui, recs, st
     use_set(st, MINIMAL)
     e.open(1, None)
     e.pick('One')
-    e.pick('Remove from Playlist')
-    e.pick('Remove from Playlist')
-    assert e.rows() == ['Add Songs', 'Done'] and e.ple.selected == 0
+    e.pick('从播放列表移除')
+    e.pick('从播放列表移除')
+    assert e.rows() == ['添加歌曲', '完成'] and e.ple.selected == 0
 
 
 def test_a_remove_that_cant_be_saved_says_so(editor, ui):
     editor.table.fail = ('delete',)
     editor.pick('One')
-    editor.pick('Remove from Playlist')
-    editor.pick('Remove from Playlist')
-    assert ui.toasts == ['Could not save playlist'] and editor.table.songs(3) == ['One', 'Two', 'Three']
+    editor.pick('从播放列表移除')
+    editor.pick('从播放列表移除')
+    assert ui.toasts == ['无法保存播放列表'] and editor.table.songs(3) == ['One', 'Two', 'Three']
 
 
 def test_done_leaves_the_editor_and_its_state(editor, ui):
-    editor.pick('Done')
+    editor.pick('完成')
     assert ui.went == ['back'] and not ui.stack and editor.ple.page is None and editor.ple.songs is None
 
 
 def test_add_songs_lists_the_library_with_the_playlists_ticked(editor, ui):
-    editor.pick('Add Songs')
-    assert editor.rows() == ['Search', 'One', 'Two', 'Three', 'Twenty', 'Five']
-    assert editor.title() == 'Add Songs: Road Trip' and editor.ticked() == ['One', 'Two', 'Three']
+    editor.pick('添加歌曲')
+    assert editor.rows() == ['搜索', 'One', 'Two', 'Three', 'Twenty', 'Five']
+    assert editor.title() == '添加歌曲：Road Trip' and editor.ticked() == ['One', 'Two', 'Three']
 
 
 def test_a_picked_song_is_added_and_ticked(editor, ui):
-    editor.pick('Add Songs')
+    editor.pick('添加歌曲')
     editor.pick('Five')
-    assert editor.table.songs(3) == ['One', 'Two', 'Three', 'Five'] and ui.toasts == ['Added to Playlist']
+    assert editor.table.songs(3) == ['One', 'Two', 'Three', 'Five'] and ui.toasts == ['已加入播放列表']
     assert 'Five' in editor.ticked() and editor.ple.mode == 1  # the picker stays on its song
     calls = [a for _, a in editor.fw.calls('batch_add_file')]
     assert [a[:2] for a in calls] == [(0xf001, 0xf00b)] and calls[0][4] == 3
 
 
 def test_a_song_already_there_is_not_added_twice(editor, ui):
-    editor.pick('Add Songs')
+    editor.pick('添加歌曲')
     editor.pick('Two')
-    assert ui.toasts == ['Already in playlist'] and editor.table.songs(3) == ['One', 'Two', 'Three']
+    assert ui.toasts == ['已在播放列表中'] and editor.table.songs(3) == ['One', 'Two', 'Three']
     assert not editor.fw.calls('batch_add_file')
 
 
 def test_an_add_that_stock_refused_says_so(editor, ui):
-    editor.pick('Add Songs')
+    editor.pick('添加歌曲')
     editor.fw.mock('batch_add_file', lambda *_: 0)
     editor.pick('Five')
-    assert ui.toasts == ['Could not save playlist'] and 'Five' not in editor.ticked()
+    assert ui.toasts == ['无法保存播放列表'] and 'Five' not in editor.ticked()
 
 
 def test_the_add_selection_is_made_once(editor, ui):
-    editor.pick('Add Songs')
+    editor.pick('添加歌曲')
     editor.pick('Five')
     editor.pick('Twenty')
     assert len(editor.fw.calls('_create_vector')) == 1 and len({a[3] for _, a in editor.fw.calls('batch_add_file')}) == 1
 
 
 def test_an_add_with_no_memory_says_so(editor, ui, fw):
-    editor.pick('Add Songs')
+    editor.pick('添加歌曲')
     fw.mock('fw__create_deque', lambda *_: 0)
     editor.pick('Five')
-    assert ui.toasts == ['Could not save playlist'] and editor.table.songs(3) == ['One', 'Two', 'Three']
+    assert ui.toasts == ['无法保存播放列表'] and editor.table.songs(3) == ['One', 'Two', 'Three']
 
 
 def test_search_filters_by_title_case_aside(editor, ui):
-    editor.pick('Add Songs')
-    editor.pick('Search')
+    editor.pick('添加歌曲')
+    editor.pick('搜索')
     edit = ui.lookup(editor.ple.page, 'search_edit', 1)
-    assert edit and editor.ple.mode == 4 and ui.nodes[edit].props['tips'] == 'Search songs'
+    assert edit and editor.ple.mode == 4 and ui.nodes[edit].props['tips'] == '搜索歌曲'
     ui.nodes[edit].text = 'tW'
     ui.fire(edit, EVT_IM_ACTION)
     ui.due('ple_run')
-    assert editor.rows() == ['Search: tW', 'Two', 'Twenty'] and editor.ticked() == ['Two']
+    assert editor.rows() == ['搜索：tW', 'Two', 'Twenty'] and editor.ticked() == ['Two']
 
 
 def test_a_search_that_matches_nothing_says_so(editor, ui):
-    editor.pick('Add Songs')
-    editor.pick('Search')
+    editor.pick('添加歌曲')
+    editor.pick('搜索')
     ui.nodes[ui.lookup(editor.ple.page, 'search_edit', 1)].text = 'zz'
     assert ui.key(editor.ple.page, KEY_RETURN) == STOP  # Return applies the box, from the next pass
     ui.due('ple_run')
-    assert editor.rows() == ['Search: zz', 'No songs match']
-    ui.click(ui.find(editor.ple.view, 'No songs match'))
+    assert editor.rows() == ['搜索：zz', '无匹配歌曲']
+    ui.click(ui.find(editor.ple.view, '无匹配歌曲'))
     assert not ui.timers  # the note is no row to pick
 
 
 def test_the_search_box_keeps_its_query(editor, ui):
-    editor.pick('Add Songs')
-    editor.pick('Search')
+    editor.pick('添加歌曲')
+    editor.pick('搜索')
     ui.nodes[ui.lookup(editor.ple.page, 'search_edit', 1)].text = 'one'
     ui.key(editor.ple.page, KEY_RETURN)
     ui.due('ple_run')
-    editor.pick('Search: one')
+    editor.pick('搜索：one')
     assert ui.nodes[ui.lookup(editor.ple.page, 'search_edit', 1)].text == 'one'
 
 
 def test_an_unreadable_box_clears_the_query(editor, ui):
-    editor.pick('Add Songs')
-    editor.pick('Search')
+    editor.pick('添加歌曲')
+    editor.pick('搜索')
     ui.fw.mock('widget_get_text_utf8', lambda *_: 1)
     ui.key(editor.ple.page, KEY_RETURN)
     ui.due('ple_run')
-    assert editor.rows()[0] == 'Search' and len(editor.rows()) == 6
+    assert editor.rows()[0] == '搜索' and len(editor.rows()) == 6
 
 
 def test_add_songs_lists_500_songs_then_a_row_that_searches(fw, ui, recs, st):
@@ -807,42 +807,42 @@ def test_add_songs_lists_500_songs_then_a_row_that_searches(fw, ui, recs, st):
     use_set(st, MINIMAL)
     assert editor.open(1, None) == 0
     editor.table.library *= 120  # 600 songs
-    editor.pick('Add Songs')
-    assert editor.rows() == ['Search', *list(TITLES.values()) * 100, 'Search for more songs']
+    editor.pick('添加歌曲')
+    assert editor.rows() == ['搜索', *list(TITLES.values()) * 100, '搜索更多歌曲']
     C.c_ubyte.from_address(editor.view() + O['VIEW_VERTICAL']).value = 1  # rows_view's yslidable
     m = fw.var('g_menu', Menu)
     assert fw.fn('load_rows', C.c_int, C.POINTER(Menu), C.c_void_p)(m, editor.view()) == 1
     assert m.n == 502 and m.at[501] == ui.kids(editor.view())[-1]
-    editor.pick('Search for more songs')
+    editor.pick('搜索更多歌曲')
     assert editor.ple.mode == 4 and ui.lookup(editor.ple.page, 'search_edit', 1)
     assert editor.table.songs(3) == ['Two', 'Three']  # it added nothing
 
 
 def test_a_search_with_more_than_500_matches_ends_in_that_row(editor, ui):
     editor.table.library *= 150  # 750 songs, 600 of them with an e
-    editor.pick('Add Songs')
-    editor.pick('Search')
+    editor.pick('添加歌曲')
+    editor.pick('搜索')
     ui.nodes[ui.lookup(editor.ple.page, 'search_edit', 1)].text = 'e'
     ui.key(editor.ple.page, KEY_RETURN)
     ui.due('ple_run')
-    assert editor.rows() == ['Search: e', *['One', 'Three', 'Twenty', 'Five'] * 125, 'Search for more songs']
-    editor.pick('Search for more songs')
+    assert editor.rows() == ['搜索：e', *['One', 'Three', 'Twenty', 'Five'] * 125, '搜索更多歌曲']
+    editor.pick('搜索更多歌曲')
     assert ui.nodes[ui.lookup(editor.ple.page, 'search_edit', 1)].text == 'e'  # the query, as row 0 keeps it
 
 
-@pytest.mark.parametrize('songs, more', [(500, []), (501, ['Search for more songs'])])
+@pytest.mark.parametrize('songs, more', [(500, []), (501, ['搜索更多歌曲'])])
 def test_only_a_list_past_500_songs_is_cut(editor, songs, more):
     editor.table.library = (editor.table.library * 101)[:songs]
-    editor.pick('Add Songs')
-    assert editor.rows() == ['Search', *list(TITLES.values()) * 100, *more]
+    editor.pick('添加歌曲')
+    assert editor.rows() == ['搜索', *list(TITLES.values()) * 100, *more]
 
 
-@pytest.mark.parametrize('steps', [('Two',), ('Two', 'Remove from Playlist'), ('Add Songs',)])
+@pytest.mark.parametrize('steps', [('Two',), ('Two', '从播放列表移除'), ('添加歌曲',)])
 def test_return_from_a_step_goes_back_to_the_list(editor, ui, steps):
     for caption in steps:
         editor.pick(caption)
     assert ui.key(editor.ple.page, KEY_RETURN) == STOP
-    assert editor.ple.mode == 0 and editor.rows()[:2] == ['Add Songs', 'Done'] and len(ui.stack) == 1
+    assert editor.ple.mode == 0 and editor.rows()[:2] == ['添加歌曲', '完成'] and len(ui.stack) == 1
 
 
 def test_return_on_the_list_leaves(editor, ui):
@@ -857,20 +857,20 @@ def test_a_second_click_in_one_pass_is_dropped(editor, ui):
     ui.click(ui.find(editor.view(), 'Two'))
     ui.click(ui.find(editor.view(), 'Three'))
     ui.due('ple_run')
-    assert editor.title() == 'Song Actions: Road Trip'
-    editor.pick('Move Down')  # Two's actions, the first click's: Three, the last song, could not move down
+    assert editor.title() == '歌曲操作：Road Trip'
+    editor.pick('下移')  # Two's actions, the first click's: Three, the last song, could not move down
     assert editor.table.songs(3) == ['One', 'Three', 'Two']
 
 
 def test_a_click_run_after_the_page_closed_does_nothing(editor, ui):
-    ui.click(ui.find(editor.view(), 'Done'))
+    ui.click(ui.find(editor.view(), '完成'))
     ui.close(editor.ple.page)
     ui.due()
     assert ui.went == []
 
 
 def test_an_out_of_range_pick_does_nothing(editor, ui):
-    editor.pick('Add Songs')
+    editor.pick('添加歌曲')
     editor.ple.pending = 9
     rows = editor.rows()
     assert editor.fw.fn('playlists__ple_run', C.c_int, C.c_void_p)(None) == 0 and editor.rows() == rows
@@ -890,8 +890,8 @@ def test_add_songs_title_names_the_playlist_unless_the_bar_holds_it(fw, ui, recs
     e = Editor(fw, ui, recs)
     use_set(st, theme)
     e.open(1, None)
-    e.pick('Add Songs')
-    assert e.title().startswith('Add Songs') and ('Road Trip' in e.title()) == (theme == MINIMAL)
+    e.pick('添加歌曲')
+    assert e.title().startswith('添加歌曲') and ('Road Trip' in e.title()) == (theme == MINIMAL)
 
 
 # The side buttons move the selected song: phase 1 the press, 2 its release, 3 stock's long press.
@@ -965,7 +965,7 @@ class More:
             icon = ui.child(button, 'image', 10, 0, 52, pitch)
             label = ui.child(button, 'label', 72, 0, 253, 20)
             ui.nodes[icon].name, ui.nodes[label].name = f'img_{name}', f'label_{name}'
-            ui.nodes[label].text = 'Rename' if name == 'rename' else 'Delete Song'
+            ui.nodes[label].text = '重命名' if name == 'rename' else 'Delete Song'
             self.rows.append((item, icon, label))
         self.more = fw.fn('ringnav_playlistsmore', C.c_int, C.c_void_p, C.c_void_p)
         fw.mock('stock_playlistsmore_trampoline', lambda *_: 0x55)
@@ -989,7 +989,7 @@ def test_more_adds_edit_playlist_after_delete_at_the_same_spacing(fw, ui, st):
     item, button, icon, label = more.edit()
     rename, delete = (ui.nodes[r[0]].rect()[1] for r in more.rows)
     assert ui.nodes[item].rect()[1] - delete == delete - rename and ui.nodes[item].rect()[3] == more.pitch
-    assert ui.nodes[label].text == 'Edit Playlist' and ui.nodes[icon].image == 'rename'
+    assert ui.nodes[label].text == '编辑播放列表' and ui.nodes[icon].image == 'rename'
     assert ui.handlers(button, EVT_CLICK) == [ui.fn('ple_open')]
 
 
@@ -998,7 +998,7 @@ def test_mores_delete_says_playlist_and_keeps_its_translation_key(fw, ui, st):
     more = More(fw, ui, pitch(st))
     more.more(more.win, 1)
     label = ui.nodes[more.rows[1][2]]
-    assert label.text == 'Delete Playlist' and label.tr and ui.nodes[more.rows[0][2]].text == 'Rename'
+    assert label.text == '删除播放列表' and label.tr and ui.nodes[more.rows[0][2]].text == '重命名'
 
 
 def test_edit_playlist_from_more_opens_the_editor_on_that_playlist(fw, ui, st, recs):
@@ -1110,9 +1110,9 @@ def classic(fw, ui, recs, st, stock_globals):
 def test_classic_playlists_rows_are_new_edit_then_the_playlists_with_their_counts(classic, ui):
     p = classic()
     assert p.ring(p.win) == 0x31
-    assert p.shown() == [('New Playlist…',), ('Select Playlists…',), ('Gym', '12 Songs'), ('Road Trip', '1 Song'),
-                         ('Sleep', '0 Songs')]
-    assert p.title() == 'Playlists' and not ui.lookup(p.win, '_pl_none', 0)
+    assert p.shown() == [('新建播放列表…',), ('选择播放列表…',), ('Gym', '12 歌曲'), ('Road Trip', '1 歌曲'),
+                         ('Sleep', '0 歌曲')]
+    assert p.title() == '播放列表' and not ui.lookup(p.win, '_pl_none', 0)
 
 
 def test_classic_playlist_rows_lose_their_art_and_keep_their_dots_column(classic, ui):
@@ -1136,15 +1136,15 @@ def test_classic_playlists_hide_stocks_tiles_and_bind_their_own_keys(classic, ui
 def test_an_empty_list_says_so_and_offers_import(classic, ui):
     p = classic(counts=())
     p.ring(p.win)
-    assert p.shown() == [('New Playlist…',), ('Import Playlists',)]
+    assert p.shown() == [('新建播放列表…',), ('导入播放列表',)]
     none = ui.lookup(p.win, '_pl_none', 0)
-    assert ui.nodes[none].text == 'No Playlists' and ui.nodes[none].visible
+    assert ui.nodes[none].text == '暂无播放列表' and ui.nodes[none].visible
 
 
 def test_the_picker_offers_new_playlist_and_no_dots(classic, ui):
     p = classic(add=1)
     p.ring(p.win)
-    assert p.shown() == [('New Playlist…',), ('Gym', '12 Songs'), ('Road Trip', '1 Song'), ('Sleep', '0 Songs')]
+    assert p.shown() == [('新建播放列表…',), ('Gym', '12 歌曲'), ('Road Trip', '1 歌曲'), ('Sleep', '0 歌曲')]
     assert ui.nodes[p.win].props['_pl_mode'] == 1
     assert not any(ui.nodes[ui.lookup(p.playlist(i), f'img_more{i}', 0)].visible for i in range(3))
     assert not ui.handlers(p.win, EVT_KEY_UP)
@@ -1155,7 +1155,7 @@ def test_each_page_keeps_the_add_mode_it_opened_with(classic, ui):
     p.ring(p.win)
     C.c_int.from_address(PLAYLIST_ADD_MODE).value = 0  # a picker over it closed
     p.ring(p.win)
-    assert C.c_int.from_address(PLAYLIST_ADD_MODE).value == 1 and p.shown()[0] == ('New Playlist…',)
+    assert C.c_int.from_address(PLAYLIST_ADD_MODE).value == 1 and p.shown()[0] == ('新建播放列表…',)
 
 
 @pytest.mark.parametrize('left', [1, 2])
@@ -1177,7 +1177,7 @@ def test_a_covers_centre_opens_its_playlist_whatever_mode_a_picker_left(classic,
 def test_a_row_click_runs_stocks_handler_next_pass(classic, ui):
     p = classic()
     p.ring(p.win)
-    ui.click(p.action('Select Playlists…'))
+    ui.click(p.action('选择播放列表…'))
     assert not ui.dispatched
     ui.due('pl_due')
     target, kind = ui.dispatched[0]
@@ -1187,8 +1187,8 @@ def test_a_row_click_runs_stocks_handler_next_pass(classic, ui):
 def test_the_last_row_clicked_in_a_pass_runs(classic, ui):
     p = classic()
     p.ring(p.win)
-    ui.click(p.action('Select Playlists…'))
-    ui.click(p.action('New Playlist…'))
+    ui.click(p.action('选择播放列表…'))
+    ui.click(p.action('新建播放列表…'))
     ui.due()
     assert [ui.handlers(t, EVT_CLICK) for t, _ in ui.dispatched] == [[PL_STOCK[PL_NEW]]]
 
@@ -1196,7 +1196,7 @@ def test_the_last_row_clicked_in_a_pass_runs(classic, ui):
 def test_a_row_run_after_the_page_went_does_nothing(classic, ui):
     p = classic()
     p.ring(p.win)
-    ui.click(p.action('New Playlist…'))
+    ui.click(p.action('新建播放列表…'))
     ui.window('home_page')
     ui.due()
     assert not ui.dispatched
@@ -1208,7 +1208,7 @@ def select_mode(p, ui, fw):
         fw.var('g_navbar_status', C.c_ubyte).value = 1
         p.ring(p.win)
     fw.mock('stock_dispatch_trampoline', edit)
-    ui.click(p.action('Select Playlists…'))
+    ui.click(p.action('选择播放列表…'))
     ui.due('pl_due')
 
 
@@ -1216,9 +1216,9 @@ def test_edit_playlists_shows_select_modes_rows(classic, ui, fw):
     p = classic()
     p.ring(p.win)
     select_mode(p, ui, fw)
-    assert p.shown() == [('Select All',), ('Gym', '12 Songs'), ('Road Trip', '1 Song'), ('Sleep', '0 Songs'),
-                         ('Import Playlists',), ('Done',)]
-    assert p.title() == 'Select Playlists' and ui.nodes[p.win].props['_pl_marks'] == 1
+    assert p.shown() == [('全选',), ('Gym', '12 歌曲'), ('Road Trip', '1 歌曲'), ('Sleep', '0 歌曲'),
+                         ('导入播放列表',), ('完成',)]
+    assert p.title() == '选择播放列表' and ui.nodes[p.win].props['_pl_marks'] == 1
     assert ui.nodes[p.view].props['_ringnav_index'] == 1  # Select All's first playlist
 
 
@@ -1235,11 +1235,11 @@ def test_marks_offer_export_and_delete_with_their_count(classic, ui, fw):
     select_mode(p, ui, fw)
     p.marked |= {0, 2}
     recount(p, ui)
-    assert p.shown()[-3:] == [('Export 2 Playlists',), ('Delete 2 Playlists…',), ('Done',)]
-    assert p.title() == '2 Selected'
+    assert p.shown()[-3:] == [('导出 2 个播放列表',), ('删除 2 个播放列表…',), ('完成',)]
+    assert p.title() == '2 已选择'
     p.marked = {1}
     recount(p, ui)
-    assert p.shown()[-3:] == [('Export 1 Playlist',), ('Delete 1 Playlist…',), ('Done',)] and p.title() == '1 Selected'
+    assert p.shown()[-3:] == [('导出 1 个播放列表',), ('删除 1 个播放列表…',), ('完成',)] and p.title() == '1 已选择'
 
 
 @in_fork
@@ -1249,7 +1249,7 @@ def test_select_all_reads_deselect_all_once_all_are(classic, ui, fw):
     select_mode(p, ui, fw)
     C.c_ubyte.from_address(G_ALLSELECT_FLAG).value = 1
     recount(p, ui)
-    assert p.shown()[0] == ('Deselect All',)
+    assert p.shown()[0] == ('取消全选',)
 
 
 def test_done_leaves_select_mode_for_the_list_on_edit(classic, ui, fw):
@@ -1258,8 +1258,8 @@ def test_done_leaves_select_mode_for_the_list_on_edit(classic, ui, fw):
     select_mode(p, ui, fw)
     fw.var('g_navbar_status', C.c_ubyte).value = 0  # stock's Done
     p.ring(p.win)
-    assert p.shown()[:2] == [('New Playlist…',), ('Select Playlists…',)] and ui.nodes[p.win].props['_pl_marks'] == 0
-    assert p.title() == 'Playlists'
+    assert p.shown()[:2] == [('新建播放列表…',), ('选择播放列表…',)] and ui.nodes[p.win].props['_pl_marks'] == 0
+    assert p.title() == '播放列表'
 
 
 @in_fork
@@ -1297,7 +1297,7 @@ def test_import_in_select_mode_clicks_stocks_tile(classic, ui, fw):
     select_mode(p, ui, fw)
     seen = []
     fw.mock('stock_dispatch_trampoline', lambda w, e, *_: seen.append(ui.handlers(w, EVT_CLICK)))
-    ui.click(p.action('Import Playlists'))
+    ui.click(p.action('导入播放列表'))
     ui.due('pl_due')
     assert seen == [[PL_STOCK[PL_IMPORT]]]
 
@@ -1542,8 +1542,8 @@ def song(recs, n, **kw):
                 artist=kw.pop('artist', 'The Beatles'), **kw)
 
 
-PLAYING_ROWS = ['Play Next', 'Add to Queue', 'View Queue', 'Add to Favourites', 'Add to Playlist', 'Go to Album',
-                'Go to Artist', 'Shuffle', 'Repeat', 'Group by: Album']
+PLAYING_ROWS = ['下一首播放', '加入播放队列', '查看队列', '加入收藏', '加入播放列表', '前往专辑',
+                '前往表演者', '随机播放', '重复播放', '分组：专辑']
 
 
 def test_holding_play_on_now_playing_opens_its_menu(hold, recs, ui, st):
@@ -1561,7 +1561,7 @@ def test_now_playings_menu_offers_its_folder_rating_and_more(hold, recs, ui, st)
     st('np_win', C.c_void_p).value = hold.page
     ui.nodes[ui.child(hold.page, 'image')].name = 'img_more'
     hold.hold()
-    assert hold.menu() == PLAYING_ROWS[:7] + ['Go to Folder'] + PLAYING_ROWS[7:] + ['Rate', 'More…']
+    assert hold.menu() == PLAYING_ROWS[:7] + ['前往文件夹'] + PLAYING_ROWS[7:] + ['评价', '更多…']
 
 
 def test_a_favourite_reads_remove_and_its_rating_full(hold, recs, ui, st):
@@ -1570,8 +1570,8 @@ def test_a_favourite_reads_remove_and_its_rating_full(hold, recs, ui, st):
     hold.fw.mock('checkFavExist', lambda *_: 1)
     hold.hold()
     rows = hold.menu()
-    assert 'Remove from Favourites' in rows and 'Add to Favourites' not in rows
-    assert rows[-1] == 'Rate  ' + '♥' * 5
+    assert '取消收藏' in rows and '加入收藏' not in rows
+    assert rows[-1] == '评价  ' + '♥' * 5
 
 
 def test_go_to_is_left_out_where_its_page_is_open(hold, recs, ui):
@@ -1581,20 +1581,20 @@ def test_go_to_is_left_out_where_its_page_is_open(hold, recs, ui):
     hold.page = ui.window('playing_page')
     hold.hold()
     rows = hold.menu()
-    assert 'Go to Album' not in rows and 'Go to Artist' not in rows
+    assert '前往专辑' not in rows and '前往表演者' not in rows
 
 
 def test_an_untagged_song_has_no_go_to(hold, recs):
     hold.now_playing([recs(path=f'/mnt/mmc/{i}.flac', name=f'{i}.flac') for i in range(3)])
     hold.hold()
     rows = hold.menu()
-    assert 'Go to Album' not in rows and 'Go to Artist' not in rows and hold.title() == '1'  # the name less its type
+    assert '前往专辑' not in rows and '前往表演者' not in rows and hold.title() == '1'  # the name less its type
 
 
 def test_now_playing_offers_a_books_chapters(hold, recs, ui):
     hold.now_playing([recs(path=f'/mnt/mmc/Music/{i}.m4b', title=f'Book {i}') for i in range(3)])
     hold.hold()
-    assert hold.menu()[:3] == ['Play Next', 'Add to Queue', 'Chapters']
+    assert hold.menu()[:3] == ['下一首播放', '加入播放队列', '章节']
 
 
 def test_return_closes_the_menu_and_other_keys_dont(hold, recs, ui, st):
@@ -1617,7 +1617,7 @@ def test_add_to_favourites_tags_the_playing_song_alone(hold, recs, ui, st):
     hold.now_playing([song(recs, i) for i in range(3)])
     hold.hold()
     hold.menu()
-    hold.pick('Add to Favourites')
+    hold.pick('加入收藏')
     assert hold.dialog not in ui.stack
     assert [a[0] for _, a in hold.fw.calls('batch_init_selectrecord')] == [3]
     assert [a[0] for _, a in hold.fw.calls('batch_set_selectitem')] == [1]
@@ -1631,15 +1631,15 @@ def test_remove_from_favourites_untags_the_song(hold, recs, ui, fw):
     fw.mock('checkFavExist', lambda *_: 1)
     hold.hold()
     hold.menu()
-    hold.pick('Remove from Favourites')
+    hold.pick('取消收藏')
     assert [a[0] for _, a in fw.calls('deleteMusicFromFav')] == [songs[1]] and fw.var('g_delete_flag', C.c_ubyte).value == 0
 
 
-@pytest.mark.parametrize('row, state', [('Add to Favourites', b'1'), ('Remove from Favourites', b'0')])
+@pytest.mark.parametrize('row, state', [('加入收藏', b'1'), ('取消收藏', b'0')])
 def test_a_favourite_from_the_menu_is_told_to_the_song_s_card_app(hold, recs, fw, row, state):
     """A song in a card app's favdir (q2-jellyfin's synced Jellyfin): the row's My Fav change goes to its fav.log."""
     hold.now_playing([recs(path=f'/mnt/mmc/Jellyfin/{i}.flac', title=f'Song {i}') for i in range(3)])
-    fw.mock('checkFavExist', lambda *_: row.startswith('Remove'))
+    fw.mock('checkFavExist', lambda *_: row.startswith('取消'))
     favdir_card(fw, hold.card.files)
     hold.hold()
     hold.menu()
@@ -1651,7 +1651,7 @@ def test_view_queue_opens_stocks_queue_in_order(hold, recs, ui):
     hold.now_playing([song(recs, i) for i in range(3)])
     hold.hold()
     hold.menu()
-    hold.pick('View Queue')
+    hold.pick('查看队列')
     assert ui.went[-1] == 'playerqueue_page'
 
 
@@ -1660,7 +1660,7 @@ def test_add_to_queue_appends_the_song(hold, recs, ui):
     hold.now_playing(songs)
     hold.hold()
     hold.menu()
-    hold.pick('Add to Queue')
+    hold.pick('加入播放队列')
     assert hold.deques[hold.queue] == songs + [songs[1]] and not ui.toasts
 
 
@@ -1669,7 +1669,7 @@ def test_play_next_puts_the_song_after_the_playing_one(hold, recs, ui):
     hold.now_playing(songs, at=0, held=True)
     hold.hold()
     hold.menu()
-    hold.pick('Play Next')
+    hold.pick('下一首播放')
     want = [songs[0], songs[0], songs[1], songs[2]]
     assert [field(r, REC_PATH) for r in hold.deques[hold.queue]] == [field(r, REC_PATH) for r in want]
 
@@ -1680,8 +1680,8 @@ def test_a_queue_changed_under_the_menu_is_left_alone(hold, recs, ui):
     hold.hold()
     hold.menu()
     hold.deques[hold.queue].append(song(recs, 9))
-    hold.pick('Add to Queue')
-    assert ui.toasts == ['Queue unchanged'] and len(hold.deques[hold.queue]) == 4
+    hold.pick('加入播放队列')
+    assert ui.toasts == ['队列未更改'] and len(hold.deques[hold.queue]) == 4
 
 
 def test_go_to_folder_opens_the_songs_folder(hold, recs, ui, st):
@@ -1691,7 +1691,7 @@ def test_go_to_folder_opens_the_songs_folder(hold, recs, ui, st):
     ui.routes['folder_page'] = lambda ctx: seen.append((st('go_layer').value, C.string_at(C.addressof(st('go_folder', C.c_char)))))
     hold.hold()
     hold.menu()
-    hold.pick('Go to Folder')
+    hold.pick('前往文件夹')
     assert seen == [(3, b'/mnt/mmc/Music')] and st('go_layer').value == 0  # never left for a later visit
 
 
@@ -1701,15 +1701,15 @@ def test_a_folder_gone_since_says_so(hold, recs, ui):
     hold.hold()
     hold.menu()
     hold.folders.clear()
-    hold.pick('Go to Folder')
-    assert ui.toasts == ['Folder not found'] and 'folder_page' not in ui.went
+    hold.pick('前往文件夹')
+    assert ui.toasts == ['找不到文件夹'] and 'folder_page' not in ui.went
 
 
 def test_go_to_album_from_the_menu(hold, recs, ui):
     hold.now_playing([song(recs, i) for i in range(3)])
     hold.hold()
     hold.menu()
-    hold.pick('Go to Album')
+    hold.pick('前往专辑')
     assert ui.went[-1] == 'playerjumpinfo_page'
     assert C.string_at(C.addressof(classinfo(hold.fw)) + 0xd) == b'Abbey Road'
 
@@ -1721,7 +1721,7 @@ def test_more_clicks_now_playings_own_more(hold, recs, ui, st):
     ui.nodes[more].name = 'img_more'
     hold.hold()
     hold.menu()
-    hold.pick('More…')
+    hold.pick('更多…')
     assert ui.dispatched == [(more, EVT_CLICK)]
 
 
@@ -1739,7 +1739,7 @@ def test_more_opens_the_apps_page_while_its_queue_plays(hold, recs, ui, st):
     qa.app, qa.loads = C.addressof(a), hold.fw.var('playback_loads', C.c_uint).value
     hold.hold()
     hold.menu()
-    hold.pick('More…')
+    hold.pick('更多…')
     assert ui.dispatched == [] and ui.nodes[ui.top()].name == 'addon_page'
 
 
@@ -1748,7 +1748,7 @@ def test_now_playings_rate_opens_the_picker_over_it(hold, recs, ui, st, rates):
     st('rate_win', C.c_void_p).value = hold.page
     hold.hold()
     hold.menu()
-    hold.pick('Rate')
+    hold.pick('评价')
     assert st('rate_on', C.c_void_p).value == hold.page and rates('rate_album', C.c_uint).value == 0
 
 
@@ -1761,7 +1761,7 @@ def test_shuffle_albums_puts_skipping_the_album_first(hold, recs, ui, fw):
     hold.now_playing([song(recs, i, album=a) for i, a in enumerate(('A', 'A', 'B'))])
     assert advanced(fw, 0, 3)
     hold.hold()
-    assert hold.menu()[:2] == ['Next Album', 'Previous Album']
+    assert hold.menu()[:2] == ['下一张专辑', '上一张专辑']
 
 
 def test_a_skip_with_no_other_album_says_so(hold, recs, ui, fw):
@@ -1769,8 +1769,8 @@ def test_a_skip_with_no_other_album_says_so(hold, recs, ui, fw):
     advanced(fw, 0, 3)
     hold.hold()
     hold.menu()
-    hold.pick('Next Album')
-    assert ui.toasts == ['No other group']
+    hold.pick('下一张专辑')
+    assert ui.toasts == ['没有其他分组']
 
 
 def test_view_queue_under_advanced_shuffle_is_up_next(hold, recs, ui, fw):
@@ -1778,7 +1778,7 @@ def test_view_queue_under_advanced_shuffle_is_up_next(hold, recs, ui, fw):
     advanced(fw, 0, 1)
     hold.hold()
     hold.menu()
-    hold.pick('View Queue')
+    hold.pick('查看队列')
     assert ui.nodes[ui.top()].name == 'upnext_page' and 'playerqueue_page' not in ui.went
 
 
@@ -1795,15 +1795,15 @@ def test_a_play_next_stocks_shuffle_holds_goes_first_in_up_next(hold, recs, ui, 
     fw.var('playback__rng', C.c_uint).value = seed
     hold.hold()
     hold.menu()
-    hold.pick('Play Next')  # Song 0, playing, once more after itself
+    hold.pick('下一首播放')  # Song 0, playing, once more after itself
     hold.hold()
     hold.menu()
-    hold.pick('View Queue')
+    hold.pick('查看队列')
     assert ui.nodes[ui.top()].name == 'upnext_page' and up_next_rows(ui)[0] == 'Song 0'
 
 
-SHUFFLE = ['Off', 'All Songs', 'Songs in Album', 'Albums', 'Albums and Songs']  # stock's play modes, in its order
-REPEAT = ['Play One Song', 'Play One Album', 'Play All', 'Repeat Song', 'Repeat Album', 'Repeat All']
+SHUFFLE = ['关闭', '全部歌曲', '专辑内歌曲', '专辑', '专辑及歌曲']  # stock's play modes, in its order
+REPEAT = ['播放单曲', '播放单张专辑', '顺序播放', '单曲循环', '专辑循环', '全部循环']
 
 
 def ticked_rows(ui, view):
@@ -1811,9 +1811,9 @@ def ticked_rows(ui, view):
 
 
 @pytest.mark.parametrize('caption, title, rows, ticked', [
-    ('Shuffle', 'Shuffle', SHUFFLE, 'Off'),
-    ('Repeat', 'Repeat', REPEAT, 'Play All'),
-    ('Group by: Album', 'Group by', ['Album', 'Folder'], 'Album'),
+    ('随机播放', '随机播放', SHUFFLE, '关闭'),
+    ('重复播放', '重复播放', REPEAT, '顺序播放'),
+    ('分组：专辑', '分组方式', ['专辑', '文件夹'], '专辑'),
 ])
 def test_a_play_mode_row_opens_its_choices_on_the_current_one(hold, recs, ui, caption, title, rows, ticked):
     hold.now_playing([song(recs, i) for i in range(3)])
@@ -1828,14 +1828,14 @@ def test_a_choice_picked_is_played_and_ticked_next_time(hold, recs, ui, fw):
     hold.now_playing([song(recs, i) for i in range(3)])
     hold.hold()
     hold.menu()
-    hold.pick('Repeat')
-    hold.pick('Repeat All')  # from Play All
+    hold.pick('重复播放')
+    hold.pick('全部循环')  # from Play All
     assert hold.dialog not in ui.stack and not ui.toasts
-    assert fw.fn('playback_option', C.c_int, C.c_int)(1) == REPEAT.index('Repeat All')
+    assert fw.fn('playback_option', C.c_int, C.c_int)(1) == REPEAT.index('全部循环')
     hold.hold()
     assert hold.menu() == PLAYING_ROWS  # the next hold is the menu again, not the choice
-    hold.pick('Repeat')
-    assert ticked_rows(ui, hold.view()) == ['Repeat All']
+    hold.pick('重复播放')
+    assert ticked_rows(ui, hold.view()) == ['全部循环']
 
 
 def test_classic_draws_the_menu_as_the_flip_panel_centred_under_the_bar(fw, ui, st, recs, mcl):
@@ -1858,7 +1858,7 @@ def test_classic_draws_a_choice_as_the_panel_too(fw, ui, st, recs, mcl):
     hold = Hold(fw, ui, st, recs, mcl).now_playing([song(recs, i) for i in range(3)])
     hold.hold()
     hold.menu()
-    hold.pick('Group by: Album')
+    hold.pick('分组：专辑')
     lv = ui.lookup(hold.dialog, 'list_view', 1)
     assert ui.nodes[lv].rect()[3] == 2 * THEMES[st('theme').value]['page_row']
 
@@ -1869,7 +1869,7 @@ def test_add_to_playlist_opens_the_picker_guarded_by_the_menus_record(hold, recs
     ui.routes['localmusic/playlist_page'] = lambda ctx: picker.append(ctx) or ui.window('playlist_page')
     hold.hold()
     hold.menu()
-    hold.pick('Add to Playlist')
+    hold.pick('加入播放列表')
     assert picker == [0x20000 | 0xf001] and st('qm_playlist', C.c_void_p).value == ui.top()
     assert ui.handlers(ui.top(), EVT_DESTROY) == [ui.fn('qm_playlist_gone')]
     assert hold.hold() == 0 and not ui.timers  # no menu over the picker: stock's hold
@@ -1891,7 +1891,7 @@ def test_a_pick_in_the_guarded_picker_adds_the_menus_song(hold, recs, ui, st, fw
     ui.routes['localmusic/playlist_page'] = lambda ctx: ui.window('playlist_page')
     hold.hold()
     hold.menu()
-    hold.pick('Add to Playlist')
+    hold.pick('加入播放列表')
     row = ui.child(ui.top(), 'button')
     ui.bind(row, EVT_CLICK, ui.fn('qm_playlist_pick'), row)
     log = stock_handler(PLAYLIST_PICK, 0)
@@ -1905,12 +1905,12 @@ def test_a_pick_after_the_queue_changed_adds_nothing(hold, recs, ui, st, fw):
     ui.routes['localmusic/playlist_page'] = lambda ctx: ui.window('playlist_page')
     hold.hold()
     hold.menu()
-    hold.pick('Add to Playlist')
+    hold.pick('加入播放列表')
     row = ui.child(ui.top(), 'button')
     ui.bind(row, EVT_CLICK, ui.fn('qm_playlist_pick'), row)
     log = stock_handler(PLAYLIST_PICK, 0)
     hold.mcl.pos = 2
-    assert ui.click(row) == 0 and ui.toasts == ['Queue unchanged'] and log[0] == 0
+    assert ui.click(row) == 0 and ui.toasts == ['队列未更改'] and log[0] == 0
 
 
 # The hold on a list's row.
@@ -1918,7 +1918,7 @@ def test_holding_play_on_a_song_row_opens_the_songs_menu(hold, recs, ui):
     songs = [song(recs, i) for i in range(3)]
     hold.songs_page('allmusic_page', songs, sel=2)
     assert hold.hold() == STOP
-    assert hold.menu() == ['Play Next', 'Add to Queue', 'Add to Favourites', 'Add to Playlist', 'Go to Album', 'Go to Artist']
+    assert hold.menu() == ['下一首播放', '加入播放队列', '加入收藏', '加入播放列表', '前往专辑', '前往表演者']
     assert hold.title() == 'Song 2'
 
 
@@ -1931,7 +1931,7 @@ def test_a_songs_play_next_on_an_empty_queue_loads_it_unplayed(hold, recs, ui, f
     fw.mock('mclLoadPlayList', lambda q, at, cls, *_: loaded.append((list(hold.deques[q]), at, cls)))
     hold.hold()
     hold.menu()
-    hold.pick('Play Next')
+    hold.pick('下一首播放')
     assert loaded == [([songs[0]], 0, 0xf001)] and not fw.calls('mclStartPlayer')
 
 
@@ -1940,7 +1940,7 @@ def test_my_favs_remove_reloads_my_fav(hold, recs, ui, fw):
     fw.mock('checkFavExist', lambda *_: 1)
     hold.hold()
     hold.menu()
-    hold.pick('Remove from Favourites')
+    hold.pick('取消收藏')
     assert fw.var('g_delete_flag', C.c_ubyte).value == 1  # My Fav reloads, as Now Playing's heart
 
 
@@ -1949,16 +1949,16 @@ def test_a_list_changed_under_the_menu_runs_nothing(hold, recs, ui, fw):
     hold.hold()
     hold.menu()
     C.memmove(C.addressof(fw.var('fw_ctx_g_folder_path', C.c_char)), b'/mnt/mmc/x\0', 11)  # browsing moved on
-    hold.pick('Add to Favourites')
-    assert not fw.calls('batch_add_file') and ui.toasts == ['Queue unchanged']
+    hold.pick('加入收藏')
+    assert not fw.calls('batch_add_file') and ui.toasts == ['队列未更改']
 
 
 def test_an_album_rows_menu_shuffles_rates_and_goes_to_its_artist(hold, recs, ui):
     albums = [recs(album=a, artist='The Beatles', kind=4, id_=i + 1) for i, a in enumerate(('Help!', 'Revolver'))]
     hold.songs_page('localclass_page', albums, sel=1, cls=0xf003)
     hold.hold()
-    assert hold.menu() == ['Play Next', 'Add to Queue', 'Shuffle', 'Add to Favourites', 'Rate Album', 'Add to Playlist',
-                           'Go to Artist']
+    assert hold.menu() == ['下一首播放', '加入播放队列', '随机播放', '加入收藏', '专辑评价', '加入播放列表',
+                           '前往表演者']
     assert hold.title() == 'Revolver'
 
 
@@ -1967,11 +1967,11 @@ def test_an_albums_favourite_is_kept_for_its_next_menu(hold, recs, ui):
     hold.songs_page('localclass_page', albums, sel=1, cls=0xf003)
     hold.hold()
     hold.menu()
-    hold.pick('Add to Favourites')
+    hold.pick('加入收藏')
     assert not ui.toasts and '/mnt/data/ringnav-album-ratings' in hold.card.files
     hold.hold()
     rows = hold.menu()
-    assert 'Remove from Favourites' in rows and 'Rate Album  ' + '♥' * 5 in rows
+    assert '取消收藏' in rows and '专辑评价  ' + '♥' * 5 in rows
 
 
 def test_rate_album_opens_the_picker_on_its_hearts_and_rates_that_album(hold, recs, ui, st, fw):
@@ -1979,19 +1979,19 @@ def test_rate_album_opens_the_picker_on_its_hearts_and_rates_that_album(hold, re
     hold.songs_page('localclass_page', albums, sel=0, cls=0xf003)
     hold.hold()
     hold.menu()
-    hold.pick('Add to Favourites')  # Help!: five hearts
+    hold.pick('加入收藏')  # Help!: five hearts
     hold.hold()
     hold.menu()
-    hold.pick('Rate Album  ' + '♥' * 5)
+    hold.pick('专辑评价  ' + '♥' * 5)
     assert st('rate_on', C.c_void_p).value == hold.page
     key = fw.fn('rate_key', C.c_int, C.c_void_p, C.c_uint)
     assert key(hold.page, O['KEY_PREV']) and key(hold.page, O['KEY_CENTER'])  # a heart less than it opened on, kept
     hold.hold()
-    assert 'Rate Album  ' + '♥' * 4 + '♡' in hold.menu()
+    assert '专辑评价  ' + '♥' * 4 + '♡' in hold.menu()
     ui.key(hold.dialog, KEY_RETURN)
     fw.fn('ringnav_select', None, C.c_void_p, C.c_int, C.c_int)(hold.list, 1, 2)
     hold.hold()
-    assert 'Rate Album' in hold.menu() and hold.title() == 'Revolver'  # its own: none
+    assert '专辑评价' in hold.menu() and hold.title() == 'Revolver'  # its own: none
 
 
 @pytest.mark.parametrize('sel, opened', ((1, [2]), (0, [])))  # 2: DISPLAY_COVERFLOW
@@ -2009,15 +2009,15 @@ def test_an_artist_composer_or_genre_row_is_titled_by_its_own_tag(hold, recs, ui
     rows = [recs(kind=4, **{field_: f'{field_} {i}'}) for i in range(2)]
     hold.songs_page('localclass_page', rows, sel=1, cls=cls)
     hold.hold()
-    assert hold.menu() == ['Play Next', 'Add to Queue', 'Shuffle', 'Add to Playlist'] and hold.title() == f'{field_} 1'
+    assert hold.menu() == ['下一首播放', '加入播放队列', '随机播放', '加入播放列表'] and hold.title() == f'{field_} 1'
 
 
 def test_a_folder_rows_menu(hold, recs, ui, fw):
-    rows = [recs(name=n, kind=4) for n in ('Jazz', 'Rock')]
+    rows = [recs(name=n, kind=4) for n in ('爵士', '摇滚')]
     C.memmove(C.addressof(fw.var('fw_ctx_g_folder_path', C.c_char)), b'/mnt/mmc/Music\0', 15)
     hold.songs_page('folder_page', rows, sel=0)
     hold.hold()
-    assert hold.menu() == ['Play Next', 'Add to Queue', 'Shuffle', 'Add to Playlist'] and hold.title() == 'Jazz'
+    assert hold.menu() == ['下一首播放', '加入播放队列', '随机播放', '加入播放列表'] and hold.title() == '爵士'
 
 
 def test_an_artists_albums_tab_holds_as_albums_from_its_own_class(hold, recs, ui, fw):
@@ -2025,8 +2025,8 @@ def test_an_artists_albums_tab_holds_as_albums_from_its_own_class(hold, recs, ui
     albums = [recs(album=a, kind=4, id_=i + 1) for i, a in enumerate(('Help!', 'Revolver'))]
     hold.songs_page('artistinfo_page', albums, sel=0, cls=0xf004)
     hold.hold()
-    assert hold.menu() == ['Play Next', 'Add to Queue', 'Shuffle', 'Add to Playlist'] and hold.title() == 'Help!'
-    hold.pick('Add to Playlist')
+    assert hold.menu() == ['下一首播放', '加入播放队列', '随机播放', '加入播放列表'] and hold.title() == 'Help!'
+    hold.pick('加入播放列表')
     assert ui.contexts[-1] == ('localmusic/playlist_page', 0x10000 | 0xff01)  # stock's add, from the tab's albums
 
 
@@ -2035,12 +2035,12 @@ def test_a_playlist_rows_more_opens_its_dots_page(hold, recs, ui, st, fw, stock_
     p.ring(p.win)  # stock's rows as they are: a set with toolbars
     fw.fn('ringnav_select', None, C.c_void_p, C.c_int, C.c_int)(p.view, 3, 5)  # Import, Export, Gym, then Road Trip
     hold.hold()
-    assert hold.menu() == ['Play Next', 'Add to Queue', 'Shuffle', 'More…'] and hold.title() == 'Road Trip'
-    hold.pick('More…')
+    assert hold.menu() == ['下一首播放', '加入播放队列', '随机播放', '更多…'] and hold.title() == 'Road Trip'
+    hold.pick('更多…')
     assert ui.contexts[-1] == ('localmusic/playlistsmore_page', 1)
 
 
-@pytest.mark.parametrize('add, menu', [(0, ['Play Next', 'Add to Queue', 'Shuffle', 'More…']), (1, None)])
+@pytest.mark.parametrize('add, menu', [(0, ['下一首播放', '加入播放队列', '随机播放', '更多…']), (1, None)])
 def test_the_add_to_playlist_pickers_hold_is_stocks(hold, recs, ui, fw, stock_globals, add, menu):
     """The picker is playlist_page too, its rows a playlist each with its dots over the same playlists: only its
     add mode tells it from the list."""
@@ -2060,8 +2060,8 @@ def test_most_playeds_tracks_hold_as_its_songs(hold, recs, ui, st, fw):
     st('mp_list', C.c_void_p).value = mp = hold.deques.new(songs)
     hold.hold()
     rows = hold.menu()
-    assert hold.title() == 'Song 1' and 'Add to Favourites' in rows and 'Add to Playlist' not in rows
-    hold.pick('Add to Favourites')
+    assert hold.title() == 'Song 1' and '加入收藏' in rows and '加入播放列表' not in rows
+    hold.pick('加入收藏')
     (cls, kind, tracks, *_), = [a for _, a in fw.calls('batch_add_file')]
     assert (cls, kind, tracks & 0xffffffff) == (0xf001, 0xf00a, mp)  # its own tracks, as songs whatever the Library
 
@@ -2136,7 +2136,7 @@ def test_a_run_after_the_menu_closed_does_nothing(hold, recs, ui, fw):
     hold.now_playing([song(recs, i) for i in range(3)])
     hold.hold()
     hold.menu()
-    ui.click(ui.find(hold.view(), 'Add to Favourites'))
+    ui.click(ui.find(hold.view(), '加入收藏'))
     ui.key(hold.dialog, KEY_RETURN)
     ui.due('qm_run')
     assert not fw.calls('batch_add_file')
@@ -2146,8 +2146,8 @@ def test_a_second_click_before_the_run_is_dropped(hold, recs, ui, fw):
     hold.now_playing([song(recs, i) for i in range(3)])
     hold.hold()
     hold.menu()
-    ui.click(ui.find(hold.view(), 'Add to Favourites'))
-    ui.click(ui.find(hold.view(), 'View Queue'))
+    ui.click(ui.find(hold.view(), '加入收藏'))
+    ui.click(ui.find(hold.view(), '查看队列'))
     ui.due('qm_run')
     assert [a[1] for _, a in fw.calls('batch_add_file')] == [0xf00a] and 'playerqueue_page' not in ui.went
 
@@ -2170,7 +2170,7 @@ def test_a_hold_in_quick_settings_names_the_wheel_in_a_toast(fw, ui):
     struct.pack_into('<i', event, EVENT_KEY, KEY_PLAY)
     keylong(None, event)
     keylong(None, event)
-    assert ui.toasts == ['Wheel: Volume', 'Wheel: Brightness'] and not fw.calls('label_create')
+    assert ui.toasts == ['滚轮：音量', '滚轮：亮度'] and not fw.calls('label_create')
 
 
 def test_quick_settings_wheel_starts_from_the_saved_choice(fw, ui):
@@ -2466,12 +2466,12 @@ def test_resume_on_a_books_chapter_plays_from_the_saved_place(hold, recs, ui, st
     hold.card.files[RESUME_FILE] = places_file((key_of(BOOK), 900))
     hold.songs_page('allmusic_page', chapters, sel=0)
     hold.hold()
-    assert hold.menu()[0] == 'Resume'
+    assert hold.menu()[0] == '继续播放'
     played = []
     ui.routes['playing_page'] = lambda ctx: played.append((list(hold.deques[C.c_void_p.from_address(ctx).value]),
                                                          C.c_int.from_address(ctx + 8).value, C.c_int.from_address(ctx + 12).value))
     p = Player(fw, mcl, hold.deques, hold.card)
-    hold.pick('Resume')
+    hold.pick('继续播放')
     assert played == [(chapters, 1, 0xf001)]  # the list's songs, from the chapter holding 900 s
     assert (st('rs_go').value, st('rs_go_key', C.c_uint).value) == (300, key_of(BOOK, 600))
     p.play(chapters, at=1, total=600)  # it plays: the chapter's first second seeks to the place
@@ -2488,8 +2488,8 @@ def test_resume_with_its_place_gone_says_so(hold, recs, ui, st):
     hold.hold()
     hold.menu()
     C.memset(C.addressof(st('spots')), 0, 8 * O['RESUME_SLOTS'])  # the book finished since
-    hold.pick('Resume')
-    assert ui.toasts == ['Queue unchanged'] and 'playing_page' not in ui.went
+    hold.pick('继续播放')
+    assert ui.toasts == ['队列未更改'] and 'playing_page' not in ui.went
 
 
 def test_a_resume_rows_chapter_that_never_came_is_forgotten(player, recs, st):

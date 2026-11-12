@@ -914,9 +914,9 @@ def test_an_album_picked_from_its_list_plays_on_to_its_end_and_stops_there(q2):
     q.albums()
     assert q.open_album('First', 'Alpha') == ['Dawn', 'Noon', 'Dusk']  # Beta's First is another album
     q.pick('Noon')
-    assert q.opened == [ALPHA + '02 Noon.flac'] and q.now_playing() == ('2 of 3', 'First')
+    assert q.opened == [ALPHA + '02 Noon.flac'] and q.now_playing() == ('2 / 3', 'First')
     q.play_for(SONG)  # Noon ends by itself
-    assert q.opened[1:] == [ALPHA + '03 Dusk.flac'] and q.now_playing() == ('3 of 3', 'First')
+    assert q.opened[1:] == [ALPHA + '03 Dusk.flac'] and q.now_playing() == ('3 / 3', 'First')
     q.play_for(3)
     q.next_key()  # on the album's last track: the album is over, not round to its first (stock's own Next wraps)
     assert len(q.opened) == 2 and q.status == STOPPED
@@ -926,7 +926,7 @@ def test_an_album_picked_from_its_list_plays_on_to_its_end_and_stops_there(q2):
     q.call('mclSetPlayMode', REPEAT_ALL)  # Play Mode: stock's Repeat All goes round
     q.pick('Dusk')
     q.play_for(SONG)
-    assert q.opened[3:] == [ALPHA + '03 Dusk.flac', ALPHA + '01 Dawn.flac'] and q.now_playing() == ('1 of 3', 'First')
+    assert q.opened[3:] == [ALPHA + '03 Dusk.flac', ALPHA + '01 Dawn.flac'] and q.now_playing() == ('1 / 3', 'First')
 
 
 def test_gapless_takes_over_the_next_opened_ahead_and_a_play_next_closes_a_stale_one(q2):
@@ -982,9 +982,9 @@ def test_play_next_and_add_to_queue_join_the_album_playing(q2):
     q.songs()  # Library → Songs, while Dawn plays
     q.hold('Rise', QA['NEXT'])
     q.hold('Gem', QA['ADD'])
-    assert q.toasts == [] and q.now_playing() == ('1 of 5', 'First')
+    assert q.toasts == [] and q.now_playing() == ('1 / 5', 'First')
     q.play_for(SONG)
-    assert q.opened[1:] == [BETA + 'Second/01 Rise.flac'] and q.now_playing() == ('2 of 5', 'Second')
+    assert q.opened[1:] == [BETA + 'Second/01 Rise.flac'] and q.now_playing() == ('2 / 5', 'Second')
     q.play_for(4 * SONG)
     assert [title_of(q, p) for p in q.opened] == ['Dawn', 'Rise', 'Noon', 'Dusk', 'Gem'] and q.status == STOPPED
 
@@ -992,7 +992,7 @@ def test_play_next_and_add_to_queue_join_the_album_playing(q2):
 # Library → Shuffle, and Up Next: View Queue while a shuffle is on.
 def shuffle_albums(q):
     q.fw.fn('shuffle_menu', C.c_int, C.c_void_p, C.c_void_p)(None, None)
-    q.tap('Shuffle Albums')
+    q.tap('随机播放专辑')
 
 
 def up_next(q):
@@ -1049,7 +1049,7 @@ def test_shuffle_songs_plays_each_song_once_a_pass_and_the_next_list_picked_play
     q = q2(files, tags)
     q.update()
     q.fw.fn('shuffle_menu', C.c_int, C.c_void_p, C.c_void_p)(None, None)
-    q.tap('Shuffle Songs')
+    q.tap('随机播放歌曲')
     assert q.mcl.mode == SHUFFLE  # saved as stock's Shuffle
     rows = [title for title, _ in up_next(q)]
     assert len(rows) == 6 + 7  # the rest of this pass, then the whole of the next (Repeat All)
@@ -1209,7 +1209,7 @@ def test_a_shuffle_restarted_with_memory_playback_plays_on_in_the_order_it_had(q
     q.fw.var('g_memory_play', C.c_ubyte).value = TRACK
     q.update()
     q.fw.fn('shuffle_menu', C.c_int, C.c_void_p, C.c_void_p)(None, None)
-    q.tap('Shuffle Songs')
+    q.tap('随机播放歌曲')
     rows = [title for title, _ in up_next(q)]
     q.play_for(2 * SONG + 5)  # the third song of the pass, 5 s in
     playing = title_of(q, q.opened[-1])

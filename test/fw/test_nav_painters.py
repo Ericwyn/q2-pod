@@ -26,7 +26,7 @@ EVT_CLICK, EVT_DESTROY = O['EVT_CLICK'], O['EVT_DESTROY']
 CANVAS_X, CANVAS_Y, CANVAS_LCD = O['CANVAS_X'], O['CANVAS_Y'], O['CANVAS_LCD']
 LCD_FILL, LCD_STROKE = O['LCD_FILL_COLOR'], O['LCD_STROKE_COLOR']
 THEMES = host.tools_theme.builtins()
-MINIMAL, CLASSIC, MODERN = (next(i for i, t in enumerate(THEMES) if t['name'] == name) for name in ('Minimal', 'Classic', 'Modern'))
+MINIMAL, CLASSIC, MODERN = (next(i for i, t in enumerate(THEMES) if t['id'] == name) for name in ('minimal', 'classic-light', 'modern'))
 SETS = host.tools_theme.geometry_sets(THEMES)  # boot_values' rows: st.geom indexes them
 SET0 = SETS[0]  # the set st.geom 0 reads: theme_boot's before it writes one
 CLASSIC_SET = next(i for i, s in enumerate(SETS) if s.name == 'classic-light')
@@ -1018,7 +1018,7 @@ def paint_bg(fw, w, canvas):
 class Confirm:
     """Stock's confirminfo_dialog as dialog_confirminfo_dialog_init leaves it: full-screen and clear, its
     prompt's hscroll_label lines, maybe msg_delcheckbutton, and the asset's two buttons."""
-    def __init__(self, fw, ui, lines=('Delete this song?',), check=None, cells=('Cancel', 'OK')):
+    def __init__(self, fw, ui, lines=('Delete this song?',), check=None, cells=('取消', 'OK')):
         self.fw, self.ui = fw, ui
         self.win = ui.window('confirminfo_dialog', kind='dialog')
         self.lines = []
@@ -1117,7 +1117,7 @@ def test_the_pop_up_opens_on_cancel_and_the_wheel_lights_the_other(fw, st, layou
     assert confirm.win.props['_ringnav_index'] == 0
     assert mid(confirm.cancel) == rgba(S.sel_row(15, 30)) != mid(confirm.enter)
     texts = {t: c for t, r, c in canvas.texts if r[1] == confirm.cancel.box[1]}
-    assert texts['Cancel'] != texts['OK'] or light  # dark: the unlit cell's text is dimmer
+    assert texts['取消'] != texts['OK'] or light  # dark: the unlit cell's text is dimmer
     confirm.win.props['_ringnav_index'] = 1
     confirm.paint()
     assert mid(confirm.enter) == rgba(S.sel_row(15, 30)) != mid(confirm.cancel)
@@ -1126,13 +1126,13 @@ def test_the_pop_up_opens_on_cancel_and_the_wheel_lights_the_other(fw, st, layou
 def test_the_cells_texts_sit_over_their_shadows_a_row_up(fw, st):
     confirm = Confirm(fw, classic(fw, st))
     canvas = confirm.paint()
-    for cell, text in ((confirm.cancel, 'Cancel'), (confirm.enter, 'OK')):
+    for cell, text in ((confirm.cancel, '取消'), (confirm.enter, 'OK')):
         drawn = [(r, c) for t, r, c in canvas.texts if t == text]
         (shadow, shade), (box, ink) = drawn
         assert box == cell.box and shadow == (box[0], box[1] - 1, box[2], box[3])
         assert shade >> 24 < 0xff and shade & 0xffffff == 0  # black, part transparent
     inks = {t: c for t, r, c in canvas.texts[1::2]}
-    assert inks['Cancel'] == rgba(0xffffff) != inks['OK']  # the dark half's unlit cell is dimmer
+    assert inks['取消'] == rgba(0xffffff) != inks['OK']  # the dark half's unlit cell is dimmer
 
 
 def test_delete_files_check_is_drawn_where_the_icon_goes(fw, st, layout):
@@ -1176,14 +1176,14 @@ def test_a_row_actions_question_is_the_tray_its_cell_the_verb(fw, st):
         return 1
 
     fw.mock('navigator_to_with_context', open_dialog)
-    verb = C.create_string_buffer(b'Delete')
+    verb = C.create_string_buffer(b'\xe5\x88\xa0\xe9\x99\xa4')
     assert fw.fn('playlists__confirm_over', C.c_int, C.c_void_p, C.c_char_p)(None, verb) == 1
     text, shown, images, cells, inks = seen['tray']
-    assert text == 'Delete' and not shown  # the cell says what it's for; no question
+    assert text == '删除' and not shown  # the cell says what it's for; no question
     (ix, iy, iw, ih), = images  # the tray's shadow at its art's size, centred, the cells on it
     assert (iw, ih) == (315, 70) and 2 * ix + iw == 375
     assert all(ix <= x and x + w <= ix + iw and iy <= y and y + h <= iy + ih for x, y, w, h in cells)
-    assert inks['Cancel'] == inks['Delete']  # lit or not, both cells' text alike
+    assert inks['取消'] == inks['删除']  # lit or not, both cells' text alike
     text, shown, (lx, ly, lw, lh), (_, y, _, _) = seen['over']
     assert text == 'OK' and shown and ly + lh <= y  # its prompt asked, the cells under it
     after = Confirm(fw, ui, ['Shut down?'])  # the row action answered: the next confirm is a question
@@ -1212,7 +1212,7 @@ def toast(fw, st, lines, name='msginfo_dialog'):
     return win, labels, canvas
 
 
-@pytest.mark.parametrize('lines', [['Done'], ['Saved', 'Cover Flow rebuilds artwork']])
+@pytest.mark.parametrize('lines', [['完成'], ['Saved', 'Cover Flow rebuilds artwork']])
 def test_a_toasts_box_holds_its_lines_centred(fw, st, lines):
     win, labels, canvas = toast(fw, st, lines)
     (x, y, w, h), color, radius = canvas.boxes[0]
@@ -1260,7 +1260,7 @@ def test_v134s_wrapping_label_gets_the_box_its_wrapped_lines_need(fw, st):
 
 
 def test_a_toast_moves_its_lines_once(fw, st):
-    win, labels, canvas = toast(fw, st, ['Done'])
+    win, labels, canvas = toast(fw, st, ['完成'])
     moves = len(fw.calls('widget_move_resize'))
     paint_bg(fw, win, canvas)
     assert len(fw.calls('widget_move_resize')) == moves and len(canvas.boxes) == 2
@@ -1268,15 +1268,15 @@ def test_a_toast_moves_its_lines_once(fw, st):
 
 def test_a_toast_is_the_same_dark_box_in_either_half(fw, st):
     """flip_if undoes the ink's Light Mode flip, to within the flip's rounding."""
-    dark = toast(fw, st, ['Done'])[2].boxes[0][1]
+    dark = toast(fw, st, ['完成'])[2].boxes[0][1]
     st('light').value = 1
-    light = toast(fw, st, ['Done'])[2].boxes[0][1]
+    light = toast(fw, st, ['完成'])[2].boxes[0][1]
     assert dark >> 24 == light >> 24 and all(abs((dark >> s & 255) - (light >> s & 255)) <= 3 for s in (0, 8, 16))
     assert bright(light) < 3 * 0x80  # dark in the light half too
 
 
 def test_the_serials_qr_takes_the_boxs_colour_on_its_own_rect(fw, st):
-    (_, color, radius), = toast(fw, st, ['Done'])[2].boxes
+    (_, color, radius), = toast(fw, st, ['完成'])[2].boxes
     win, labels, canvas = toast(fw, st, ['SN'], name='showsn_dialog')
     assert win.props['style:normal:bg_color'] == i32(color) and win.props['style:normal:round_radius'] == radius
     assert not canvas.boxes and labels[0].box == (0, 140, 375, 30)  # no box: its lines where stock put them
@@ -1666,8 +1666,8 @@ def test_power_adds_standby_charge_and_in_vehicle_rows_after_stocks(fw):
     assert icons == ['system_powermanager', 'usb_chargeswitch', 'usb_chargeswitch', 'wifiset_wifi', 'system_carmode',
                      'system_powermanager']
     standby, charge, *_, history = (ui.text(label_of(r)) for r in ours)
-    assert standby.endswith('Off') and f'{O["CHARGE_STOP"]}%' in charge  # Standby off; where Charge stops
-    assert history == 'Battery History' and 'list_into' in [c.props.get('image') for c in ours[-1].walk()]  # opens a page
+    assert standby.endswith('关闭') and f'{O["CHARGE_STOP"]}%' in charge  # Standby off; where Charge stops
+    assert history == '电池历史' and 'list_into' in [c.props.get('image') for c in ours[-1].walk()]  # opens a page
     assert [switch(r) for r in ours] == [None, 'switch_off', 'switch_off', 'switch_off', 'switch_off', None]
     for r in ours:  # stock's settings row: its button, the title clear of the icon, both the row's height
         button, label = r.children[0], label_of(r)
@@ -1691,11 +1691,11 @@ def test_system_update_adds_remind_daily_under_network_update_on_by_default(fw):
     assert fw.fn('ringnav_fwupdate', C.c_int, C.c_void_p, C.c_void_p)(win.addr, None) == 3
     assert len(view.children) == 3
     remind = view.children[2]
-    assert ui.text(label_of(remind)) == 'Update Notifications: On' and switch(remind) is None  # a missing key reads On
+    assert ui.text(label_of(remind)) == '更新通知：打开' and switch(remind) is None  # a missing key reads On
     click(ui, remind)
-    assert ui.text(label_of(remind)) == 'Update Notifications: Off' and settings.written == [('REMINDDAILY', 0)]
+    assert ui.text(label_of(remind)) == '更新通知：关闭' and settings.written == [('REMINDDAILY', 0)]
     click(ui, remind)
-    assert ui.text(label_of(remind)) == 'Update Notifications: On' and settings.written[-1] == ('REMINDDAILY', 1)
+    assert ui.text(label_of(remind)) == '更新通知：打开' and settings.written[-1] == ('REMINDDAILY', 1)
 
 
 def test_remind_daily_off_in_config_reads_off(fw):
@@ -1713,7 +1713,7 @@ def test_standby_limit_cycles_its_four_choices_and_saves_each(fw):
         texts.append(ui.text(label_of(standby)))
     hours = [O[f'STANDBY_LIMIT_{k}'] for k in (1, 2, 3)]
     assert [re.findall(r'\d+', t) for t in texts] == [[str(h)] for h in hours] + [[]]  # each limit's hours, then none
-    assert texts[-1].endswith('Off')
+    assert texts[-1].endswith('关闭')
     assert settings.written == [('STANDBYLIMIT', v) for v in (1, 2, 3, 0)]
 
 
@@ -1806,15 +1806,15 @@ def test_classic_shows_a_switch_as_its_value(fw, st):
     ui, win, view, settings, build = settings_page(fw, CLASSIC, 'powermanager_page', 'scroll_view_powermanager', CHARGELIMIT=b'1')
     fw.fn('ringnav_powermanager', C.c_int, C.c_void_p, C.c_void_p)(win.addr, None)
     standby, charge, dac, smart, car, history = view.children
-    assert value(ui, charge) == 'On' and value(ui, smart) == value(ui, car) == 'Off' and switch(charge) is None
+    assert value(ui, charge) == '打开' and value(ui, smart) == value(ui, car) == '关闭' and switch(charge) is None
     assert f'{O["CHARGE_STOP"]}%' in ui.text(label_of(charge))
     v = next(c for c in charge.walk() if c.name == '_setting_value')
     title, width = label_of(charge), charge.children[0].box[2]
     # the value in the trailing column to the row's end, the title's box ending where it starts
     assert title.box[0] + title.box[2] == v.box[0] and width // 2 < v.box[0] and v.box[0] + v.box[2] >= width
-    assert ui.text(label_of(standby)).endswith('Off') and value(ui, standby) is None  # not a switch: its text whole
+    assert ui.text(label_of(standby)).endswith('关闭') and value(ui, standby) is None  # not a switch: its text whole
     click(ui, charge)
-    assert value(ui, charge) == 'Off' and len([c for c in charge.walk() if c.name == '_setting_value']) == 1
+    assert value(ui, charge) == '关闭' and len([c for c in charge.walk() if c.name == '_setting_value']) == 1
 
 
 @pytest.mark.parametrize('bt', [1, 0])
@@ -1847,7 +1847,7 @@ def test_device_volume_off_gives_stock_its_gain_back_at_once(fw, way, sent):
     g(fw, 'g_volume', 37)
     fw.mock('mclGetOutputWay', lambda *_: way)
     fw.fn('ringnav_btrows', C.c_int, C.c_void_p, C.c_void_p)(win.addr, None)
-    link = row(ui, view, 'Control Device Volume')
+    link = row(ui, view, '控制设备音量')
     bt_link = fw.fn('navigation__bt_link', C.c_int)
     assert switch(link) == 'switch_on' and bt_link() == 1
     click(ui, link)
@@ -1878,7 +1878,7 @@ def test_playback_orders_its_rows_and_ends_on_library_and_folders(fw):
     # stock's Volume and Album Display is not offered; Folder skip is Library & Folders'
     assert len(rows) == 19 and 's11' not in ids and 's12' not in ids
     at = {r.name or icon(r): k for k, r in enumerate(rows)}
-    assert rows[-1] is row(ui, view, 'Library & Folders') and 'list_into' in [c.props.get('image') for c in rows[-1].walk()]
+    assert rows[-1] is row(ui, view, '音乐与文件夹') and 'list_into' in [c.props.get('image') for c in rows[-1].walk()]
     assert (at['s3'], at['s2']) == (0, 1)  # Play Mode, then EQ
     assert at['playset_gapless'] == at['s7'] + 1 and at['playset_memplay'] == at['s6'] + 1  # Crossfade, Resume Songs
     assert at['s8'] == at['playset_memplay'] + 1  # Headphones required, after Resume Songs
@@ -1903,7 +1903,7 @@ def test_playback_s_volume_rows_open_stock_s_pages_and_enlarged_art_is_stock_s_s
         click(ui, ours[key])
     assert opened == ['playset/maxvol_page', 'playset/bootvol_page']
     art = ours['playset_covermode']
-    assert switch(art) == 'switch_off' and ui.text(label_of(art)) == 'Enlarged Album Art'
+    assert switch(art) == 'switch_off' and ui.text(label_of(art)) == '放大专辑封面'
     # stock's rows, stock's translations
     assert [C.string_at(c[1][1]) for c in fw.calls('widget_set_tr_text')] == [b'playset_maxvol', b'playset_bootvol', b'playset_covermode']
     click(ui, art)
@@ -1931,13 +1931,13 @@ def test_library_and_folders_is_stocks_page_again_with_the_library_rows(fw, st):
         return 0
 
     fw.mock('navigator_to', open_page)
-    opener = row(ui, view, 'Library & Folders')
+    opener = row(ui, view, '音乐与文件夹')
     click(ui, opener)
     assert sub['name'] == b'playset/playset_page' and sub['title'] == ui.text(label_of(opener))  # titled as its row
     ours = sub['rows'][:5]
     skip, art = sub['rows'][5:]
     # stock's Folder skip, then Folder Album Cover (a row of stock's Volume and Album Display), last
-    assert skip.name == 's12' and icon(art) == 'playset_foldercover' and ui.text(label_of(art)) == 'Folder Album Cover'
+    assert skip.name == 's12' and icon(art) == 'playset_foldercover' and ui.text(label_of(art)) == '文件夹封面'
     assert C.string_at(fw.calls('widget_set_tr_text')[-1][1][1]) == b'playset_foldercover'  # stock's row, stock's translation
     was = g(fw, 'g_foldercover_flag')
     for r in ours + [art]:
@@ -1957,9 +1957,9 @@ def test_artists_toggles_stocks_artist_type(fw):
     fw.var('fw_ctx_artist_type', C.c_int).value = 1
     fw.fn('pod_rows', None, C.c_void_p, C.c_char_p, C.c_int, C.c_int, C.c_void_p)(win.addr, b'scroll_view_playset', 4, 1, (C.c_char_p * 1)(b'x'))
     artists = view.children[0]
-    assert ui.text(label_of(artists)) == 'Artists: Album Artist'
+    assert ui.text(label_of(artists)) == '表演者分类：专辑表演者'
     click(ui, artists)
-    assert fw.var('fw_ctx_artist_type', C.c_int).value == 0 and ui.text(label_of(artists)) == 'Artists: Artist'
+    assert fw.var('fw_ctx_artist_type', C.c_int).value == 0 and ui.text(label_of(artists)) == '表演者分类：曲目表演者'
     assert settings.written == [('ARTISTTYPE', 0)]
 
 
@@ -1979,10 +1979,10 @@ def album_view(fw, grid):
 def test_album_view_reads_and_flips_stocks_albums_mode(fw, grid):
     """Albums' list or grid is stock's album_modetype and PLAYSET ALBUMTYPE; its switch is on the toolbar the themes hide."""
     ui, row_, settings, mode = album_view(fw, grid)
-    words = ['List', 'Grid']
-    assert ui.text(label_of(row_)) == f'Album View: {words[grid]}'
+    words = ['列表', '网格']
+    assert ui.text(label_of(row_)) == f'专辑视图：{words[grid]}'
     click(ui, row_)
-    assert mode.value == 1 - grid and ui.text(label_of(row_)) == f'Album View: {words[1 - grid]}'
+    assert mode.value == 1 - grid and ui.text(label_of(row_)) == f'专辑视图：{words[1 - grid]}'
     assert settings.written == [('ALBUMTYPE', 1 - grid)] and not fw.calls('album_covermode')  # no Albums page open: none to rebuild
 
 
@@ -1999,7 +1999,7 @@ def test_album_view_runs_stocks_switch_on_an_open_albums_page(fw, acts):
     fw.mock('album_covermode', switch)
     click(ui, row_)
     assert [a[0] for _, a in fw.calls('album_covermode')] == [albums.addr] and mode.value == 1
-    assert ui.text(label_of(row_)) == 'Album View: Grid' and settings.written == ([] if acts else [('ALBUMTYPE', 1)])
+    assert ui.text(label_of(row_)) == '专辑视图：网格' and settings.written == ([] if acts else [('ALBUMTYPE', 1)])
 
 
 def pod_rows(fw, win, view_name, first, n):
@@ -2071,7 +2071,7 @@ def set_text_row(fw, text):
     return ui, button, label, button.child('_setting_value')
 
 
-@pytest.mark.parametrize('text, title, val', [('Theme: Classic', 'Theme', 'Classic'), ('Classic Blue', 'Accent', 'Classic Blue'),
+@pytest.mark.parametrize('text, title, val', [('主题：经典', '主题', '经典'), ('Classic Blue', '强调色', 'Classic Blue'),
                                               ('Wheel: 50%: x', 'Wheel', '50%: x')])
 def test_a_set_text_rows_title_and_value(fw, text, title, val):
     ui, button, label, v = set_text_row(fw, text)
@@ -2093,8 +2093,8 @@ def test_a_rows_label_elsewhere_is_its_text(fw):
     theme(fw, MINIMAL)
     ui = Ui(fw)
     label = ui.add('hscroll_label', ui.add('button', ui.window('display_page')), (72, 0, 260, 70))
-    fw.fn('navigation__row_label', None, C.c_void_p, C.c_char_p)(label.addr, b'Theme: Minimal')
-    assert ui.text(label) == 'Theme: Minimal' and not label.parent.children[1:]
+    fw.fn('navigation__row_label', None, C.c_void_p, C.c_char_p)(label.addr, b'\xe4\xb8\xbb\xe9\xa2\x98\xef\xbc\x9a\xe7\xae\x80\xe7\xba\xa6')
+    assert ui.text(label) == '主题：简约' and not label.parent.children[1:]
 
 
 def test_the_librarys_rows_take_its_constructors_live_words(fw):
@@ -2181,7 +2181,7 @@ class Quick:
 
 def test_quick_settings_names_the_lock_and_arms_three_holds(fw, st):
     quick = Quick(fw, st)
-    assert quick.ui.text(quick.win.child('label_lock')) == 'Off' and quick.icons['img_lock'].props['image'] == 'drop_keylock'
+    assert quick.ui.text(quick.win.child('label_lock')) == '关闭' and quick.icons['img_lock'].props['image'] == 'drop_keylock'
     assert [quick.icons[n].props.get('_quick_hold') for n in Quick.ICONS] == [1, 2, None, None, None, None, 3, None]
     down = quick.fn('quick_down')
     assert [len(quick.ui.handled(quick.icons[n], down)) for n in Quick.ICONS] == [1, 1, 0, 0, 0, 0, 1, 0]
@@ -2324,7 +2324,7 @@ def test_the_sleep_timers_switch_is_its_first_row_reading_the_switch(fw, st):
     button = label.parent
     s = SETS[CLASSIC_SET]
     assert button.box == (0, 0, 375, s.set_row) and button.props['style'] == 's_btn_listitem'
-    assert label.box[0] == s.text_x and ui.text(label) == 'Sleep Timer' and value(ui, button) == 'Off'
+    assert label.box[0] == s.text_x and ui.text(label) == '睡眠定时' and value(ui, button) == '关闭'
 
 
 def test_the_rows_click_is_the_switchs_on_the_next_pass(fw, st):
@@ -2335,7 +2335,7 @@ def test_the_rows_click_is_the_switchs_on_the_next_pass(fw, st):
     assert not fw.calls('stock_dispatch_trampoline')  # a click rebuilds Lock Screen's list: it waits
     C.CFUNCTYPE(C.c_int, C.c_void_p)(timers[-1])(None)
     assert [c[1][0] for c in fw.calls('stock_dispatch_trampoline')] == [sw.addr]
-    assert value(ui, button) == 'On'
+    assert value(ui, button) == '打开'
 
 
 def test_a_set_with_toolbars_keeps_stocks_switch(fw, st):
@@ -2353,7 +2353,7 @@ def test_lock_screens_switch_row_heads_its_list(fw, st):
     ui.add('list_item', view, name='first')
     fw.fn('switch_row', None, C.c_void_p, C.c_void_p)(win.addr, view.addr)
     head = view.children[0]
-    assert head.name != 'first' and ui.text(label_of(head)) == 'Lock Screen' and switch(head) == 'switch_on'
+    assert head.name != 'first' and ui.text(label_of(head)) == '锁定屏幕' and switch(head) == 'switch_on'
 
 
 # The library scan's refresh of a row it already holds.
@@ -2933,7 +2933,7 @@ def test_the_bar_stays_light_off_classic(fw, st):
     assert bar.w['label_clock'].visible and bar.w['img_bt'].box[0] != -400
 
 
-@pytest.mark.parametrize('titled, shown', [(0, '6:05 PM'), (1, '6:05')])
+@pytest.mark.parametrize('titled, shown', [(0, '6:05 下午'), (1, '6:05')])
 def test_the_clocks_timer_shows_the_minute_and_rearms(fw, st, titled, shown):
     """Beside Classic's bar title the 12-hour clock drops AM and PM, which would reach the title."""
     ui = Ui(fw)

@@ -157,7 +157,7 @@ class Screen:
         for w in self.subtree(root):
             if self.types[w] == 'hscroll_label' and w in self.texts and self.names.get(w) != '_setting_value':
                 value = self.lookup(self.parent(w), '_setting_value')
-                yield w, self.texts[w] + (': ' + self.texts[value] if value and value in self.texts else '')
+                yield w, self.texts[w] + ('：' + self.texts[value] if value and value in self.texts else '')
 
     def rows(self, root=None):
         """Each row's text under root (the top window), in order: a label's, and the value beside it (Classic's)."""
@@ -357,13 +357,13 @@ def q2(fw, library, tmp_path):
 def appearance(q2):
     """System settings → Display → Appearance."""
     q2.open('systemset/display_page')
-    q2.screen.click('Appearance')
+    q2.screen.click('外观')
 
 
 def controls(q2):
     """System settings → Controls."""
     q2.open('systemset/systemset_page')
-    q2.screen.click('Controls')
+    q2.screen.click('控制')
 
 
 def dark(q2):
@@ -452,25 +452,25 @@ def test_classic_asks_to_restart_and_boots_into_its_own_geometry(fw, library, tm
     assert q2.protect == [] and written(q2, 0) == []  # Minimal is SET0, what stock's text holds
     minimal = client(q2)
     appearance(q2)
-    q2.screen.click('Theme')
+    q2.screen.click('主题')
     assert sorted(q2.screen.rows()) == sorted(themes)  # a row for each theme in assets/themes
     q2.confirm = 0  # Cancel
-    q2.screen.click('Classic')
+    q2.screen.click('经典')
     assert q2.dialogs == ['dialog/confirminfo_dialog'] and q2.flash.get('IPOD', 'THEME') is None
     assert not q2.fw.calls('stock_reboot_trampoline')
     q2.confirm = 10
-    q2.screen.click('Classic')
-    assert q2.flash.get('IPOD', 'THEME') == str(themes.index('Classic'))
+    q2.screen.click('经典')
+    assert q2.flash.get('IPOD', 'THEME') == str(themes.index('经典'))
     assert len(q2.fw.calls('stock_reboot_trampoline')) == 1
     assert q2.flash.get('IPOD', 'LIGHT') == '1'  # with its presets: Classic is light (its theme.xml)
     appearance(q2)
-    assert q2.screen.row('Theme') == 'Theme: Minimal'  # until the restart, the booted theme runs
+    assert q2.screen.row('主题') == '主题：简约'  # until the restart, the booted theme runs
     q2.power_on()
     boot(q2)
     assert written(q2, names.index('classic-light'))  # Row Art on, Classic's preset
     assert minimal != client(q2) < 320  # Classic's own bar over the window, not Minimal's
     appearance(q2)
-    assert q2.screen.row('Theme') == 'Theme: Classic' and q2.screen.row('Light Mode') == 'Light Mode: On'
+    assert q2.screen.row('主题') == '主题：经典' and q2.screen.row('浅色模式') == '浅色模式：打开'
     q2.close()
 
 
@@ -481,16 +481,16 @@ def test_row_art_off_restarts_into_classics_text_set(fw, library, tmp_path):
     written(q2, names.index('classic-light'))
     classic = client(q2)
     appearance(q2)
-    assert q2.screen.row('Row Art') == 'Row Art: On'
-    q2.screen.click('Row Art')
+    assert q2.screen.row('列表封面') == '列表封面：打开'
+    q2.screen.click('列表封面')
     assert q2.flash.get('IPOD', 'ROWART') == '0' and len(q2.fw.calls('stock_reboot_trampoline')) == 1
-    assert q2.screen.row('Row Art') == 'Row Art: On'  # the running set's, until the restart
+    assert q2.screen.row('列表封面') == '列表封面：打开'  # the running set's, until the restart
     q2.power_on()
     boot(q2)
     written(q2, names.index('classic-light-text'))
     assert client(q2) == classic  # Row Art changes the rows, not Classic's bar
     appearance(q2)
-    assert q2.screen.row('Row Art') == 'Row Art: Off'
+    assert q2.screen.row('列表封面') == '列表封面：关闭'
     q2.close()
 
 
@@ -507,13 +507,13 @@ def test_a_set_the_boot_cant_write_runs_minimal_until_the_next_boot(fw, library,
     assert all(C.c_uint.from_address(s.addr).value == HIGH << 16 | values[0][s.group] for s in sites)
     assert client(q2) == minimal  # the pages fit stock's windows, which kept SET0
     appearance(q2)
-    assert q2.screen.row('Theme') == 'Theme: Minimal' and q2.flash.get('IPOD', 'THEME') == '1'
+    assert q2.screen.row('主题') == '主题：简约' and q2.flash.get('IPOD', 'THEME') == '1'
     q2.power_on()
     boot(q2)
     written(q2, g)
     assert client(q2) != minimal
     appearance(q2)
-    assert q2.screen.row('Theme') == 'Theme: Classic'
+    assert q2.screen.row('主题') == '主题：经典'
     q2.close()
 
 
@@ -526,22 +526,22 @@ def test_a_boot_fallen_back_to_minimal_reads_the_settings_as_minimal_does(fw, li
     q2 = Q2(fw, library, tmp_path, Flash(IPOD_THEME='1', IPOD_BATTERY='2'))
     boot(q2, refuse=1)
     appearance(q2)
-    assert q2.screen.row('Theme') == 'Theme: Minimal'
-    assert q2.screen.row('Battery') == 'Battery: Icon + Percent'  # Minimal takes every style; Classic not this one
+    assert q2.screen.row('主题') == '主题：简约'
+    assert q2.screen.row('电池显示') == '电池显示：图标与百分比'  # Minimal takes every style; Classic not this one
     q2.close()
 
 
 def test_a_theme_on_the_same_set_switches_at_once_and_boots_as_it_was_left(q2):
     appearance(q2)
-    q2.screen.click('Theme')
-    q2.screen.click('Modern')
+    q2.screen.click('主题')
+    q2.screen.click('现代')
     assert q2.dialogs == [] and not q2.fw.calls('stock_reboot_trampoline')
     assert q2.flash.get('IPOD', 'THEME') == '2'
-    assert q2.screen.icon('Modern') == 'select' and q2.screen.icon('Minimal') == 'unselect'
+    assert q2.screen.icon('现代') == 'select' and q2.screen.icon('简约') == 'unselect'
     assert q2.fw.calls('image_manager_unload_all') and (q2.screen.wm, 0) in invalidated(q2)  # redrawn in it
     appearance(q2)
     live, tone, paper = q2.screen.rows(), red(q2), ink(q2)
-    assert q2.screen.row('Theme') == 'Theme: Modern'
+    assert q2.screen.row('主题') == '主题：现代'
     q2.power_on()
     appearance(q2)
     assert q2.screen.rows() == live and red(q2) == tone and ink(q2) == paper
@@ -556,9 +556,9 @@ def now_playing(q2):
 def test_centred_now_playing_loads_its_page_from_the_next_open_and_after_a_restart(q2):
     own = now_playing(q2)
     appearance(q2)
-    assert q2.screen.switch('Centred Now Playing') == 'switch_off'
-    q2.screen.click('Centred Now Playing')
-    assert q2.screen.switch('Centred Now Playing') == 'switch_on' and q2.flash.get('IPOD', 'NPCENTRED') == '1'
+    assert q2.screen.switch('居中显示正在播放') == 'switch_off'
+    q2.screen.click('居中显示正在播放')
+    assert q2.screen.switch('居中显示正在播放') == 'switch_on' and q2.flash.get('IPOD', 'NPCENTRED') == '1'
     centred = now_playing(q2)
     assert centred != own
     q2.power_on()
@@ -583,16 +583,16 @@ def test_home_takes_a_new_layout_at_once_and_boots_into_it(q2):
     split = width()
     assert split < 375
     appearance(q2)
-    q2.screen.click('Home')
-    assert q2.screen.row('Home') == 'Home: Full' and q2.flash.get('IPOD', 'HOME') == '1'
+    q2.screen.click('主菜单')
+    assert q2.screen.row('主菜单') == '主菜单：全屏' and q2.flash.get('IPOD', 'HOME') == '1'
     assert not shown[w['img_homeart']] and width() == 375 > split  # the same Home, never rebuilt, relaid at once
     q2.power_on()
     w = home(q2)
     shown = q2.screen.shown
     assert not shown[w['img_homeart']] and width() == 375
     appearance(q2)
-    q2.screen.click('Home')
-    assert q2.screen.row('Home') == 'Home: Carousel'
+    q2.screen.click('主菜单')
+    assert q2.screen.row('主菜单') == '主菜单：旋转封面'
     assert shown[w['slide_menu']] and not shown[w['list_view_home']] and not shown[w['img_homeart']]
 
 
@@ -600,9 +600,9 @@ def test_the_shortcut_picked_names_homes_row_now_and_after_a_restart(q2):
     w = home(q2)
     before = q2.screen.texts[w['label_rockbox']]
     appearance(q2)
-    assert q2.screen.row('Shortcut') == f'Shortcut: {before}'
-    q2.screen.click('Shortcut')
-    after = q2.screen.row('Shortcut').split(': ', 1)[1]
+    assert q2.screen.row('快捷入口') == f'快捷入口：{before}'
+    q2.screen.click('快捷入口')
+    after = q2.screen.row('快捷入口').split('：', 1)[1]
     assert after != before and q2.screen.texts[w['label_rockbox']] == after
     assert q2.flash.get('IPOD', 'SHORTCUT').isdigit()
     q2.power_on()
@@ -614,17 +614,17 @@ def test_the_shortcut_picked_names_homes_row_now_and_after_a_restart(q2):
 
 def test_the_accent_picked_is_saved_drawn_and_drawn_again_after_a_restart(q2):
     appearance(q2)
-    seen, before = [q2.screen.row('Accent')], red(q2)
+    seen, before = [q2.screen.row('强调色')], red(q2)
     while red(q2) == before:  # the neutral accents (Ivory, Graphite) share a silver red
-        q2.screen.click('Accent')
-        assert q2.screen.row('Accent') not in seen  # each press a new accent
-        seen.append(q2.screen.row('Accent'))
+        q2.screen.click('强调色')
+        assert q2.screen.row('强调色') not in seen  # each press a new accent
+        seen.append(q2.screen.row('强调色'))
     after = red(q2)
     saved = q2.flash.get('IPOD', 'MINIMAL_ACCENT')  # Minimal keeps its own accent (its theme.xml's key)
     assert saved is not None and saved.isdigit()
     q2.power_on()
     appearance(q2)
-    assert q2.screen.row('Accent') == seen[-1] and red(q2) == after
+    assert q2.screen.row('强调色') == seen[-1] and red(q2) == after
 
 
 def grey(color):
@@ -633,9 +633,9 @@ def grey(color):
 
 def test_light_mode_turned_on_redraws_the_screen_light_and_stays_on_after_a_restart(q2):
     appearance(q2)
-    assert q2.screen.row('Light Mode') == 'Light Mode: Off' and ink(q2) == 0xff000000
-    q2.screen.click('Light Mode')
-    assert q2.screen.row('Light Mode') == 'Light Mode: On' and q2.flash.get('IPOD', 'LIGHT') == '1'
+    assert q2.screen.row('浅色模式') == '浅色模式：关闭' and ink(q2) == 0xff000000
+    q2.screen.click('浅色模式')
+    assert q2.screen.row('浅色模式') == '浅色模式：打开' and q2.flash.get('IPOD', 'LIGHT') == '1'
     paper = ink(q2)
     assert paper >> 24 == 0xff and grey(paper) and paper & 255 > 0x80  # black is the light half's paper
     assert ink(q2, 0xffffffff) & 255 < 0x80  # and white its ink
@@ -644,16 +644,16 @@ def test_light_mode_turned_on_redraws_the_screen_light_and_stays_on_after_a_rest
     q2.power_on()
     assert ink(q2) == paper
     appearance(q2)
-    assert q2.screen.row('Light Mode') == 'Light Mode: On'
+    assert q2.screen.row('浅色模式') == '浅色模式：打开'
 
 
 @pytest.mark.parametrize('wall, light', [(NOON, True), (NIGHT, False)])
 def test_light_mode_auto_follows_the_clock_after_a_restart(q2, wall, light):
     q2.wall = NOON
     appearance(q2)
-    q2.screen.click('Light Mode')
-    q2.screen.click('Light Mode')
-    assert q2.screen.row('Light Mode') == 'Light Mode: Auto' and q2.flash.get('IPOD', 'LIGHT') == '2'
+    q2.screen.click('浅色模式')
+    q2.screen.click('浅色模式')
+    assert q2.screen.row('浅色模式') == '浅色模式：自动' and q2.flash.get('IPOD', 'LIGHT') == '2'
     assert ink(q2) != 0xff000000  # light from 7:00 to 19:00
     q2.wall = wall
     q2.power_on()
@@ -681,13 +681,13 @@ def test_the_battery_style_reaches_the_bar_at_once_and_the_lock_clock_after_a_re
     bar = q2.screen.window('system_bar', parent=q2.screen.wm)
     q2.fw.var('fw_ctx_system_bar', C.c_void_p).value = bar
     lock_settings(q2)
-    q2.screen.click('Clock')
-    assert q2.screen.row('Clock') == 'Clock: Large' and q2.flash.get('Q2POD', 'LOCKCLOCK') == '1'
+    q2.screen.click('时钟')
+    assert q2.screen.row('时钟') == '时钟：大字' and q2.flash.get('Q2POD', 'LOCKCLOCK') == '1'
     win = lock_window(q2)
     assert not q2.screen.shown[q2.screen.lookup(win, 'label_battery')]  # Battery: Icon shows no percent
     appearance(q2)
-    q2.screen.click('Battery')
-    assert q2.screen.row('Battery') == 'Battery: Percent' and q2.flash.get('IPOD', 'BATTERY') == '1'
+    q2.screen.click('电池显示')
+    assert q2.screen.row('电池显示') == '电池显示：百分比' and q2.flash.get('IPOD', 'BATTERY') == '1'
     assert invalidated(q2)[-1] == (bar, 0)  # the bar repaints
     q2.power_on()
     win = lock_window(q2)
@@ -962,9 +962,9 @@ def test_a_lit_screen_idles_only_once_input_has_been_still_for_a_while(q2):
 
 def test_wake_double_press_chosen_on_controls_wakes_only_on_a_second_press_after_a_restart(q2):
     controls(q2)
-    assert q2.screen.row('Wake') == 'Wake: Single Press'
-    q2.screen.click('Wake')
-    assert q2.screen.row('Wake') == 'Wake: Double Press' and q2.flash.get('Q2POD', 'WAKEDOUBLE') == '1'
+    assert q2.screen.row('唤醒') == '唤醒：单击'
+    q2.screen.click('唤醒')
+    assert q2.screen.row('唤醒') == '唤醒：双击' and q2.flash.get('Q2POD', 'WAKEDOUBLE') == '1'
     q2.power_on()
     q2.loop()  # the first pass reads the settings
     dark(q2)
@@ -1012,10 +1012,10 @@ def alarms(q2):
                                                  (3, O['STANDBY_LIMIT_3'], 5)])
 def test_a_standby_limit_chosen_on_power_ends_that_long_a_standby_in_a_power_off(q2, presses, hours, late):
     q2.open('systemset/powermanager_page')
-    assert q2.screen.row('Standby Limit') == 'Standby Limit: Off'
+    assert q2.screen.row('待机时限') == '待机时限：关闭'
     for _ in range(presses):
-        q2.screen.click('Standby Limit')
-    assert q2.screen.row('Standby Limit') == f'Standby Limit: {hours} h'
+        q2.screen.click('待机时限')
+    assert q2.screen.row('待机时限') == f'待机时限：{hours} 小时'
     assert q2.flash.get('Q2POD', 'STANDBYLIMIT') == str(presses)
     q2.power_on()
     q2.loop()
@@ -1078,9 +1078,9 @@ def test_a_charge_limit_chosen_on_power_holds_charging_between_its_resume_and_st
     q2.fw.var('fw_ctx_g_power_chargestate', C.c_int).value = 1  # charging
     q2.loop()
     q2.open('systemset/powermanager_page')
-    assert q2.screen.switch('Charge Limit') == 'switch_off'
-    q2.screen.click('Charge Limit')
-    assert q2.screen.switch('Charge Limit') == 'switch_on' and q2.flash.get('Q2POD', 'CHARGELIMIT') == '1'
+    assert q2.screen.switch('充电上限') == 'switch_off'
+    q2.screen.click('充电上限')
+    assert q2.screen.switch('充电上限') == 'switch_on' and q2.flash.get('Q2POD', 'CHARGELIMIT') == '1'
     q2.loop()
     assert enable() == [0]  # from the next pass, though the last poll was a moment ago
     q2.power_on()
@@ -1239,8 +1239,8 @@ def test_control_device_volume_hands_the_volume_to_the_headset_and_follows_its_k
     assert headset.level == 64 and q2.var('g_volume').value == 55  # Off: each keeps its own
     q2.build('ringnav_btrows', 'bluetooth_page', 'scroll_view_bluetooth',  # System settings → Bluetooth
              *((f'stock_{i}', 'list_item', 'scroll_view_bluetooth') for i in range(4)))
-    q2.screen.click('Control Device Volume')
-    assert q2.screen.switch('Control Device Volume') == 'switch_on' and q2.flash.get('Q2POD', 'BTVOLLINK') == '1'
+    q2.screen.click('控制设备音量')
+    assert q2.screen.switch('控制设备音量') == 'switch_on' and q2.flash.get('Q2POD', 'BTVOLLINK') == '1'
     # the Q2's level sent, as the headset's nearest step, and the Q2's own gain full
     assert headset.level == nearest(55 * 127 / 100) and headset.gain[-1] == (100, 100)
     headset.level = 100  # its own keys: 100/127 of its range, 79 of the Q2's 100

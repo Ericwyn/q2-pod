@@ -745,7 +745,7 @@ def test_a_finger_down_does_not_recall(fw, ui):
 
 
 # A dialog's buttons are its rows.
-def dialog(ui, name='confirminfo_dialog', labels=('Cancel', 'OK')):
+def dialog(ui, name='confirminfo_dialog', labels=('取消', 'OK')):
     win = ui.widget('dialog', ui.wm, (40, 100, 300, 120), name=name)
     buttons = [ui.widget('button', win, (20 + 140 * i, 70, 120, 40), click=True, text=t) for i, t in enumerate(labels)]
     ui.top = win

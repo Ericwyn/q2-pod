@@ -369,34 +369,28 @@ def texts(data):
     return [n[2].get('text') for n in ipod.walk(ipod.decode(data))][1:]
 
 
-def test_english_ui_shared_table():
-    data = ipod.encode(ui(label('文件夹'), label('plain'), label('取消'), ['view', [0, 0, 1, 1], {}, []]))
-    assert texts(build.english_ui('home_page.bin', data)) == ['Folder', 'plain', 'Cancel', None]
+def test_english_ui_keeps_shared_labels_and_normalizes_terms():
+    data = ipod.encode(ui(label('本地音乐'), label('歌手'), label('取消'), ['view', [0, 0, 1, 1], {}, []]))
+    assert texts(build.english_ui('home_page.bin', data)) == ['音乐', '表演者', '取消', None]
 
 
-def test_english_ui_per_asset_wins():
+def test_english_ui_keeps_per_asset_stock_text():
     data = ipod.encode(ui(label('专辑'), label('风格'), label('歌手')))
-    assert texts(build.english_ui('dialog/search_dialog.bin', data)) == ['Albums', 'Genres', 'Artists']
-    assert texts(build.english_ui('other.bin', data)) == ['Album', 'Genre', 'Artists']
+    assert texts(build.english_ui('dialog/search_dialog.bin', data)) == ['专辑', '流派', '表演者']
+    assert texts(build.english_ui('other.bin', data)) == ['专辑', '流派', '表演者']
 
 
-def test_english_ui_key_test_page():
-    assert texts(build.english_ui('testmode/test_key.bin', ipod.encode(ui(label('中'))))) == ['Centre']
+def test_english_ui_keeps_the_chinese_keyboard_page():
+    assert texts(build.english_ui('testmode/test_key.bin', ipod.encode(ui(label('中'))))) == ['中']
 
 
-def test_english_ui_about_page_keeps_polish():
+def test_english_ui_keeps_about_page_chinese_punctuation():
     data = ipod.encode(ui(label('a，b'), label('plain')))
-    assert texts(build.english_ui('systemset/screensaver_about.bin', data)) == ['a, b', 'plain']
+    assert texts(build.english_ui('systemset/screensaver_about.bin', data)) == ['a，b', 'plain']
 
 
-def test_english_ui_about_page_refuses_real_chinese():
-    with pytest.raises(ValueError, match=r'^Chinese left in systemset/screensaver_about.bin$'):
-        build.english_ui('systemset/screensaver_about.bin', ipod.encode(ui(label('文件夹'))))
-
-
-def test_english_ui_unknown_text_stops_the_build():
-    with pytest.raises(KeyError):
-        build.english_ui('home_page.bin', ipod.encode(ui(label('未知'))))
+def test_english_ui_keeps_unknown_stock_text():
+    assert texts(build.english_ui('home_page.bin', ipod.encode(ui(label('未知'))))) == ['未知']
 
 
 def t9():
@@ -404,12 +398,12 @@ def t9():
               ['view', [0, 0, 1, 1], {'name': 'lower'}, [label('中', name='page:chinese'), label('《》', name='opt:《》')]])
 
 
-def test_english_ui_t9_key_toggles_case():
+def test_english_ui_keeps_the_chinese_t9_pages():
     root = ipod.decode(build.english_ui('kb_default_t9.bin', ipod.encode(t9())))
     upper, lower = root[3]
-    assert upper[3][0][2] == {'text': 'abc', 'name': 'page:lower'}
-    assert lower[3][0][2] == {'text': 'ABC', 'name': 'page:upper'}
-    assert lower[3][1][2] == {'text': '«»', 'name': 'opt:«»'}
+    assert upper[3][0][2] == {'text': '中', 'name': 'page:chinese'}
+    assert lower[3][0][2] == {'text': '中', 'name': 'page:chinese'}
+    assert lower[3][1][2] == {'text': '《》', 'name': 'opt:《》'}
 
 
 def test_english_ui_other_keyboards_keep_their_names():
@@ -1144,3 +1138,19 @@ def test_build_refuses_a_version_not_of_three_single_digits(tmp_path, monkeypatc
                                              ('17.6', 0, False), ('1.8.0', 10, False)])
 def test_version_ok(version, beta, ok):
     assert build.version_ok(version, beta) == ok
+
+
+@pytest.mark.parametrize('kind', ['zip', 'ota'])
+def test_stock_archive_is_byte_pinned(monkeypatch, kind):
+    import io, zipfile
+    payload = b'audited OTA tar bytes'
+    raw = payload
+    if kind == 'zip':
+        out = io.BytesIO()
+        with zipfile.ZipFile(out, 'w') as z:
+            z.writestr('Q2 Firmware V1.36/update.tar', payload)
+        raw = out.getvalue()
+    monkeypatch.setattr(build, 'ZIP_SHA' if kind == 'zip' else 'OTA_SHA', build.sha(raw))
+    assert build.stock_tar(raw) == payload
+    with pytest.raises(ValueError, match='Unsupported ZIP: SHA-256 differs'):
+        build.stock_tar(raw + b'x')

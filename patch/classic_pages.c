@@ -45,8 +45,7 @@ void kb_paint_key(void *w, void *canvas) {
                                       { 0, 8, 50, 100 },
                                       { 0x9aa1a9, 0x8d939f, 0x7e8693, 0x6a7384 } },
                          enter = { 3, { 0, 50, 100 }, { 0x7cb0ec, 0x3f7fdf, 0x1f5fc8 } };
-    static const unsigned done[] = { 'D', 'o', 'n', 'e', 0 },
-                          space_text[] = { 's', 'p', 'a', 'c', 'e', 0 };
+    static const unsigned done[] = { 0x5b8c, 0x6210, 0 }, space_text[] = { 0x7a7a, 0x683c, 0 };
     void *lcd = P(canvas, CANVAS_LCD);
     if (!lcd) return;
     unsigned fill = (unsigned)I(lcd, LCD_FILL_COLOR);
@@ -193,7 +192,7 @@ void t9_box(void *page, void *edit, const char *tips) {
     widget_set_prop_str(edit, "tips", tips);
     if (!classic_pages()) return;
     void *title = text(page, 0, 0, 375, 28);
-    widget_set_text_utf8(title, "Search");
+    widget_set_text_utf8(title, "搜索");
     widget_set_name(title, PAGE_TITLE);
     widget_set_visible(title, 0, 0);
     st.t9_back = image_create(page, 30, 0, 40, 30); /* ringnav_touch takes its press */
@@ -219,10 +218,10 @@ static int pl_box_due(const void *info) {
     void *win = st.pl_box, *lists = P(p_deque_playlist, 0);
     if (!win) return 0;
     void *edit = widget_lookup(win, "ssedit", 1), *r = (void *)0;
-    const char *title = "New Playlist", *tips = "Playlist Name";
+    const char *title = "新建播放列表", *tips = "播放列表名称";
     if (!edit) {
         edit = widget_lookup(win, "edit", 1);
-        title = "Rename";
+        title = "重命名";
         if (lists && (unsigned)I(PL_RENAME_ROW, 0) < deque_size(lists))
             r = deque_at(lists, (unsigned)I(PL_RENAME_ROW, 0));
         tips = r ? P(r, REC_TITLE) ?: title : title;
@@ -380,7 +379,7 @@ void search_paint(void *w, void *canvas) {
  * under the theme's dialog. */
 extern int stock_search_init_trampoline(void *win, void *ctx);
 int ringnav_search_init(void *win, void *ctx) {
-    static const __WCHAR_TYPE__ names[4][8] = { L"Songs", L"Artists", L"Albums", L"Genres" };
+    static const __WCHAR_TYPE__ names[4][8] = { L"Songs", L"表演者", L"专辑", L"流派" };
     int result = stock_search_init_trampoline(win, ctx);
     if (win == st.search_win)
         for (unsigned i = 0, n = widget_count_children(st.search_tabs); i < n && i < 4; ++i)
@@ -494,8 +493,10 @@ void slider_paint(void *w, void *canvas) {
             bar_rect(canvas, 0xffffffffu, 81 + slider_part(s, 204) - half, 155 + i, 2 * half, 1);
         }
     }
-    text_shadow(canvas, "classic-light", (const unsigned *)st.slider_hint,
-                &(rect_t){ 0, 229, 375, 32 }, 31, 0x59);
+    int hint_px = 31;
+    const unsigned *hint = (const unsigned *)st.slider_hint;
+    const char *hint_face = theme_face(hint, -1, &hint_px);
+    text_shadow(canvas, hint_face, hint, &(rect_t){ 0, 229, 375, 32 }, (unsigned)hint_px, 0x59);
     stock_canvas_set_fill_color(canvas, fill);
 }
 /* ringnav_paint, after stock's slider: the bar's 8 rows over its own, inset a pixel at each end on
@@ -551,7 +552,7 @@ static int msg_sync(void) {
     }
     if (!cp.msg_seen[0]) { /* over stock's translation; runs in paints, so only if it differs */
         widget_get_text_utf8(cp.msg_btn, now, sizeof now);
-        if (tk_strcmp(now, "Cancel")) widget_set_text_utf8(cp.msg_btn, "Cancel");
+        if (tk_strcmp(now, "取消")) widget_set_text_utf8(cp.msg_btn, "取消");
         *now = 0;
     }
     widget_get_text_utf8(cp.msg_src, now, sizeof now);
@@ -564,7 +565,7 @@ static int msg_sync(void) {
     if (*p && total && count <= total && *(volatile char *)SCAN_WHOLE == 1) {
         cp.msg_part = (short)(MSG_BAR_W * count / total);
         if (cp.msg_part > MSG_BAR_W * 99 / 100) cp.msg_part = MSG_BAR_W * 99 / 100;
-        tk_snprintf(line, sizeof line, "%d of %d songs", count, total);
+        tk_snprintf(line, sizeof line, "%d / %d 首歌曲", count, total);
         widget_set_text_utf8(cp.msg_line, line);
     } else
         widget_set_text_utf8(cp.msg_line, now);
@@ -605,22 +606,26 @@ void msg_open(void *win) {
     widget_on(win, EVT_DESTROY, msg_gone, win);
     c = text(win, 16, 0, 343, 24);
     widget_set_name(c, "msg_heading");
-    widget_set_text_utf8(c, scan ? "Updating Library" : "Connected");
+    widget_set_text_utf8(c, scan ? "正在更新音乐资料库" : "已连接");
     slider_label(c, 16, 0, 343, MSG_HEAD_H, MSG_HEAD_PX, "classic-light");
     c = text(win, 16, 0, 343, 20);
     widget_set_name(c, "msg_line");
     slider_label(c, 16, 0, 343, 20, MSG_LINE_PX, "default");
     if (!scan) {
         st.usb_win = win;
-        if (g_usbmode != 1) widget_set_text_utf8(c, "Eject before disconnecting");
+        if (g_usbmode != 1) widget_set_text_utf8(c, "断开前请先弹出");
         return;
     }
     st.msg_win = win, cp.msg_src = src, cp.msg_btn = btn, cp.msg_line = c;
     widget_move_resize(btn, 127, 248, 121, 34);
+    widget_set_text_utf8(btn, "取消");
+    int button_px = CONFIRM_CELL_PX;
+    const char *button_face = theme_face(widget_get_text(btn), -1, &button_px);
     for (unsigned i = 0; i < sizeof state / sizeof *state; ++i) {
         widget_set_prop_int(btn, style_key(key, state[i], "bg_color"), 0);
-        widget_set_prop_str(btn, style_key(key, state[i], "font_name"), "classic-light");
-        widget_set_prop_int(btn, style_key(key, state[i], "font_size"), CONFIRM_CELL_PX);
+        widget_set_prop_str(btn, style_key(key, state[i], "font_name"),
+                            button_face ? button_face : "default");
+        widget_set_prop_int(btn, style_key(key, state[i], "font_size"), button_px);
     }
     text_ink(btn, 0xffffffffu, INK_BUTTON);
     cp.msg_seen[0] = 0, cp.msg_part = -1, cp.msg_total = 0;
@@ -636,8 +641,7 @@ void msg_open(void *win) {
 }
 /* Under the window's children. */
 void msg_paint(void *w, void *canvas) {
-    static const unsigned update[] = { 'U', 'p', 'd', 'a', 't', 'e', ' ', 'L',
-                                       'i', 'b', 'r', 'a', 'r', 'y', 0 };
+    static const unsigned update[] = { 0x66f4, 0x65b0, 0x97f3, 0x4e50, 0x8d44, 0x6599, 0x5e93, 0 };
     void *lcd = P(canvas, CANVAS_LCD);
     if (!lcd) return;
     unsigned fill = (unsigned)I(lcd, LCD_FILL_COLOR);
@@ -650,8 +654,11 @@ void msg_paint(void *w, void *canvas) {
     if (dy < 26) paint_dark_bar(w, canvas, scan ? update : 0, st.batt_key); /* USB's: no title */
     paint_art(w, canvas, scan ? "classic_light_orb_note" : "classic_light_orb_usb",
               scan ? 129 : 122, (scan ? 38 : 67) - dy);
-    text_shadow(canvas, "classic-light", widget_get_text(heading),
-                &(rect_t){ 16, head + 1 - dy, 343, MSG_HEAD_H }, MSG_HEAD_PX, 0x59);
+    int heading_px = MSG_HEAD_PX;
+    const unsigned *heading_text = widget_get_text(heading);
+    const char *heading_face = theme_face(heading_text, -1, &heading_px);
+    text_shadow(canvas, heading_face, heading_text, &(rect_t){ 16, head + 1 - dy, 343, MSG_HEAD_H },
+                (unsigned)heading_px, 0x59);
     text_shadow(canvas, "default", widget_get_text(below), &(rect_t){ 16, line + 1 - dy, 343, 20 },
                 MSG_LINE_PX, 0x59);
     if (scan) {

@@ -131,7 +131,7 @@ typedef struct {
     void *sc_page, *sc_row[3]; /* Streaming's Configuration page, its cache rows and Erase's */
     int sc_armed;              /* Erase Spotify Data pressed once: the next press erases */
 /* Streaming's services (svc): five fixed, and at most APPS_MAX card apps. */
-#define SVC_FIXED 5
+#define SVC_FIXED 6
 #define SVC_MAX (SVC_FIXED + APPS_MAX)
 #define SVC_HIDE 260 /* STREAMHIDE, "key,key" */
 #define SVC_PROP "ringnav_svc"
@@ -496,6 +496,7 @@ enum { PODCASTS = 1, AUDIOBOOKS, PHOTOS, BOOKS, VIDEOS };
 enum { TONE_LIGHT = 2, TONE_RED = 3 }; /* columns of ACCENTS */
 int geom_val(int v) __attribute__((pure));
 extern const char *const MEDIA[];
+extern const char *const MEDIA_LABELS[];
 unsigned flip_if(int on, unsigned c) __attribute__((pure));
 int accent(void);
 unsigned accent_map(unsigned c, int preset, int tone);

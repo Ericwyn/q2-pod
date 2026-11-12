@@ -329,7 +329,7 @@ def test_by_string_is_strcmp_s_order(fw):
 
 
 @pytest.mark.parametrize('current, failed, s, differs', [
-    (b'Loading', 0, b'Loading', 0), (b'Loading', 0, b'Loading\xe2\x80\xa6', 1), (b'', 0, b'', 0),
+    (b'Loading', 0, b'Loading', 0), (b'Loading', 0, b'\xe5\x8a\xa0\xe8\xbd\xbd\xe4\xb8\xad\xe2\x80\xa6', 1), (b'', 0, b'', 0),
     (b'x', 1, b'x', 1),  # stock wrote nothing: it didn't fit, so it differs
 ])
 def test_text_differs(fw, current, failed, s, differs):
@@ -729,7 +729,7 @@ def test_without_albums_the_page_opens_on_its_grid_by_name(fw):
     assert page.ph.screen == GRID and page.ph.nalbums == 0
     assert page.paths() == [f'{ROOT}/A.png', f'{ROOT}/b.jpg', f'{ROOT}/c.JPEG']
     assert [page.ph.key[i] for i in range(3)] == [key(p) for p in page.paths()]
-    assert 'Photos' in page.w.texts.values()
+    assert '照片' in page.w.texts.values()
 
 
 def test_four_tiles_a_row(fw):
@@ -765,7 +765,7 @@ def test_all_photos_is_the_folder_s_own_then_each_album_s(fw, typed):
     page.fire()
     assert page.ph.screen == GRID
     assert page.paths() == [f'{ROOT}/own.jpg', f'{ROOT}/Beach/2.png', f'{ROOT}/Trip/0.jpg', f'{ROOT}/Trip/1.jpg']
-    assert 'All Photos' in page.w.texts.values()
+    assert '所有照片' in page.w.texts.values()
 
 
 @pytest.mark.parametrize('row, album', [(1, ['Beach/2.png']), (2, ['Trip/0.jpg', 'Trip/1.jpg'])])
@@ -787,7 +787,7 @@ def test_at_most_photos_max(fw):
 
 def test_no_photos(fw):
     page = Page(fw, Card(fw, folders=[ROOT]))
-    assert page.ph.n == 0 and page.tiles() == [] and 'No photos' in page.w.texts.values() and page.workers == []
+    assert page.ph.n == 0 and page.tiles() == [] and '暂无照片' in page.w.texts.values() and page.workers == []
 
 
 def test_the_worker_makes_every_photo_and_the_poll_repaints_and_joins(fw):
@@ -859,7 +859,7 @@ def test_a_tile_opens_its_photo_full_screen(fw):
     assert len(page.w.of('image_create', slide)) == 5  # an item per photo
     assert [a[1] for _, a in fw.calls('slide_menu_set_value')] == [2]
     assert visible(fw, page.ph.grid) == 0 and visible(fw, page.ph.viewer) == 1
-    assert caption(page) == f'3 of 5  2.jpg' and visible(fw, page.ph.info) == 0  # until Centre
+    assert caption(page) == f'3 / 5  2.jpg' and visible(fw, page.ph.info) == 0  # until Centre
 
 
 def test_centre_shows_and_hides_the_caption(fw):
@@ -880,20 +880,20 @@ def wheel(page, i):
 def test_the_caption_follows_the_wheel(fw):
     page = viewer(fw)
     wheel(page, 4)
-    assert page.ph.current == 4 and caption(page) == '5 of 5  4.jpg'
+    assert page.ph.current == 4 and caption(page) == '5 / 5  4.jpg'
 
 
 def test_a_photo_not_made_yet_says_loading_and_a_bad_one_says_so(fw):
     page = viewer(fw, ready=False)
-    assert caption(page) == 'Loading…' and visible(fw, page.ph.info) == 1
+    assert caption(page) == '加载中…' and visible(fw, page.ph.info) == 1
     page.ph.state[2] = PH_BAD
     wheel(page, 2)
-    assert caption(page) == "Can't open this photo" and visible(fw, page.ph.info) == 1
+    assert caption(page) == '无法打开此照片' and visible(fw, page.ph.info) == 1
 
 
 def test_the_same_caption_isn_t_written_again(fw):
     page = viewer(fw)
-    fw.mock('widget_get_text_utf8', lambda w, out, n, *_: C.memmove(out, b'3 of 5  2.jpg\0', 14) and 0)
+    fw.mock('widget_get_text_utf8', lambda w, out, n, *_: C.memmove(out, b'3 / 5  2.jpg\x00', 14) and 0)
     writes = len(fw.calls('widget_set_text_utf8'))
     wheel(page, 2)  # a decode's repaint: the same photo
     assert len(fw.calls('widget_set_text_utf8')) == writes
@@ -1038,12 +1038,12 @@ def repaints(fw, page):
 
 
 def media_name(fw):
-    """Local Music's row for the card's Photos folder: the navigation.c MEDIA name the folder's matches, ignoring case,
-    as media_kind finds it."""
+    """Find the real card folder, then use its separate localized display label."""
     folder = ROOT.rsplit('/', 1)[1].lower()
     media = fw.var('MEDIA', C.c_char_p * (fw.sizes['MEDIA'] // C.sizeof(C.c_char_p)))
-    (name,) = [m.decode() for m in media if m.decode().lower() == folder]
-    return name
+    labels = fw.var('MEDIA_LABELS', C.c_char_p * len(media))
+    (index,) = [i for i, name in enumerate(media) if name.decode().lower() == folder]
+    return labels[index].decode()
 
 
 def bar_label(page):
