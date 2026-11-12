@@ -170,7 +170,7 @@ def up(fw, mcl, low):
 def test_up_next_lists_what_then_plays_each_title_over_its_artist(fw, up):
     queue, page = up
     page.open()
-    assert 'View Queue' in page.said and len(page.rows) == len(NAMES) - 1  # every track but the playing one
+    assert '查看队列' in page.said and len(page.rows) == len(NAMES) - 1  # every track but the playing one
     assert all(row[1] == ('Artist %d' % int(row[0][:2]) if int(row[0][:2]) % 2 else '') for row in page.rows)  # '' untagged
     assert page.captions == queue.played(len(NAMES) - 1)
 
@@ -209,7 +209,7 @@ def test_a_hold_after_the_queue_changed_under_the_page_says_so_and_moves_nothing
     last = NAMES.index(before[-1].encode())
     queue.deques[queue.handle][last] = low.record(b'Other.flac', cue=99)  # the queue replaced under the page
     page.hold(3)
-    assert page.toasts == ['Queue changed'] and page.selected()[0] == 0
+    assert page.toasts == ['队列已更改'] and page.selected()[0] == 0
     assert queue.played(1) == [before[0]]  # not the held row's
 
 
@@ -219,7 +219,7 @@ def test_a_hold_on_a_row_played_since_says_the_queue_changed(fw, up):
     before = page.captions
     assert queue.played(1) == before[:1]
     page.hold(0)
-    assert page.toasts == ['Queue changed'] and page.captions == before[1:]  # taken again, without it
+    assert page.toasts == ['队列已更改'] and page.captions == before[1:]  # taken again, without it
 
 
 def test_a_hold_up_next_doesn_t_take_stays_stock_s_and_moves_nothing(fw, up):
@@ -252,7 +252,7 @@ def test_nothing_to_play_next_says_so(fw, mcl, low):
     Queue(fw, mcl, low, names=NAMES[:1], pos=0)
     page = Page(fw)
     page.open()
-    assert page.rows == [] and 'Nothing to play next' in page.said
+    assert page.rows == [] and '暂无待播歌曲' in page.said
 
 
 def test_a_closed_page_lets_view_queue_open_a_new_one(fw, up):

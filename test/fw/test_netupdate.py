@@ -1034,14 +1034,14 @@ def test_rows_say_install_under_check_for_updates(fw):
 def test_a_press_installs_at_once(fw):
     p = Page(fw, b'me/foo')
     p.click()
-    assert p.sh.job == JOB_INSTALL and p.sh.app == 0 and p.sh.running == 1 and p.label(1) == 'Checking…'
+    assert p.sh.job == JOB_INSTALL and p.sh.app == 0 and p.sh.running == 1 and p.label(1) == '正在检查…'
 
 
 def test_a_press_without_wifi_says_so(fw):
     p = Page(fw, b'me/foo')
     p.wifi = 0
     p.click()
-    assert p.sh.job == 0 and p.toasts == ['Connect to Wi-Fi first']
+    assert p.sh.job == 0 and p.toasts == ['请先连接 Wi-Fi']
 
 
 def test_rockbox_asks_twice_as_it_becomes_the_default(fw):
@@ -1056,7 +1056,7 @@ def test_an_installed_app_is_removed_on_a_second_press(fw):
     p = Page(fw, b'me/foo')
     p.card.files[b'/mnt/mmc/.q2/apps/foo.tag'] = b'1.0'
     p.click()
-    assert p.sh.armed == 2 and p.label(1) == 'Press again to remove'
+    assert p.sh.armed == 2 and p.label(1) == '再次按下以移除'
     p.click()
     assert p.sh.job == JOB_REMOVE and p.sh.stage == 4
 
@@ -1065,9 +1065,9 @@ def test_a_press_on_the_running_install_cancels_it_until_it_moves(fw):
     p = Page(fw, b'me/foo', b'me/bar')
     p.click(1)
     p.click(2)
-    assert p.toasts == ['Wait for the one in progress'] and p.sh.cancel == 0
+    assert p.toasts == ['请等待当前操作完成'] and p.sh.cancel == 0
     p.click(1)
-    assert p.sh.cancel == 1 and p.label(1) == 'Cancelling…'
+    assert p.sh.cancel == 1 and p.label(1) == '正在取消…'
     p.sh.cancel, p.sh.stage = 0, 3
     p.click(1)
     assert p.sh.cancel == 0
@@ -1083,9 +1083,9 @@ def test_download_progress_on_the_row(fw):
 
 def test_with_no_list_check_for_updates_loads_it(fw):
     p = Page(fw)
-    assert p.sh.rows == 1 and p.sh.map[0] == ROW_CHECK and p.label(0) == 'Connect to Wi-Fi to load the list'
+    assert p.sh.rows == 1 and p.sh.map[0] == ROW_CHECK and p.label(0) == '连接 Wi-Fi 以加载列表'
     p.click(0)
-    assert p.sh.job == JOB_CHECK and p.sh.app == 0 and p.sh.manual == 1 and p.label(0) == 'Checking…'
+    assert p.sh.job == JOB_CHECK and p.sh.app == 0 and p.sh.manual == 1 and p.label(0) == '正在检查…'
 
 
 def test_check_for_updates_checks_inside_the_ten_minutes(fw):
@@ -1104,7 +1104,7 @@ def test_check_for_updates_within_a_minute_says_the_last_count_again(fw):
     assert p.sh.job == 0 and p.toasts == ['1 app can be updated']
     p.table[0].latest = b'1.0'
     p.click(0)
-    assert p.sh.job == 0 and p.toasts[-1] == 'All apps are up to date'
+    assert p.sh.job == 0 and p.toasts[-1] == '所有应用均为最新'
 
 
 def test_check_for_updates_while_checking_or_busy(fw):
@@ -1114,10 +1114,10 @@ def test_check_for_updates_while_checking_or_busy(fw):
     assert p.sh.cancel == 0 and p.sh.manual == 1 and not p.toasts  # checking already: its end answers
     p.sh.job = JOB_INSTALL
     p.click(0)
-    assert p.toasts == ['Wait for the one in progress']
+    assert p.toasts == ['请等待当前操作完成']
     p.sh.job, p.wifi = 0, 0
     p.click(0)
-    assert p.sh.job == 0 and p.toasts[-1] == 'Connect to Wi-Fi first'
+    assert p.sh.job == 0 and p.toasts[-1] == '请先连接 Wi-Fi'
 
 
 def test_a_check_says_how_many_apps_have_a_newer_release(fw):
@@ -1134,15 +1134,15 @@ def test_a_check_says_how_many_apps_have_a_newer_release(fw):
 def test_none_to_update_is_said_only_after_check_for_updates(fw):
     p = Page(fw, b'me/foo')
     assert p.checked() == []
-    assert p.checked(manual=1) == ['All apps are up to date']
+    assert p.checked(manual=1) == ['所有应用均为最新']
 
 
 def test_a_failed_check_is_said_only_after_check_for_updates(fw):
     p = Page(fw, b'me/foo')
     assert p.checked(result=SH_BUSY) == []
-    assert p.checked(result=SH_BUSY, manual=1) == ['GitHub is busy, try later']
+    assert p.checked(result=SH_BUSY, manual=1) == ['GitHub 繁忙，请稍后重试']
     p.toasts.clear()
-    assert p.checked(result=SH_NET, manual=1) == ["Can't reach GitHub"]
+    assert p.checked(result=SH_NET, manual=1) == ['无法连接 GitHub']
     p.card.files[b'/mnt/mmc/.q2/apps/foo.tag'] = b'1.0'
     p.toasts.clear()
     assert p.checked(b'2.0', result=SH_BUSY, manual=1) == ['1 app can be updated']  # what it found first
@@ -1163,7 +1163,7 @@ def test_the_next_check_isnt_check_for_updates_unless_pressed_again(fw):
     p = Page(fw, b'me/foo')
     p.click(0)
     p.sh.running = 0
-    assert p.checked(manual=p.sh.manual) == ['All apps are up to date']
+    assert p.checked(manual=p.sh.manual) == ['所有应用均为最新']
     p.fw.fn('netupdate__sh_start', None, C.c_int, C.c_int)(JOB_CHECK, 0)  # the opening check
     assert p.sh.manual == 0
 
@@ -1180,7 +1180,7 @@ def test_a_press_while_checking_stops_the_check(fw):
     p = Page(fw, b'me/foo')
     p.sh.job = JOB_CHECK
     p.click(1)
-    assert p.sh.cancel == 1 and p.toasts == ['Stopped checking for updates']
+    assert p.sh.cancel == 1 and p.toasts == ['已停止检查更新']
 
 
 def test_erase_runs_unless_a_job_does(fw):
@@ -1189,7 +1189,7 @@ def test_erase_runs_unless_a_job_does(fw):
     assert erase(0) == 0
     assert erase(1) == 1 and p.sh.job == JOB_ERASE
     p.sh.job = JOB_INSTALL
-    assert erase(1) == 0 and p.toasts == ['Wait for the one in progress']
+    assert erase(1) == 0 and p.toasts == ['请等待当前操作完成']
 
 
 def check(fw):
@@ -1469,7 +1469,7 @@ def test_a_press_downloads_a_newer_release_and_hands_it_to_stock_s_card_update(f
     card = Disk(fw, {TAR: b'old'})
     row = UpdateRow(fw)
     row.press()
-    assert row.nu.state == NU_RUNNING and row.label() == 'Checking…' and row.wait() == RET_REPEAT
+    assert row.nu.state == NU_RUNNING and row.label() == '正在检查…' and row.wait() == RET_REPEAT
     seen = []
     Net(fw, {ASSET: (0, 200, None, BODY), LATEST: (0, 302, TAG_URL + NEWER)}, during=lambda k: seen.append((row.wait(), row.label())))
     row.run()
@@ -1494,8 +1494,8 @@ def test_a_second_press_cancels_mid_download_and_keeps_the_old_tar(fw):
             seen.append((row.wait(), row.label()))  # the timer says so too, not the percentage
     Net(fw, {ASSET: (0, 200, None, BODY), LATEST: (0, 302, TAG_URL + NEWER)}, during=during)
     row.run()
-    assert seen == [(RET_REPEAT, 'Cancelling…')] and len(card.written[PART]) < len(BODY)  # ended at the next progress call
-    assert row.wait() == 0 and row.toasts == ['Download cancelled'] and not row.flashed
+    assert seen == [(RET_REPEAT, '正在取消…')] and len(card.written[PART]) < len(BODY)  # ended at the next progress call
+    assert row.wait() == 0 and row.toasts == ['已取消下载'] and not row.flashed
     assert card.files[TAR] == b'old' and PART not in card.files
 
 
@@ -1505,7 +1505,7 @@ def test_leaving_the_page_mid_download_cancels_it(fw):
     row.press()
     Net(fw, {ASSET: (0, 200, None, BODY), LATEST: (0, 302, TAG_URL + NEWER)}, during=lambda k: k == 1 and row.leave())
     row.run()
-    assert row.wait() == 0 and row.toasts == ['Download cancelled'] and row.tr == {} and not row.flashed
+    assert row.wait() == 0 and row.toasts == ['已取消下载'] and row.tr == {} and not row.flashed
     assert card.files[TAR] == b'old' and PART not in card.files
 
 
@@ -1517,7 +1517,7 @@ def test_a_cancel_after_the_last_byte_still_keeps_the_old_tar(fw, how):
     Net(fw, {ASSET: (0, 200, None, BODY), LATEST: (0, 302, TAG_URL + NEWER)}, during=lambda k: k == CHUNKS - 1 and getattr(row, how)())
     row.run()
     assert card.written[PART] == BODY  # no progress call left to end it: the transfer itself came whole
-    assert row.wait() == 0 and row.toasts == ['Download cancelled'] and not row.flashed
+    assert row.wait() == 0 and row.toasts == ['已取消下载'] and not row.flashed
     assert card.files[TAR] == b'old' and PART not in card.files and not card.of('rename')
 
 
@@ -1528,7 +1528,7 @@ def test_a_part_the_card_can_t_sync_never_replaces_the_tar(fw):
     row.press()
     Net(fw, {ASSET: (0, 200, None, BODY), LATEST: (0, 302, TAG_URL + NEWER)})
     row.run()
-    assert row.wait() == 0 and row.toasts == ["Can't write to the card"] and not row.flashed
+    assert row.wait() == 0 and row.toasts == ['无法写入存储卡'] and not row.flashed
     assert card.files[TAR] == b'old' and PART not in card.files and not card.of('rename')
 
 
@@ -1539,16 +1539,16 @@ def test_a_download_finished_off_the_page_waits_for_the_card_update(fw):
     Net(fw, {ASSET: (0, 200, None, BODY), LATEST: (0, 302, TAG_URL + NEWER)})
     row.run()
     row.leave()
-    assert row.wait() == 0 and row.toasts == ['Update downloaded: use TF card update'] and not row.flashed
+    assert row.wait() == 0 and row.toasts == ['上游英文固件已下载，请使用 TF 卡升级'] and not row.flashed
     assert card.files[TAR] == BODY
 
 
 @pytest.mark.parametrize('replies, said', [
-    ({LATEST: (0, 302, TAG_URL + TAG)}, 'Latest firmware installed'),
-    ({LATEST: (6, 0, None)}, "Can't reach GitHub"),  # CURLE_COULDNT_RESOLVE_HOST
-    ({LATEST: (0, 200, None)}, "Can't reach GitHub"),  # no redirect
-    ({ASSET: (0, 404, None, b'Not Found'), LATEST: (0, 302, TAG_URL + NEWER)}, 'No update for this build'),
-    ({ASSET: (28, 200, None, BODY), LATEST: (0, 302, TAG_URL + NEWER)}, "Can't reach GitHub"),  # timed out
+    ({LATEST: (0, 302, TAG_URL + TAG)}, '已是最新上游版本'),
+    ({LATEST: (6, 0, None)}, '无法连接 GitHub'),  # CURLE_COULDNT_RESOLVE_HOST
+    ({LATEST: (0, 200, None)}, '无法连接 GitHub'),  # no redirect
+    ({ASSET: (0, 404, None, b'Not Found'), LATEST: (0, 302, TAG_URL + NEWER)}, '此版本暂无更新'),
+    ({ASSET: (28, 200, None, BODY), LATEST: (0, 302, TAG_URL + NEWER)}, '无法连接 GitHub'),  # timed out
 ])
 def test_each_ending_says_why_and_keeps_the_old_tar(fw, replies, said):
     card = Disk(fw, {TAR: b'old'})
@@ -1568,19 +1568,19 @@ def test_a_full_card_fails_the_write_and_says_so(fw):
     row.press()
     net = Net(fw, {ASSET: (0, 200, None, BODY), LATEST: (0, 302, TAG_URL + NEWER)})
     row.run()
-    assert net.urls == [LATEST, ASSET] and row.wait() == 0 and row.toasts == ["Can't write to the card"]
+    assert net.urls == [LATEST, ASSET] and row.wait() == 0 and row.toasts == ['无法写入存储卡']
     assert card.files[TAR] == b'old' and PART not in card.files
 
 
 def test_a_press_without_wifi_or_a_thread_starts_nothing(fw):
     row = UpdateRow(fw, wifi=0)
     row.press()
-    assert row.toasts == ['Connect to Wi-Fi first'] and not row.workers and row.nu.state == NU_IDLE
+    assert row.toasts == ['请先连接 Wi-Fi'] and not row.workers and row.nu.state == NU_IDLE
     row = UpdateRow(fw, thread=11)
     row.press()
-    assert row.toasts == ["Can't start the download"] and not row.timers and row.nu.state == NU_IDLE
+    assert row.toasts == ['无法开始下载'] and not row.timers and row.nu.state == NU_IDLE
     row.press()  # idle again: a press tries again
-    assert row.toasts[-1] == "Can't start the download"
+    assert row.toasts[-1] == '无法开始下载'
 
 
 def test_presses_between_the_end_and_the_join_do_nothing(fw):
@@ -1591,13 +1591,13 @@ def test_presses_between_the_end_and_the_join_do_nothing(fw):
     row.run()
     row.press()
     assert not row.workers and row.toasts == [] and row.nu.state == NU_LATEST and len(row.timers) == 1
-    assert row.wait() == 0 and row.toasts == ['Latest firmware installed']
+    assert row.wait() == 0 and row.toasts == ['已是最新上游版本']
 
 
 def test_system_update_opened_mid_download_says_so(fw):
     fw.var('netupdate__nu', Nu).state = NU_RUNNING
     row = UpdateRow(fw)
-    assert row.label() == 'Downloading…'
+    assert row.label() == '正在下载…'
 
 
 # The App Store.
@@ -1682,11 +1682,11 @@ def test_the_store_loads_its_list_then_not_again_for_ten_minutes(fw):
     card = Disk(fw)
     net = store_net(fw)
     s = Store(fw, card)
-    assert s.sh.job == JOB_CHECK and s.labels() == [] and s.check_label() == 'Checking…'
+    assert s.sh.job == JOB_CHECK and s.labels() == [] and s.check_label() == '正在检查…'
     s.click(0)  # Check for Updates while the list loads: no second check, the one running answers it
     assert s.toasts == [] and s.sh.cancel == 0 and s.sh.manual == 1 and len(s.workers) == 1
     assert s.wait() == RET_REPEAT and s.held == []  # a check holds no standby
-    assert s.run() == 0 and s.sh.job == 0 and s.toasts == ['All apps are up to date']  # none installed has a newer one
+    assert s.run() == 0 and s.sh.job == 0 and s.toasts == ['所有应用均为最新']  # none installed has a newer one
     assert s.labels() == ['Install'] and card.files[SOURCES] == b'me/q2-foo Foo\n' and s.sh.next[0].latest == b'2.0'
     assert s.check_label().strip() == ''  # its detail blank again, the list loaded
     assert net.urls == [b'https://raw.githubusercontent.com/DiamondBond/q2-pod/main/sources.list',
@@ -1706,16 +1706,16 @@ def test_a_check_stopped_part_way_is_done_again_at_the_next_open(fw):
     net = store_net(fw)
     s = Store(fw, card)
     s.click()  # an app's row
-    assert s.sh.cancel == 1 and s.toasts == ['Stopped checking for updates']
+    assert s.sh.cancel == 1 and s.toasts == ['已停止检查更新']
     assert s.run() == 0 and net.urls[-1].startswith(b'https://raw')  # the list, then no release
-    assert s.toasts == ['Stopped checking for updates']  # and nothing said at its end
+    assert s.toasts == ['已停止检查更新']  # and nothing said at its end
     s.close()
     s.seconds += 1
     s.open()
     assert s.sh.job == JOB_CHECK
 
 
-@pytest.mark.parametrize('q2app, where', [(b'name=Foo\n', 'Streaming'), (b'name=Foo\ngame=1\n', "Library's Games")])
+@pytest.mark.parametrize('q2app, where', [(b'name=Foo\n', 'Streaming'), (b'name=Foo\ngame=1\n', '音乐 → 游戏')])
 def test_an_app_installs_into_place_and_removes_without_a_trace(fw, q2app, where):
     card = Disk(fw)
     store_net(fw, {**FOO, '.foo/q2app': q2app})
@@ -1726,7 +1726,7 @@ def test_an_app_installs_into_place_and_removes_without_a_trace(fw, q2app, where
         return {k: v for k, v in card.files.items() if k.startswith(b'/mnt/mmc/')}
     before = on_card()
     s.click()
-    assert s.sh.job == JOB_INSTALL and s.labels() == ['Checking…']
+    assert s.sh.job == JOB_INSTALL and s.labels() == ['正在检查…']
     assert s.wait() == RET_REPEAT and s.held == [(1, 1, 0)]  # standby and power-off held through a job
     assert s.run() == 0 and s.toasts == [f'Foo is ready in {where}'] and s.labels() == ['Installed']
     placed = {k: v for k, v in card.files.items() if k.startswith(b'/mnt/mmc/.foo/')}
@@ -1736,9 +1736,9 @@ def test_an_app_installs_into_place_and_removes_without_a_trace(fw, q2app, where
     assert card.moves(b'/mnt/mmc/.foo/')[-1] == b'/mnt/mmc/.foo/q2-foo'  # the binary last
     assert not [k for k in card.files if b'staging' in k or b'INSTALL' in k or b'MACOSX' in k]
     s.click()
-    assert s.labels() == ['Press again to remove'] and not s.workers
+    assert s.labels() == ['再次按下以移除'] and not s.workers
     s.click()
-    assert s.labels() == ['Removing…']
+    assert s.labels() == ['正在移除…']
     assert s.run() == 0 and s.toasts[-1] == 'Foo removed' and s.labels() == ['Install']
     assert on_card() == before
 
@@ -1750,7 +1750,7 @@ def test_a_cancel_during_the_release_request_downloads_nothing(fw):
     s.wifi = 1
     net.during = lambda k: net.urls[-1].startswith(b'https://api') and k == CHUNKS - 1 and s.click()  # as it ends
     s.click()
-    assert s.run() == 0 and s.toasts == ['Download cancelled'] and s.labels() == ['Install']
+    assert s.run() == 0 and s.toasts == ['已取消下载'] and s.labels() == ['Install']
     assert not [u for u in net.urls if u.startswith(b'https://h/')] and sorted(card.files) == [SOURCES]
 
 
@@ -1770,8 +1770,8 @@ def test_a_cancel_while_unpacking_installs_nothing(fw):
         return shell(cmd)
     card.system = system
     s.click()
-    assert s.run() == 0 and seen == [['Unpacking…'], ['Cancelling…']]
-    assert s.toasts == ['Download cancelled'] and s.labels() == ['Install']
+    assert s.run() == 0 and seen == [['正在解压…'], ['正在取消…']]
+    assert s.toasts == ['已取消下载'] and s.labels() == ['Install']
     assert not card.moves(b'/mnt/mmc/.foo/') and sorted(card.files) == [SOURCES]  # nothing placed, no staging left
 
 
@@ -1779,15 +1779,15 @@ ROOM = 64 << 20  # left free beyond what a download or an unpack needs
 
 
 @pytest.mark.parametrize('case, said', [
-    (dict(api=(0, 404, None, b'{}')), 'No update for this build'),
-    (dict(api=(0, 403, None, b'{}')), 'GitHub is busy, try later'),
-    (dict(api=(0, 429, None, b'{}')), 'GitHub is busy, try later'),
-    (dict(api=(7, 0, None)), "Can't reach GitHub"),
-    (dict(zip=(0, 404, None, b'Not Found')), 'No update for this build'),
-    (dict(zip=(28, 200, None, b'PK partial')), "Can't reach GitHub"),
-    (dict(files={'INSTALL.txt': b'x', 'other/q2-foo': b'y'}), 'The download is not a usable app'),
-    (dict(files={**FOO, '.foo/../x': b'up'}), 'The download is not a usable app'),
-    (dict(unpack=1), "Can't write to the card"),
+    (dict(api=(0, 404, None, b'{}')), '此版本暂无更新'),
+    (dict(api=(0, 403, None, b'{}')), 'GitHub 繁忙，请稍后重试'),
+    (dict(api=(0, 429, None, b'{}')), 'GitHub 繁忙，请稍后重试'),
+    (dict(api=(7, 0, None)), '无法连接 GitHub'),
+    (dict(zip=(0, 404, None, b'Not Found')), '此版本暂无更新'),
+    (dict(zip=(28, 200, None, b'PK partial')), '无法连接 GitHub'),
+    (dict(files={'INSTALL.txt': b'x', 'other/q2-foo': b'y'}), '下载内容不是有效应用'),
+    (dict(files={**FOO, '.foo/../x': b'up'}), '下载内容不是有效应用'),
+    (dict(unpack=1), '无法写入存储卡'),
     (dict(free=ROOM, size=1), 'Needs 1 MB more space'),  # no room for the zip
     (dict(free=ROOM + (1 << 20), files={'.foo/q2-foo': bytes(8 << 20)}), 'Needs 7 MB more space'),  # nor for what it unpacks to
 ])
@@ -1811,7 +1811,7 @@ def test_rockbox_installs_on_a_second_press_keeping_its_config(fw):
     label, = s.labels()
     assert label.endswith('Press again to install') and not s.workers
     s.click()
-    assert s.run() == 0 and s.toasts == ['Rockbox is ready. Find it on Home'] and s.labels() == ['Installed']
+    assert s.run() == 0 and s.toasts == ['Rockbox 已就绪，可在主菜单打开'] and s.labels() == ['Installed']
     assert card.files[b'/mnt/mmc/.rockbox/config.cfg'] == b'mine' and card.files[b'/mnt/mmc/.rockbox/rockbox'] == b'bin'
     assert card.moves(b'/mnt/mmc/.rockbox/') == [b'/mnt/mmc/.rockbox/fonts/a.fnt', b'/mnt/mmc/.rockbox/rockbox']
 
@@ -1826,7 +1826,7 @@ def test_the_themes_come_with_rockbox_and_go_before_it(fw):
     assert s.labels() == ['Installed', 'Install']
     s.wifi = 1
     s.click(2)
-    assert s.run() == 0 and s.toasts == ["Rockbox Themes are ready in Rockbox's Theme Settings"]
+    assert s.run() == 0 and s.toasts == ['Rockbox 主题已就绪，请在其主题设置中选择']
     assert s.labels() == ['Installed', 'Installed'] and card.files[b'/mnt/mmc/.rockbox/wps/a.wps'] == b'wps'
     s.click(1)
     s.click(1)
@@ -1845,7 +1845,7 @@ def test_the_themes_pressed_once_rockbox_left_the_card_ask_for_it(fw):
     del card.files[b'/mnt/mmc/.rockbox/rockbox']
     s.wifi = 1
     s.click(2)
-    assert s.toasts == ['Install Rockbox first'] and s.sh.job == 0
+    assert s.toasts == ['请先安装 Rockbox'] and s.sh.job == 0
 
 
 def test_spotify_installs_with_librespot_stopped_and_its_cache_kept(fw):
@@ -1877,7 +1877,7 @@ def test_erasing_spotify_s_data_runs_as_a_job(fw):
     s = Store(fw, card, wifi=0)
     erase = fw.fn('shelf_erase', C.c_int, C.c_int)
     assert erase(1) == 1 and erase(0) == 1
-    assert s.run() == 0 and s.toasts == ["Spotify's login and cache erased"] and erase(0) == 0
+    assert s.run() == 0 and s.toasts == ['已清除 Spotify 登录信息和缓存'] and erase(0) == 0
     assert [k for k in card.files if b'.spotify' in k] == [b'/mnt/mmc/.spotify/librespot']
     assert ('rmdir', b'/mnt/mmc/.spotify') in card.log  # tried: still holds librespot
 
@@ -1887,7 +1887,7 @@ def test_erase_while_checking_stops_the_check(fw):
     store_net(fw)
     s = Store(fw, card)
     assert fw.fn('shelf_erase', C.c_int, C.c_int)(1) == 0
-    assert s.sh.cancel == 1 and s.toasts == ['Stopped checking for updates'] and s.sh.job == JOB_CHECK
+    assert s.sh.cancel == 1 and s.toasts == ['已停止检查更新'] and s.sh.job == JOB_CHECK
 
 
 def test_a_job_that_can_t_start_says_so_and_the_row_stays(fw):
@@ -1895,4 +1895,4 @@ def test_a_job_that_can_t_start_says_so_and_the_row_stays(fw):
     s = Store(fw, card, wifi=0, thread=11)
     s.wifi = 1
     s.click()
-    assert s.toasts == ["Can't start the download"] and s.sh.job == 0 and not s.sh.running and s.labels() == ['Install']
+    assert s.toasts == ['无法开始下载'] and s.sh.job == 0 and not s.sh.running and s.labels() == ['Install']

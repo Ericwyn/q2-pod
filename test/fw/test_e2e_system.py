@@ -357,13 +357,13 @@ def q2(fw, library, tmp_path):
 def appearance(q2):
     """System settings → Display → Appearance."""
     q2.open('systemset/display_page')
-    q2.screen.click('Appearance')
+    q2.screen.click('外观')
 
 
 def controls(q2):
     """System settings → Controls."""
     q2.open('systemset/systemset_page')
-    q2.screen.click('Controls')
+    q2.screen.click('控制')
 
 
 def dark(q2):
@@ -464,13 +464,13 @@ def test_classic_asks_to_restart_and_boots_into_its_own_geometry(fw, library, tm
     assert len(q2.fw.calls('stock_reboot_trampoline')) == 1
     assert q2.flash.get('IPOD', 'LIGHT') == '1'  # with its presets: Classic is light (its theme.xml)
     appearance(q2)
-    assert q2.screen.row('Theme') == 'Theme: Minimal'  # until the restart, the booted theme runs
+    assert q2.screen.row('Theme') == '主题：简约'  # until the restart, the booted theme runs
     q2.power_on()
     boot(q2)
     assert written(q2, names.index('classic-light'))  # Row Art on, Classic's preset
     assert minimal != client(q2) < 320  # Classic's own bar over the window, not Minimal's
     appearance(q2)
-    assert q2.screen.row('Theme') == 'Theme: Classic' and q2.screen.row('Light Mode') == 'Light Mode: On'
+    assert q2.screen.row('Theme') == '主题：经典' and q2.screen.row('Light Mode') == '浅色模式：打开'
     q2.close()
 
 
@@ -507,13 +507,13 @@ def test_a_set_the_boot_cant_write_runs_minimal_until_the_next_boot(fw, library,
     assert all(C.c_uint.from_address(s.addr).value == HIGH << 16 | values[0][s.group] for s in sites)
     assert client(q2) == minimal  # the pages fit stock's windows, which kept SET0
     appearance(q2)
-    assert q2.screen.row('Theme') == 'Theme: Minimal' and q2.flash.get('IPOD', 'THEME') == '1'
+    assert q2.screen.row('Theme') == '主题：简约' and q2.flash.get('IPOD', 'THEME') == '1'
     q2.power_on()
     boot(q2)
     written(q2, g)
     assert client(q2) != minimal
     appearance(q2)
-    assert q2.screen.row('Theme') == 'Theme: Classic'
+    assert q2.screen.row('Theme') == '主题：经典'
     q2.close()
 
 
@@ -526,8 +526,8 @@ def test_a_boot_fallen_back_to_minimal_reads_the_settings_as_minimal_does(fw, li
     q2 = Q2(fw, library, tmp_path, Flash(IPOD_THEME='1', IPOD_BATTERY='1'))
     boot(q2, refuse=1)
     appearance(q2)
-    assert q2.screen.row('Theme') == 'Theme: Minimal'
-    assert q2.screen.row('Battery') == 'Battery: Percent'  # Minimal takes every style; Classic only Icon and Inside
+    assert q2.screen.row('Theme') == '主题：简约'
+    assert q2.screen.row('Battery') == '电池显示：百分比'  # Minimal takes every style; Classic only Icon and Inside
     q2.close()
 
 
@@ -556,9 +556,9 @@ def now_playing(q2):
 def test_centred_now_playing_loads_its_page_from_the_next_open_and_after_a_restart(q2):
     own = now_playing(q2)
     appearance(q2)
-    assert q2.screen.switch('Centred Now Playing') == 'switch_off'
-    q2.screen.click('Centred Now Playing')
-    assert q2.screen.switch('Centred Now Playing') == 'switch_on' and q2.flash.get('IPOD', 'NPCENTRED') == '1'
+    assert q2.screen.switch('居中显示正在播放') == 'switch_off'
+    q2.screen.click('居中显示正在播放')
+    assert q2.screen.switch('居中显示正在播放') == 'switch_on' and q2.flash.get('IPOD', 'NPCENTRED') == '1'
     centred = now_playing(q2)
     assert centred != own
     q2.power_on()
@@ -584,7 +584,7 @@ def test_home_takes_a_new_layout_at_once_and_boots_into_it(q2):
     assert split < 375
     appearance(q2)
     q2.screen.click('Home')
-    assert q2.screen.row('Home') == 'Home: Full' and q2.flash.get('IPOD', 'HOME') == '1'
+    assert q2.screen.row('Home') == '主菜单：全屏' and q2.flash.get('IPOD', 'HOME') == '1'
     assert not shown[w['img_homeart']] and width() == 375 > split  # the same Home, never rebuilt, relaid at once
     q2.power_on()
     w = home(q2)
@@ -592,7 +592,7 @@ def test_home_takes_a_new_layout_at_once_and_boots_into_it(q2):
     assert not shown[w['img_homeart']] and width() == 375
     appearance(q2)
     q2.screen.click('Home')
-    assert q2.screen.row('Home') == 'Home: Carousel'
+    assert q2.screen.row('Home') == '主菜单：旋转封面'
     assert shown[w['slide_menu']] and not shown[w['list_view_home']] and not shown[w['img_homeart']]
 
 
@@ -633,9 +633,9 @@ def grey(color):
 
 def test_light_mode_turned_on_redraws_the_screen_light_and_stays_on_after_a_restart(q2):
     appearance(q2)
-    assert q2.screen.row('Light Mode') == 'Light Mode: Off' and ink(q2) == 0xff000000
+    assert q2.screen.row('Light Mode') == '浅色模式：关闭' and ink(q2) == 0xff000000
     q2.screen.click('Light Mode')
-    assert q2.screen.row('Light Mode') == 'Light Mode: On' and q2.flash.get('IPOD', 'LIGHT') == '1'
+    assert q2.screen.row('Light Mode') == '浅色模式：打开' and q2.flash.get('IPOD', 'LIGHT') == '1'
     paper = ink(q2)
     assert paper >> 24 == 0xff and grey(paper) and paper & 255 > 0x80  # black is the light half's paper
     assert ink(q2, 0xffffffff) & 255 < 0x80  # and white its ink
@@ -644,7 +644,7 @@ def test_light_mode_turned_on_redraws_the_screen_light_and_stays_on_after_a_rest
     q2.power_on()
     assert ink(q2) == paper
     appearance(q2)
-    assert q2.screen.row('Light Mode') == 'Light Mode: On'
+    assert q2.screen.row('Light Mode') == '浅色模式：打开'
 
 
 @pytest.mark.parametrize('wall, light', [(NOON, True), (NIGHT, False)])
@@ -653,7 +653,7 @@ def test_light_mode_auto_follows_the_clock_after_a_restart(q2, wall, light):
     appearance(q2)
     q2.screen.click('Light Mode')
     q2.screen.click('Light Mode')
-    assert q2.screen.row('Light Mode') == 'Light Mode: Auto' and q2.flash.get('IPOD', 'LIGHT') == '2'
+    assert q2.screen.row('Light Mode') == '浅色模式：自动' and q2.flash.get('IPOD', 'LIGHT') == '2'
     assert ink(q2) != 0xff000000  # light from 7:00 to 19:00
     q2.wall = wall
     q2.power_on()
@@ -682,12 +682,12 @@ def test_the_battery_style_reaches_the_bar_at_once_and_the_lock_clock_after_a_re
     q2.fw.var('fw_ctx_system_bar', C.c_void_p).value = bar
     lock_settings(q2)
     q2.screen.click('Clock')
-    assert q2.screen.row('Clock') == 'Clock: Large' and q2.flash.get('Q2POD', 'LOCKCLOCK') == '1'
+    assert q2.screen.row('Clock') == '时钟：大字' and q2.flash.get('Q2POD', 'LOCKCLOCK') == '1'
     win = lock_window(q2)
     assert not q2.screen.shown[q2.screen.lookup(win, 'label_battery')]  # Battery: Icon shows no percent
     appearance(q2)
     q2.screen.click('Battery')
-    assert q2.screen.row('Battery') == 'Battery: Percent' and q2.flash.get('IPOD', 'BATTERY') == '1'
+    assert q2.screen.row('Battery') == '电池显示：百分比' and q2.flash.get('IPOD', 'BATTERY') == '1'
     assert invalidated(q2)[-1] == (bar, 0)  # the bar repaints
     q2.power_on()
     win = lock_window(q2)
@@ -962,9 +962,9 @@ def test_a_lit_screen_idles_only_once_input_has_been_still_for_a_while(q2):
 
 def test_wake_double_press_chosen_on_controls_wakes_only_on_a_second_press_after_a_restart(q2):
     controls(q2)
-    assert q2.screen.row('Wake') == 'Wake: Single Press'
+    assert q2.screen.row('Wake') == '唤醒：单击'
     q2.screen.click('Wake')
-    assert q2.screen.row('Wake') == 'Wake: Double Press' and q2.flash.get('Q2POD', 'WAKEDOUBLE') == '1'
+    assert q2.screen.row('Wake') == '唤醒：双击' and q2.flash.get('Q2POD', 'WAKEDOUBLE') == '1'
     q2.power_on()
     q2.loop()  # the first pass reads the settings
     dark(q2)
@@ -1012,7 +1012,7 @@ def alarms(q2):
                                                  (3, O['STANDBY_LIMIT_3'], 5)])
 def test_a_standby_limit_chosen_on_power_ends_that_long_a_standby_in_a_power_off(q2, presses, hours, late):
     q2.open('systemset/powermanager_page')
-    assert q2.screen.row('Standby Limit') == 'Standby Limit: Off'
+    assert q2.screen.row('Standby Limit') == '待机时限：关闭'
     for _ in range(presses):
         q2.screen.click('Standby Limit')
     assert q2.screen.row('Standby Limit') == f'Standby Limit: {hours} h'
@@ -1239,8 +1239,8 @@ def test_control_device_volume_hands_the_volume_to_the_headset_and_follows_its_k
     assert headset.level == 64 and q2.var('g_volume').value == 55  # Off: each keeps its own
     q2.build('ringnav_btrows', 'bluetooth_page', 'scroll_view_bluetooth',  # System settings → Bluetooth
              *((f'stock_{i}', 'list_item', 'scroll_view_bluetooth') for i in range(4)))
-    q2.screen.click('Control Device Volume')
-    assert q2.screen.switch('Control Device Volume') == 'switch_on' and q2.flash.get('Q2POD', 'BTVOLLINK') == '1'
+    q2.screen.click('控制设备音量')
+    assert q2.screen.switch('控制设备音量') == 'switch_on' and q2.flash.get('Q2POD', 'BTVOLLINK') == '1'
     # the Q2's level sent, as the headset's nearest step, and the Q2's own gain full
     assert headset.level == nearest(55 * 127 / 100) and headset.gain[-1] == (100, 100)
     headset.level = 100  # its own keys: 100/127 of its range, 79 of the Q2's 100

@@ -910,7 +910,7 @@ def test_with_time_in_title_on_the_clock_stays(fw, st, ui):
     assert ui.text(bar.clock) == '12:00'
 
 
-@pytest.mark.parametrize('name, navbar, want', [('playing_page', None, 'Now Playing'), ('coverflow_page', None, 'Cover Flow'),
+@pytest.mark.parametrize('name, navbar, want', [('playing_page', None, '正在播放'), ('coverflow_page', None, 'Cover Flow'),
                                                 ('display_page', 'Display', 'Display')])
 def test_the_bar_names_the_page_in_front(fw, st, ui, name, navbar, want):
     theme(fw, st, TIMETITLE=0)
@@ -2108,14 +2108,14 @@ def test_only_the_pages_with_a_stale_site_open(fw, st, code):
     assert code[a].value == 0x5a5a0000 | set_values(g)[name]
 
 
-@pytest.mark.parametrize('rowart, label', [(1, 'On'), (0, 'Off')])
+@pytest.mark.parametrize('rowart, label', [(1, '打开'), (0, '关闭')])
 def test_row_art_picks_classics_set(fw, st, rowart, label):
     theme(fw, st, CLASSIC, ROWART=rowart)
     T = fw.fn('theme', C.c_void_p)()
     want = SETS.index(host.tools_theme.geometry(CLASSIC, {'ROWART': label}))
     assert fw.fn('theme_geom', C.c_int, C.c_void_p)(T) == want
     geom_with = fw.fn('navigation__geom_with', C.c_int, C.c_void_p, C.c_int, C.c_int, C.c_int)
-    assert geom_with(T, -1, 0, 1) == SETS.index(host.tools_theme.geometry(CLASSIC, {'ROWART': 'On'}))  # a switch presets On
+    assert geom_with(T, -1, 0, 1) == SETS.index(host.tools_theme.geometry(CLASSIC, {'ROWART': '打开'}))  # a switch presets On
 
 
 @pytest.mark.parametrize('t', [MINIMAL, MODERN], ids=['Minimal', 'Modern'])
@@ -2566,7 +2566,7 @@ def test_t9s_box_is_searchs_field_under_the_bar_with_its_hint(fw, st, ui):
     assert ui.prop(edit, b'tips') == b'Playlist Name' and (x, w) == ui.box(item)[::2]  # Search's field with T9 up
     assert y + h <= 30  # its foot clears T9's top, page y 30: the keyboard doesn't move the page
     title = ui.lookup(page, '_page_title', 1)
-    assert ui.text(title) == 'Search' and ui.shown[title] == 0 and st.t9_page == page and st.t9_back
+    assert ui.text(title) == '搜索' and ui.shown[title] == 0 and st.t9_page == page and st.t9_back
     for key in (b'style:normal:margin_left', TYPED_PX):
         assert ui.ints[edit, key] == ui.ints[search_edit, key]  # Search's field's text
     assert ui.ints[edit, EMPTY_PX] == ui.ints[edit, TYPED_PX]  # a short hint fits at the typed text's size
@@ -2641,7 +2641,7 @@ def test_new_playlist_is_the_keyboards_page_with_a_field_and_its_name_on_the_bar
     assert st.pl_box == 0 and ui.run(ui.timer_add(ui.fn('classic_pages__pl_box_due'), 0, 0)) == 0
 
 
-@pytest.mark.parametrize('rows, at, tips', [(['Road Trip', 'Gym'], 1, b'Gym'), (['Road Trip'], 4, b'Rename'), ([None], 0, b'Rename')])
+@pytest.mark.parametrize('rows, at, tips', [(['Road Trip', 'Gym'], 1, b'Gym'), (['Road Trip'], 4, b'\xe9\x87\x8d\xe5\x91\xbd\xe5\x90\x8d'), ([None], 0, b'\xe9\x87\x8d\xe5\x91\xbd\xe5\x90\x8d')])
 def test_rename_hints_the_playlists_own_name(fw, st, ui, rename_row, rows, at, tips):
     theme(fw, st, CLASSIC, 1)
     deques = Deques(fw)

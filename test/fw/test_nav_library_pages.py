@@ -347,8 +347,8 @@ def field(r, name):
 def test_a_record_reads_back_whole(fw, song):
     """The layout the rest stands on: the C's own track_name reads the title, else the file name less its
     extension, through the same 8-byte reads."""
-    tagged, untagged = song(b'/m/A/01 One.flac', b'One', b'Band', b'A'), song(b'/m/A/02 Two.flac')
-    assert [field(tagged, f) for f in FIELDS] == [b'01 One.flac', b'/m/A/01 One.flac', b'One', b'A', b'Band']
+    tagged, untagged = song(b'/m/A/01 One.flac', b'One', b'\xe9\xa2\x91\xe6\xae\xb5', b'A'), song(b'/m/A/02 Two.flac')
+    assert [field(tagged, f) for f in FIELDS] == [b'01 One.flac', b'/m/A/01 One.flac', b'One', b'A', b'\xe9\xa2\x91\xe6\xae\xb5']
     name = fw.fn('track_name', C.c_char_p, C.c_char_p, C.c_uint, C.c_void_p)
     out = C.create_string_buffer(64)
     assert name(out, 64, tagged) == b'One' and name(out, 64, untagged) == b'02 Two'
@@ -392,8 +392,8 @@ def call(fw, name, ctx=0):
 def test_shuffle_opens_one_page_of_three_picks(fw, ui):
     call(fw, 'shuffle_menu')
     page = ui.top()
-    assert ui.name[page] == 'shuffle_page' and ui.captions(page) == ['Shuffle Songs', 'Shuffle Albums', 'Shuffle Folders']
-    assert 'Albums and folders take a moment to shuffle' in ui.shown(page)
+    assert ui.name[page] == 'shuffle_page' and ui.captions(page) == ['随机播放歌曲', '随机播放专辑', '随机播放文件夹']
+    assert '专辑和文件夹随机排序需要片刻' in ui.shown(page)
     call(fw, 'shuffle_menu')  # pressed again while it is open: the same page
     assert ui.windows == [page]
 
@@ -409,7 +409,7 @@ def test_shuffle_songs_with_no_library_says_to_update_it(fw, ui, mcl):
     Library(fw, ui)
     call(fw, 'shuffle_menu')
     ui.click(ui.top(), 0)
-    assert ui.toasts == ['Update Local Music first'] and not ui.played
+    assert ui.toasts == ['请先更新本地音乐库'] and not ui.played
 
 
 def test_shuffle_songs_plays_the_library_from_a_random_song(fw, ui, mcl, song):
@@ -428,7 +428,7 @@ def test_shuffle_albums_and_folders_with_no_library(fw, ui, mcl, row, folders):
     Library(fw, ui)
     call(fw, 'shuffle_menu')
     ui.click(ui.top(), row)
-    assert ui.toasts == ['Update Local Music first'] and not ui.played
+    assert ui.toasts == ['请先更新本地音乐库'] and not ui.played
 
 
 @pytest.mark.parametrize('row, folders', [(1, 0), (2, 1)])
@@ -452,7 +452,7 @@ def test_shuffle_albums_over_the_queue_s_limit_says_so(fw, ui, mcl):
     fw.mock('mclLoadPlayList', lambda dq, *_: ui.deques[queue].__setitem__(slice(None), ui.deques[dq]))
     call(fw, 'shuffle_menu')
     ui.click(ui.top(), 1)
-    assert ui.toasts == ['Too many songs to shuffle'] and not ui.played and library.asked == [3]
+    assert ui.toasts == ['歌曲过多，无法随机播放'] and not ui.played and library.asked == [3]
 
 
 @pytest.mark.parametrize('key, back, result', [(KEY_RETURN, 1, STOP), (KEY_CENTER, 0, 0), (KEY_PLAY, 0, 0)])
@@ -485,7 +485,7 @@ def test_most_played_with_no_plays_says_so(fw, ui, song):
     Files(fw)
     Library(fw, ui, [song(b'/m/a.flac')])
     call(fw, 'most_played')
-    assert 'No plays yet' in ui.shown(ui.top()) and ui.rows(ui.top()) == []
+    assert '暂无播放记录' in ui.shown(ui.top()) and ui.rows(ui.top()) == []
 
 
 def test_most_played_ranks_its_kept_songs_again_without_the_library(fw, ui, song, st):
@@ -550,7 +550,7 @@ def ratings(*kept):
 def test_ratings_menu_lists_its_five_lists(fw, ui):
     call(fw, 'ratings_menu')
     page = ui.top()
-    assert ui.name[page] == 'ratings_page' and ui.captions(page) == ['Top Rated', 'Loved', 'Albums', 'All Rated', 'Disliked']
+    assert ui.name[page] == 'ratings_page' and ui.captions(page) == ['最高评价', '最爱歌曲', 'Albums', '全部已评价', '不喜欢']
     assert [ui.image[w] for w in ui.subtree(ui.view(page)) if w in ui.image] == ['list_into'] * 5  # each opens a list
     call(fw, 'ratings_menu')
     assert ui.windows == [page]
@@ -570,11 +570,11 @@ class Rated:
 
 
 @pytest.mark.parametrize('row, title, want', [
-    (0, 'Top Rated', [('Fav', f'{HEART * 5} {DOT} F'), ('Four', HEART * 4 + NO_HEART)]),
-    (1, 'Loved', [('Fav', f'{HEART * 5} {DOT} F')]),
-    (3, 'All Rated', [('Fav', f'{HEART * 5} {DOT} F'), ('Four', HEART * 4 + NO_HEART),
+    (0, '最高评价', [('Fav', f'{HEART * 5} {DOT} F'), ('Four', HEART * 4 + NO_HEART)]),
+    (1, '最爱歌曲', [('Fav', f'{HEART * 5} {DOT} F')]),
+    (3, '全部已评价', [('Fav', f'{HEART * 5} {DOT} F'), ('Four', HEART * 4 + NO_HEART),
                       ('Three', f'{HEART * 3 + NO_HEART * 2} {DOT} T'), ('One', f'{HEART + NO_HEART * 4} {DOT} O')]),
-    (4, 'Disliked', [('One', f'{HEART + NO_HEART * 4} {DOT} O')]),
+    (4, '不喜欢', [('One', f'{HEART + NO_HEART * 4} {DOT} O')]),
 ])
 def test_a_ratings_list_is_its_hearts_most_first(fw, ui, song, row, title, want):
     Rated(fw, ui, song)
@@ -604,7 +604,7 @@ def test_an_empty_ratings_list_says_how_to_rate(fw, ui, song):
     Library(fw, ui, [song(b'/m/a.flac', b'A')])
     Files(fw)
     call(fw, 'rated_open', 0)
-    assert ui.rows(ui.top()) == [('No songs yet', 'Hold the heart on Now Playing to rate')]
+    assert ui.rows(ui.top()) == [('暂无歌曲', '长按“正在播放”中的爱心以评价')]
     item, = ui.kids[ui.view(ui.top())]
     assert [fn for w, e, fn, _ in ui.handlers if w == item and e == EVT_CLICK] == [0]  # nothing to play
 
@@ -623,7 +623,7 @@ def test_a_ratings_list_closes_with_its_page(fw, ui, song, st):
     ui.close(ui.top())
     assert not st('rt_page', C.c_void_p).value and not st('rt_list', C.c_void_p).value
     call(fw, 'rated_open', 1)  # and opens again
-    assert 'Loved' in ui.shown(ui.top())
+    assert '最爱歌曲' in ui.shown(ui.top())
 
 
 def test_no_rated_albums_says_so(fw, ui, song):
@@ -631,7 +631,7 @@ def test_no_rated_albums_says_so(fw, ui, song):
     fw.mock('getAllAlbum', lambda *_: 0)
     call(fw, 'ratings_menu')
     ui.click(ui.top(), 2)
-    assert ui.toasts == ['No rated albums yet']
+    assert ui.toasts == ['暂无已评价专辑']
 
 
 # Long Songs.
@@ -689,7 +689,7 @@ def test_long_songs_with_none_says_so(fw, ui, song):
     Library(fw, ui, [song(b'/m/a.flac', b'A')])
     Files(fw, {LENGTHS: lengths((b'/m/a.flac', 60))})
     call(fw, 'long_songs')
-    assert ui.rows(ui.top()) == [('No songs over 10 minutes', None)]
+    assert ui.rows(ui.top()) == [('暂无超过十分钟的歌曲', None)]
     call(fw, 'long_songs')  # pressed again while it is open
     assert len(ui.windows) == 1
 
@@ -701,7 +701,7 @@ def test_long_songs_measures_the_unknown_first_then_lists_them(fw, ui, song, clo
     probe = Probe(fw, {b'/m/b.flac': 3600, b'/m/c.flac': None})
     call(fw, 'long_songs')
     page = ui.top()
-    assert ui.rows(page) == [('Cancel', None)] and 'Measuring songs…' in ui.shown(page)
+    assert ui.rows(page) == [('取消', None)] and 'Measuring songs…' in ui.shown(page)
     assert [ms for _, ms in ui.pending('ls_poll')] == [250]
     assert ui.fire('ls_poll') == REPEAT and 'Measuring songs… 0/2' in ui.shown(page)
     probe.run()
@@ -816,24 +816,24 @@ class Scrobbler:
 def test_upload_needs_wifi(fw, ui):
     scrobbler = Scrobbler(fw, wifi=0)
     call(fw, 'upload_scrobbles')
-    assert ui.toasts == ['Connect to Wi-Fi first'] and not scrobbler.threads and not ui.timers
+    assert ui.toasts == ['请先连接 Wi-Fi'] and not scrobbler.threads and not ui.timers
 
 
 def test_upload_without_an_account_fails(fw, ui):
     Scrobbler(fw, token=b'')
     call(fw, 'upload_scrobbles')
-    assert ui.toasts == ['Upload failed'] and not ui.timers
+    assert ui.toasts == ['上传失败'] and not ui.timers
 
 
-@pytest.mark.parametrize('ok, sent, toast, pending', [(1, 3, 'Scrobbles sent: 3', 0), (1, 0, 'Nothing to upload', 0),
+@pytest.mark.parametrize('ok, sent, toast, pending', [(1, 3, 'Scrobbles sent: 3', 0), (1, 0, '没有待上传记录', 0),
                                                       (0, 2, 'Upload failed, 2 sent', 5)])
 def test_upload_reports_how_it_went(fw, ui, ok, sent, toast, pending):
     scrobbler = Scrobbler(fw)
     scrobbler.sa.pending = 5
     call(fw, 'upload_scrobbles')
-    assert ui.toasts == ['Uploading scrobbles'] and len(scrobbler.threads) == 1
+    assert ui.toasts == ['正在上传听歌记录'] and len(scrobbler.threads) == 1
     assert [ms for _, ms in ui.pending('upload_wait')] == [500]
-    assert ui.fire('upload_wait') == REPEAT and ui.toasts == ['Uploading scrobbles']  # still going
+    assert ui.fire('upload_wait') == REPEAT and ui.toasts == ['正在上传听歌记录']  # still going
     scrobbler.ends(ok, sent)
     assert ui.fire('upload_wait') == 0 and ui.toasts[1:] == [toast]
     assert scrobbler.sa.pending == pending  # listens sent no longer count toward the automatic upload
@@ -843,7 +843,7 @@ def test_upload_while_one_runs(fw, ui):
     scrobbler = Scrobbler(fw)
     call(fw, 'upload_scrobbles')
     call(fw, 'upload_scrobbles')
-    assert ui.toasts == ['Uploading scrobbles', 'Already uploading'] and len(ui.pending('upload_wait')) == 1
+    assert ui.toasts == ['正在上传听歌记录', '正在上传中'] and len(ui.pending('upload_wait')) == 1
     assert len(scrobbler.threads) == 1
 
 
@@ -851,7 +851,7 @@ def test_upload_takes_over_the_automatic_one(fw, ui):
     scrobbler = Scrobbler(fw)
     scrobbler.up.running, scrobbler.sa.running = 1, 1
     call(fw, 'upload_scrobbles')
-    assert ui.toasts == ['Uploading scrobbles'] and ui.pending('upload_wait') and not scrobbler.sa.running
+    assert ui.toasts == ['正在上传听歌记录'] and ui.pending('upload_wait') and not scrobbler.sa.running
     scrobbler.ends(1, 4)
     ui.fire('upload_wait')
     assert ui.toasts[-1] == 'Scrobbles sent: 4'
@@ -1049,7 +1049,7 @@ def test_the_wheel_moves_the_rating_and_return_leaves_it(fw, ui, song, mcl):
     for key in (KEY_NEXT, KEY_NEXT, KEY_NEXT, *[KEY_PREV] * 6):
         assert heart.key(key) == 1
         seen.append(heart.picker()[0])
-    assert seen == ['4 of 5', '5 of 5', '5 of 5', '4 of 5', '3 of 5', '2 of 5', '1 of 5', 'Unrated', 'Unrated']
+    assert seen == ['4 of 5', '5 of 5', '5 of 5', '4 of 5', '3 of 5', '2 of 5', '1 of 5', '未评价', '未评价']
     assert heart.picker()[1] == hearts(0)
     assert heart.key(KEY_RETURN) == 1 and heart.picker() is None and heart.panel() in ui.dull
     assert heart.kept() == 3 and not heart.copy_due() and heart.badge() == '3'
@@ -1183,7 +1183,7 @@ def test_a_full_ratings_table_says_so(fw, ui, song, mcl):
     heart.hold()
     heart.key(KEY_NEXT)
     heart.key(KEY_CENTER)
-    assert ui.toasts == ['Ratings are full'] and heart.kept() == 0
+    assert ui.toasts == ['评价记录已满'] and heart.kept() == 0
 
 
 def test_a_rating_that_cannot_be_written_says_so(fw, ui, song, mcl):
@@ -1192,7 +1192,7 @@ def test_a_rating_that_cannot_be_written_says_so(fw, ui, song, mcl):
     heart.hold()
     heart.key(KEY_NEXT)
     heart.key(KEY_CENTER)
-    assert ui.toasts == ['Rating not saved'] and heart.kept() == 2 and heart.badge() == '2'
+    assert ui.toasts == ['评价未保存'] and heart.kept() == 2 and heart.badge() == '2'
 
 
 # An album's rating, from the queue menu of an artist's albums.
@@ -1232,7 +1232,7 @@ def test_an_album_no_longer_under_the_picker_is_not_rated(fw, ui, song, st):
     fw.fn('rate_show', C.c_int, C.c_void_p, C.c_int, C.c_uint)(win, 4, 0xa1b0)
     ui.new('window_create', 0, 0, 0, 0, 0)  # another page over it
     fw.fn('rate_key', C.c_int, C.c_void_p, C.c_uint)(win, KEY_CENTER)
-    assert ui.toasts == ['Album changed'] and not files.files
+    assert ui.toasts == ['专辑已变更'] and not files.files
 
 
 def test_an_album_whose_row_changed_is_not_rated(fw, ui, song, st):
@@ -1240,7 +1240,7 @@ def test_an_album_whose_row_changed_is_not_rated(fw, ui, song, st):
     win, ids = album_menu(fw, ui, song, st, album_id=0xb2c0)  # the row now holds another album
     fw.fn('rate_show', C.c_int, C.c_void_p, C.c_int, C.c_uint)(win, 4, 0xa1b0)
     fw.fn('rate_key', C.c_int, C.c_void_p, C.c_uint)(win, KEY_CENTER)
-    assert ui.toasts == ['Album changed'] and not files.files
+    assert ui.toasts == ['专辑已变更'] and not files.files
 
 
 # Chapters.
@@ -1299,7 +1299,7 @@ def test_chapters_load_then_list_with_their_times(fw, ui, song, mcl):
     book = Book(fw, ui, song, mcl, output=ffmetadata((0, b'Opening'), (754, b''), (3725, b'Caf\xc3\xa9')))
     book.at = 800
     page = book.open()
-    assert ui.name[page] == 'chapters_page' and 'Loading chapters…' in ui.shown(page)
+    assert ui.name[page] == 'chapters_page' and '正在加载章节…' in ui.shown(page)
     assert [ms for _, ms in ui.pending('chapter_poll')] == [50]
     assert ui.fire('chapter_poll') == 0 and not ui.pending('chapter_poll')
     assert ui.rows(page) == [('Opening', '0:00:00'), ('Chapter 2', '0:12:34'), ('Café', '1:02:05')]
@@ -1321,11 +1321,11 @@ def test_chapters_poll_until_ffmpeg_ends(fw, ui, song, mcl):
     fw.mock('fw_read', lambda *_: (book.errno.__setattr__('value', 11), -1)[1])  # EAGAIN
     fw.mock('fw_waitpid', lambda *_: 0)  # still running
     page = book.open()
-    assert ui.fire('chapter_poll') == REPEAT and 'Loading chapters…' in ui.shown(page)
+    assert ui.fire('chapter_poll') == REPEAT and '正在加载章节…' in ui.shown(page)
 
 
-@pytest.mark.parametrize('output, status, message', [(b';FFMETADATA1\ntitle=x\n', 0, 'No embedded chapters'),
-                                                     (b'', 256, 'Could not read chapters')])
+@pytest.mark.parametrize('output, status, message', [(b';FFMETADATA1\ntitle=x\n', 0, '无内嵌章节'),
+                                                     (b'', 256, '无法读取章节')])
 def test_chapters_none_or_unreadable_say_so(fw, ui, song, mcl, output, status, message):
     book = Book(fw, ui, song, mcl, output=output, status=status)
     page = book.open()
@@ -1364,7 +1364,7 @@ def test_a_book_too_long_for_ram_says_so(fw, ui, song, mcl):
     mp4 = box(b'moov', box(b'trak', box(b'mdia', box(b'minf', box(b'stbl', stsz)))))
     path = b'/mnt/mmc/Audiobooks/long.m4b'
     book = Book(fw, ui, song, mcl, path=path, files={path: mp4, '/proc/meminfo': b'MemAvailable:   20000 kB\n'})
-    assert book.open() is None and ui.toasts == ['Too long to read chapters on the Q2'] and not fw.calls('fw_fork')
+    assert book.open() is None and ui.toasts == ['文件过大，Q2 无法读取章节'] and not fw.calls('fw_fork')
 
 
 def test_chapters_open_once(fw, ui, song, mcl):
@@ -1519,7 +1519,7 @@ def test_a_download_gone_from_the_card_does_not_play(fw, ui, song):
 def test_no_downloads_says_so(fw, ui, song):
     Card(fw, ui, song, {})
     call(fw, 'tidal_downloads')
-    assert 'No downloads yet' in ui.shown(ui.top()) and ui.rows(ui.top()) == []
+    assert '暂无下载' in ui.shown(ui.top()) and ui.rows(ui.top()) == []
 
 
 def test_clear_all_asks_first_and_cancel_keeps_them(fw, ui, song):
@@ -1528,7 +1528,7 @@ def test_clear_all_asks_first_and_cancel_keeps_them(fw, ui, song):
     page = ui.top()
     ui.click(page, 3)
     ui.fire('td_show')  # from a timer: the click's own list isn't rebuilt under it
-    assert ui.rows(page) == [('3 tracks', 'Keeps settings'), ('Cancel', ''), ('Remove', '')]
+    assert ui.rows(page) == [('3 tracks', '保留设置'), ('取消', ''), ('Remove', '')]
     assert ui.props[(ui.view(page), '_ringnav_index')] == 1  # on Cancel
     ui.click(page, 1)
     ui.fire('td_show')
@@ -1557,7 +1557,7 @@ def test_remove_clears_every_download(fw, ui, song):
     ui.click(page, 2)
     ui.fire('td_show')
     assert list(card.files) == ['/mnt/mmc/.tidal/.cache-size']  # Keeps settings
-    assert 'No downloads yet' in ui.shown(page)
+    assert '暂无下载' in ui.shown(page)
 
 
 def test_one_download_is_a_track(fw, ui, song):
@@ -1565,7 +1565,7 @@ def test_one_download_is_a_track(fw, ui, song):
     call(fw, 'tidal_downloads')
     ui.click(ui.top(), 1)
     ui.fire('td_show')
-    assert ui.rows(ui.top())[0] == ('1 track', 'Keeps settings')
+    assert ui.rows(ui.top())[0] == ('1 track', '保留设置')
 
 
 def test_leaving_the_page_drops_the_question(fw, ui, lists, song):
@@ -1594,7 +1594,7 @@ def test_a_card_app_s_album_lists_in_track_order(fw, ui, song):
 
 def test_a_card_app_s_folder_lists_newest_first(fw, ui, song):
     Card(fw, ui, song, APP_SONGS)
-    fw.fn('songs_open', C.c_int, C.c_char_p, C.c_char_p, C.c_int)(APP + b'/', b'Downloads', 0)
+    fw.fn('songs_open', C.c_int, C.c_char_p, C.c_char_p, C.c_int)(APP + b'/', b'\xe4\xb8\x8b\xe8\xbd\xbd\xe7\xae\xa1\xe7\x90\x86', 0)
     assert ui.captions(ui.top()) == ['02 - Second', '03 - Third', '01 - First']
 
 
@@ -1608,7 +1608,7 @@ def test_a_card_app_s_song_plays_its_folder_from_it(fw, ui, song):
 def test_a_card_app_s_song_no_longer_there_says_so(fw, ui, song):
     Card(fw, ui, song, APP_SONGS)
     fw.fn('songs_open', C.c_int, C.c_char_p, C.c_char_p, C.c_int)(APP + b'/04 - Gone.flac', b'', 1)
-    assert ui.toasts == ["It isn't on the card any more"] and not ui.played
+    assert ui.toasts == ['存储卡中已不存在'] and not ui.played
 
 
 @pytest.mark.parametrize('path', [b'', b'song.flac', b'/song.flac', b'/m/' + b'x' * 300])
@@ -1686,14 +1686,14 @@ def switches(ui, page):
     return out
 
 
-SERVICES = ['TIDAL', 'Spotify', 'Tidal Downloads', 'Internet Radio', 'AirPlay']
+SERVICES = ['TIDAL', 'Spotify', 'Tidal 下载', '网络电台', 'AirPlay']
 
 
 def test_configuration_lists_the_caches_erase_stop_and_each_service(fw, ui):
     page, *_ = configuration(fw, ui, {f'{SPOT_DIR}/.cache-size': b'1024M'}, hide=b'RADIO')
     assert ui.name[page] == 'streamconf_page'
-    assert ui.captions(page)[:5] == ['Tidal Cache: 2 GB', 'Spotify Cache: 1 GB', 'Erase Spotify Data', 'Stop Streaming Services', None]
-    assert switches(ui, page) == [(s, s != 'Internet Radio') for s in SERVICES]
+    assert ui.captions(page)[:5] == ['Tidal Cache: 2 GB', 'Spotify Cache: 1 GB', '清除 Spotify 数据', '停止流媒体服务', None]
+    assert switches(ui, page) == [(s, s != '网络电台') for s in SERVICES]
     call(fw, 'stream_config')
     assert ui.windows == [page]
 
@@ -1717,7 +1717,7 @@ def test_a_cache_size_that_cannot_be_kept_says_so(fw, ui):
     page, disk, *_ = configuration(fw, ui)
     disk.fail_rename = True
     ui.click(page, 0)
-    assert ui.toasts == ['Could not save setting'] and ui.captions(page)[0] == 'Tidal Cache: 2 GB'
+    assert ui.toasts == ['无法保存设置'] and ui.captions(page)[0] == 'Tidal Cache: 2 GB'
 
 
 def erasing(fw):
@@ -1729,18 +1729,18 @@ def test_erase_wants_a_second_press(fw, ui):
     erasing(fw)
     page, *_ = configuration(fw, ui)
     ui.click(page, 2)
-    assert ui.captions(page)[2] == 'Press again to erase the login and cache' and not fw.calls('fw_system')
+    assert ui.captions(page)[2] == '再次按下以清除登录信息和缓存' and not fw.calls('fw_system')
     ui.click(page, 2)
-    assert ui.captions(page)[2] == 'Erasing…' and fw.calls('fw_system')  # librespot stopped first
+    assert ui.captions(page)[2] == '正在清除…' and fw.calls('fw_system')  # librespot stopped first
 
 
 def test_another_row_drops_the_first_press(fw, ui):
     page, *_ = configuration(fw, ui)
     ui.click(page, 2)
     ui.click(page, 0)
-    assert ui.captions(page)[2] == 'Erase Spotify Data'
+    assert ui.captions(page)[2] == '清除 Spotify 数据'
     ui.click(page, 2)
-    assert ui.captions(page)[2] == 'Press again to erase the login and cache'
+    assert ui.captions(page)[2] == '再次按下以清除登录信息和缓存'
 
 
 def test_leaving_drops_the_first_press(fw, ui, st):
@@ -1749,7 +1749,7 @@ def test_leaving_drops_the_first_press(fw, ui, st):
     ui.close(page)
     assert not st('sc_armed').value and not st('sc_page', C.c_void_p).value
     page, *_ = configuration(fw, ui)
-    assert ui.captions(page)[2] == 'Erase Spotify Data'
+    assert ui.captions(page)[2] == '清除 Spotify 数据'
 
 
 def test_while_erasing_spotify_s_cache_waits(fw, ui):
@@ -1757,9 +1757,9 @@ def test_while_erasing_spotify_s_cache_waits(fw, ui):
     page, disk, *_ = configuration(fw, ui)
     ui.click(page, 2), ui.click(page, 2)
     ui.click(page, 1)
-    assert ui.toasts == ['Wait for the one in progress'] and f'{SPOT_DIR}/.cache-size' not in disk.files
+    assert ui.toasts == ['请等待当前操作完成'] and f'{SPOT_DIR}/.cache-size' not in disk.files
     ui.click(page, 2)
-    assert ui.toasts[-1] == 'Wait for the one in progress' and ui.captions(page)[2] == 'Erasing…'
+    assert ui.toasts[-1] == '请等待当前操作完成' and ui.captions(page)[2] == '正在清除…'
 
 
 def test_an_erase_s_end_shows_on_the_page(fw, ui):
@@ -1767,7 +1767,7 @@ def test_an_erase_s_end_shows_on_the_page(fw, ui):
     ui.click(page, 2)
     del disk.files[f'{SPOT_DIR}/.cache-size']  # netupdate.c's erase took it, and calls back
     fw.fn('stream_erased', None)()
-    assert ui.captions(page)[1:3] == ['Spotify Cache: 2 GB', 'Press again to erase the login and cache']
+    assert ui.captions(page)[1:3] == ['Spotify Cache: 2 GB', '再次按下以清除登录信息和缓存']
 
 
 def test_an_erase_s_end_with_the_page_gone_writes_nothing(fw, ui):
@@ -1784,14 +1784,14 @@ def test_stop_streaming_ends_streams_and_leaves_local_music(fw, ui, mcl, kind, s
     mcl.type = kind
     fw.mock('mclGetPlayStatus', lambda *_: status)
     ui.click(page, 3)
-    assert ui.toasts == ['Streaming stopped'] and len(fw.calls('player_stop')) == stops
+    assert ui.toasts == ['已停止流媒体服务'] and len(fw.calls('player_stop')) == stops
     assert fw.calls('fw_system')  # librespot's loop ended whatever played
 
 
 def test_a_service_row_hides_it(fw, ui):
     page, _, config, written = configuration(fw, ui, hide=b'TIDAL')
     ui.click(page, 5 + 3)
-    assert written == [b'TIDAL,RADIO'] and switches(ui, page)[3] == ('Internet Radio', False)
+    assert written == [b'TIDAL,RADIO'] and switches(ui, page)[3] == ('网络电台', False)
     ui.click(page, 5)
     assert written[-1] == b'RADIO' and switches(ui, page)[0] == ('TIDAL', True)
 
@@ -1845,13 +1845,13 @@ def deezer(name=b'Deezer'):
 
 def test_streaming_drops_baidu_and_adds_the_payload_s_services(fw, ui):
     win, view = streaming(fw, ui)
-    assert page_rows(ui, view) == [(c, True) for c in ('TIDAL', 'Qobuz', 'Spotify', 'Tidal Downloads', 'Internet Radio',
-                                                       'AirPlay', 'Configuration')]
+    assert page_rows(ui, view) == [(c, True) for c in ('TIDAL', 'Qobuz', 'Spotify', 'Tidal 下载', '网络电台',
+                                                       'AirPlay', '流媒体设置')]
 
 
 def test_streaming_lists_the_card_s_apps_after_spotify(fw, ui):
     win, view = streaming(fw, ui, files=deezer())
-    assert [c for c, _ in page_rows(ui, view)][2:5] == ['Spotify', 'Deezer', 'Tidal Downloads']
+    assert [c for c, _ in page_rows(ui, view)][2:5] == ['Spotify', 'Deezer', 'Tidal 下载']
 
 
 def test_streaming_hides_what_configuration_hid(fw, ui):
@@ -1874,9 +1874,9 @@ def test_a_service_hidden_on_configuration_goes_from_streaming_at_once(fw, ui):
     config = ui.top()
     assert ui.name[config] == 'streamconf_page'
     ui.click(config, 5 + 3)  # Internet Radio's switch
-    assert dict(page_rows(ui, view))['Internet Radio'] is False
+    assert dict(page_rows(ui, view))['网络电台'] is False
     ui.click(config, 5 + 3)
-    assert dict(page_rows(ui, view))['Internet Radio'] is True
+    assert dict(page_rows(ui, view))['网络电台'] is True
     ui.click(config, 5 + 0)  # stock's own TIDAL row too
     assert dict(page_rows(ui, view))['TIDAL'] is False
 
@@ -1943,7 +1943,7 @@ def test_home_shows_the_card_s_free_space_in_tenths_of_a_gb(fw, device, bsize, b
     assert home_pane(fw)[2] == tenths
 
 
-LIBRARY_STOCK = ['Update Local Music', 'All Songs', 'Album', 'Artist', 'Genre', 'Hi-Res', 'My Fav', 'Frequent', 'Recent',
+LIBRARY_STOCK = ['Update Local Music', '全部歌曲', 'Album', 'Artist', 'Genre', 'Hi-Res', 'My Fav', 'Frequent', 'Recent',
                  'Recently Added', 'Playlist']
 
 
@@ -1965,7 +1965,7 @@ def boot(fw, st, theme=None):
 
 
 # Minimal's set has Library icons; Classic's has none, so its Library leads with Search (library_search).
-LEADS = [(None, []), (b'1', ['Search'])]
+LEADS = [(None, []), (b'1', ['搜索'])]
 
 
 @pytest.mark.parametrize('theme, lead', LEADS)
@@ -1974,14 +1974,14 @@ def test_the_library_s_rows_in_their_order(fw, ui, st, theme, lead):
     win, view = library(fw, ui)
     # My Fav and Frequent hidden, kept in the page for stock's index: Ratings and Most Played list theirs
     assert page_rows(ui, view) == [(c, c not in ('My Fav', 'Frequent')) for c in lead + [
-        'Shuffle', 'Artist', 'Album', 'All Songs', 'Genre', 'Era', 'Playlist', 'Ratings', 'My Fav', 'Recently Added', 'Recent',
-        'Most Played', 'Frequent', 'Hi-Res', 'Long Songs', 'Games', 'Update Local Music']]
+        '随机播放', 'Artist', 'Album', '全部歌曲', 'Genre', '年代', 'Playlist', '评价', 'My Fav', 'Recently Added', 'Recent',
+        '播放最多', 'Frequent', 'Hi-Res', '长曲目', '游戏', 'Update Local Music']]
 
 
 def test_the_library_adds_the_card_s_media_folders_and_upload(fw, ui):
     win, view = library(fw, ui, folders=['/mnt/mmc/podcasts', '/mnt/mmc/VIDEOS', '/mnt/mmc/Music'], token=b'x')
     rows = [c for c, _ in page_rows(ui, view)]
-    assert rows[rows.index('Long Songs'):] == ['Long Songs', 'Podcasts', 'Videos', 'Games', 'Upload Scrobbles',
+    assert rows[rows.index('长曲目'):] == ['长曲目', 'Podcasts', 'Videos', '游戏', '上传听歌记录',
                                                'Update Local Music']
 
 
@@ -1992,9 +1992,9 @@ def test_the_library_s_added_rows_have_no_name_for_stock_s_click(fw, ui):
     assert all(b in ui.name for b in stock) and not any(b in ui.name for b in added)
     clicks = {row_text(ui, item): fn for item in ui.kids[view] for w, e, fn, _ in ui.handlers
               if w == ui.kids[item][0] and e == EVT_CLICK}
-    assert clicks['Shuffle'] == ui.fn('shuffle_menu') and clicks['Most Played'] == ui.fn('most_played')
-    assert clicks['Ratings'] == ui.fn('ratings_menu') and clicks['Long Songs'] == ui.fn('long_songs')
-    assert clicks['Era'] == ui.fn('era_menu')
+    assert clicks['随机播放'] == ui.fn('shuffle_menu') and clicks['播放最多'] == ui.fn('most_played')
+    assert clicks['评价'] == ui.fn('ratings_menu') and clicks['长曲目'] == ui.fn('long_songs')
+    assert clicks['年代'] == ui.fn('era_menu')
 
 
 def test_a_library_that_is_not_stock_s_is_left(fw, ui):
@@ -2006,12 +2006,12 @@ def test_classic_s_library_leads_with_search_and_drops_its_icons(fw, ui, st):
     boot(fw, st, b'1')
     assert fw.fn('library_search', C.c_int)() == 1  # Classic's set has no Library icons
     win, view = library(fw, ui)
-    assert page_rows(ui, view)[:2] == [('Search', True), ('Shuffle', True)]
+    assert page_rows(ui, view)[:2] == [('搜索', True), ('随机播放', True)]
     images = [w for item in ui.kids[view] for w in ui.subtree(item) if ui.kind[w] == 'image_create']
     icons = [w for w in images if ui.image[w] != 'list_into']
     assert icons and all(w in ui.hidden for w in icons)
     assert not [w for w in images if ui.image[w] == 'list_into' and w in ui.hidden]  # the chevrons stay
-    search, = [ui.kids[item][0] for item in ui.kids[view] if row_text(ui, item) == 'Search']
+    search, = [ui.kids[item][0] for item in ui.kids[view] if row_text(ui, item) == '搜索']
     assert [fn for w, e, fn, _ in ui.handlers if w == search and e == EVT_CLICK] == [C.cast(fw.lib.stock_search, C.c_void_p).value]
 
 
@@ -2025,7 +2025,7 @@ def test_home_s_library_list_is_the_library_s_rows(fw, ui, st, theme, lead):
     win, view = stock_page(ui, 'scroll_view_localmusic', *[(c, None, str(i)) for i, c in enumerate(LIBRARY_STOCK)])
     fw.fn('library_rows', None, C.c_void_p)(win)
     rows = [c for c, _ in page_rows(ui, view)]
-    assert page_rows(ui, view) == page_rows(ui, page) and rows[:len(lead) + 2] == lead + ['Shuffle', 'Artist']
+    assert page_rows(ui, view) == page_rows(ui, page) and rows[:len(lead) + 2] == lead + ['随机播放', 'Artist']
     assert log[0] == win  # its play gif's timer stopped, as the page's background does
     assert [c[1][:2] for c in fw.calls('widget_off_by_ctx')] == [(win, win)]
 
@@ -2038,7 +2038,7 @@ def test_home_s_streaming_list_is_streaming_s_rows(fw, ui):
     Config(fw)
     win, view = stock_page(ui, 'scroll_view_streamsset', *STREAM_STOCK)
     fw.fn('stream_rows', None, C.c_void_p)(win)
-    assert [c for c, _ in page_rows(ui, view)][-1] == 'Configuration' and log[0] == win
+    assert [c for c, _ in page_rows(ui, view)][-1] == '流媒体设置' and log[0] == win
     assert [c[1][:2] for c in fw.calls('widget_off_by_ctx')] == [(win, win)]
 
 
@@ -2066,7 +2066,7 @@ def test_about_shows_stock_s_version_and_the_payload_s_after_it(fw, ui):
     fw.mock('stock_about_trampoline', lambda *_: 5)
     assert fw.fn('ringnav_about', C.c_int, C.c_void_p, C.c_void_p)(win, None) == 5
     version = host.tools_build.VERSION
-    assert about_rows(ui, view) == [ABOUT[0], ('FW. Version', host.tools_build.STOCK_VERSION), ('CFW. Version', f'{version} Pod'),
+    assert about_rows(ui, view) == [ABOUT[0], ('FW. Version', host.tools_build.STOCK_VERSION), ('自制固件版本', f'{version} Pod'),
                                     *ABOUT[2:]]
 
 
@@ -2151,22 +2151,22 @@ def test_era_lists_each_decade_with_its_albums(fw, ui):
     db = EraDb(fw, decades=[(b'1970', b'1'), (b'1990', b'3'), (b'2000', b'12')])
     call(fw, 'era_menu')
     page = ui.top()
-    assert ui.name[page] == 'era_page' and 'Era' in ui.shown(page)
+    assert ui.name[page] == 'era_page' and '年代' in ui.shown(page)
     assert ui.rows(page) == [('70s', '1 album'), ('90s', '3 albums'), ('2000s', '12 albums')]
     assert db.asked[-1].startswith('select year/10*10,count(*)')
     call(fw, 'era_menu')
     assert ui.windows == [page]
 
 
-@pytest.mark.parametrize('opens, decades, toast', [(False, [], 'Era unavailable'), (True, [], 'No dated albums yet')])
+@pytest.mark.parametrize('opens, decades, toast', [(False, [], '年代分类不可用'), (True, [], '暂无含年份的专辑')])
 def test_era_with_nothing_to_list_says_why(fw, ui, opens, decades, toast):
     EraDb(fw, decades=decades, opens=opens)
     call(fw, 'era_menu')
     assert ui.toasts == [toast] and not ui.windows
 
 
-ERA_ALBUMS = [(b'Blue', b'Band', b'1991', b'/m/blue/1.flac'), (b'Grey', b'', b'1995', b'/m/grey/1.flac'),
-              (b'Red', b'Band', b'1999', b'/m/red/1.flac')]
+ERA_ALBUMS = [(b'Blue', b'\xe9\xa2\x91\xe6\xae\xb5', b'1991', b'/m/blue/1.flac'), (b'Grey', b'', b'1995', b'/m/grey/1.flac'),
+              (b'Red', b'\xe9\xa2\x91\xe6\xae\xb5', b'1999', b'/m/red/1.flac')]
 
 
 def era_decade(fw, ui, albums=ERA_ALBUMS):
@@ -2179,7 +2179,7 @@ def era_decade(fw, ui, albums=ERA_ALBUMS):
 def test_a_decade_lists_its_albums_by_year(fw, ui):
     db, page = era_decade(fw, ui)
     assert ui.name[page] == 'era_albums_page' and '90s' in ui.shown(page)
-    assert ui.rows(page) == [('Play All', '3 albums'), ('Shuffle', 'Every song, shuffled'), ('Blue', 'Band • 1991'),
+    assert ui.rows(page) == [('顺序播放', '3 albums'), ('随机播放', '随机播放全部歌曲'), ('Blue', 'Band • 1991'),
                              ('Grey', '1995'), ('Red', 'Band • 1999')]
     assert 'having release_year between 1990 and 1999' in db.asked[-1]
 
@@ -2188,7 +2188,7 @@ def test_a_decade_s_albums_stop_at_its_count(fw, ui):
     EraDb(fw, decades=[(b'1990', b'1')], albums=ERA_ALBUMS)  # the albums query found more since
     call(fw, 'era_menu')
     ui.click(ui.top(), 0)
-    assert ui.rows(ui.top())[0] == ('Play All', '1 album') and len(ui.rows(ui.top())) == 3
+    assert ui.rows(ui.top())[0] == ('顺序播放', '1 album') and len(ui.rows(ui.top())) == 3
 
 
 def test_a_decade_closes_and_opens_again(fw, ui):
@@ -2226,7 +2226,7 @@ def test_play_all_with_the_card_away_says_so(fw, ui, song):
     Albums(fw, ui, song, gone={b'/m/blue/1.flac'})
     db, page = era_decade(fw, ui)
     ui.click(page, 0)
-    assert ui.toasts == ['Storage unavailable'] and not ui.played
+    assert ui.toasts == ['存储不可用'] and not ui.played
 
 
 def test_shuffle_plays_the_decade_s_songs_shuffled(fw, ui, song, mcl):
@@ -2242,9 +2242,9 @@ def test_shuffle_plays_the_decade_s_songs_shuffled(fw, ui, song, mcl):
 
 def test_an_album_row_that_is_gone_says_so(fw, ui, song):
     Albums(fw, ui, song)
-    db, page = era_decade(fw, ui, albums=[(b'Blue', b'Band', b'1991', b'/m/blue/9.flac')])  # no such file now
+    db, page = era_decade(fw, ui, albums=[(b'Blue', b'\xe9\xa2\x91\xe6\xae\xb5', b'1991', b'/m/blue/9.flac')])  # no such file now
     ui.click(page, 2)
-    assert ui.toasts == ['Album not found']
+    assert ui.toasts == ['找不到专辑']
 
 
 def test_library_count_is_the_query_s_number(fw):
@@ -2549,7 +2549,7 @@ def rated_albums(fw, ui, song, hearts=0):
 
 def test_albums_none_of_them_rated_says_so(fw, ui, song):
     rated_albums(fw, ui, song)
-    assert ui.toasts == ['No rated albums yet'] and not ui.windows
+    assert ui.toasts == ['暂无已评价专辑'] and not ui.windows
 
 
 def test_a_rated_album_opens_cover_flow_on_it_alone(fw, ui, song):

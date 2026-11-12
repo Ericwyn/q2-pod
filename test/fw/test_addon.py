@@ -305,7 +305,7 @@ def test_a_manifests_keys_and_defaults(fw):
     scan(fw)
     one, two = ap(fw).a[0], ap(fw).a[1]
     assert (one.name, one.tips, one.qr, one.game, one.audio) == (b'N', b'Find it', 1, 1, 1)
-    assert (two.name, two.tips, two.qr, two.game, two.audio) == (b'two', b'Search', 0, 0, 0)
+    assert (two.name, two.tips, two.qr, two.game, two.audio) == (b'two', b'\xe6\x90\x9c\xe7\xb4\xa2', 0, 0, 0)
 
 
 def test_names_are_cut_at_a_whole_character(fw):
@@ -1473,7 +1473,7 @@ class CardGame:
 def test_card_games_are_games_rows_by_name_not_streaming_rows(fw):
     CardGame(fw, snake=b'name=Snake\ngame=1\n', chess=b'name=chess\ngame=1\n', foo=b'name=Foo\n')
     name = fw.fn('addon_game_name', C.c_char_p, C.c_int)
-    assert fw.fn('addon_games_last', C.c_int)() == 2 and [name(k) for k in range(-1, 3)] == [None, b'chess', b'Snake', None]
+    assert fw.fn('addon_games_last', C.c_int)() == 2 and [name(k) for k in range(-1, 3)] == [None, b'chess', b'\xe8\xb4\xaa\xe5\x90\x83\xe8\x9b\x87', None]
     assert scan(fw) == 1 and names(fw, 'addon_name') == [None, b'Foo', None]
     is_game = fw.fn('addon_is_game', C.c_int, C.c_char_p)
     assert (is_game(b'snake'), is_game(b'chess'), is_game(b'foo'), is_game(b'none')) == (1, 1, 0, 0)
@@ -1510,7 +1510,7 @@ def test_the_child_runs_the_game_first_for_the_oom_killer_and_with_none_of_demos
 def test_a_game_off_the_card_says_so(fw):
     g = CardGame(fw)
     del g.world.files[b'/mnt/mmc/.snake/q2-snake']
-    assert g.start() == 0 and g.toasts == [b"It isn't on the card"] and not fw.calls('fw_fork')
+    assert g.start() == 0 and g.toasts == [b'\xe5\xad\x98\xe5\x82\xa8\xe5\x8d\xa1\xe4\xb8\x8a\xe6\xb2\xa1\xe6\x9c\x89\xe8\xaf\xa5\xe5\xba\x94\xe7\x94\xa8'] and not fw.calls('fw_fork')
 
 
 def test_a_game_the_app_store_is_replacing_waits_for_it(fw):
@@ -1519,7 +1519,7 @@ def test_a_game_the_app_store_is_replacing_waits_for_it(fw):
     fw.var('shelf_n', C.c_int).value = fw.fn('shelf_sources', C.c_int, C.c_char_p, C.c_void_p, C.c_int)(b'me/snake', table, 1)
     sh = fw.var('netupdate__sh', Sh)
     sh.running, sh.job, sh.app = 1, JOB_INSTALL, 0  # installing app 0, snake
-    assert g.start() == 0 and g.toasts == [b'Wait until the App Store finishes'] and not fw.calls('fw_fork')
+    assert g.start() == 0 and g.toasts == [b'\xe8\xaf\xb7\xe7\xad\x89\xe5\xbe\x85\xe5\xba\x94\xe7\x94\xa8\xe5\x95\x86\xe5\xba\x97\xe5\xae\x8c\xe6\x88\x90'] and not fw.calls('fw_fork')
     sh.running = 0
     assert g.start() == 1
 
@@ -1640,7 +1640,7 @@ def test_smart_awake_keeps_an_idle_game(fw):
     assert g.kills() == [] and g.on() == g.PID
 
 
-@pytest.mark.parametrize('status,toast', [(0, []), (127 << 8, [b"It couldn't start"]), (9, [])])
+@pytest.mark.parametrize('status,toast', [(0, []), (127 << 8, [b'\xe5\xba\x94\xe7\x94\xa8\xe6\x97\xa0\xe6\xb3\x95\xe5\x90\xaf\xe5\x8a\xa8']), (9, [])])
 def test_a_game_that_has_gone_gives_the_screen_back(fw, status, toast):
     g = CardGame(fw)
     g.start()
@@ -1791,8 +1791,8 @@ def test_an_action_sends_its_context_toasts_and_asks_again(fw):
     assert p.cell(0, 4) == b'a%b'
     p.click(0)
     assert p.request().endswith(b'\top1\ta%25b\n') and p.pg.act == 1
-    p.answer(msg=b'Done')
-    assert p.toasts == [b'Done'] and p.request().endswith(b'\tmenu\n') and p.top.state == K_LOAD
+    p.answer(msg=b'\xe5\xae\x8c\xe6\x88\x90')
+    assert p.toasts == [b'\xe5\xae\x8c\xe6\x88\x90'] and p.request().endswith(b'\tmenu\n') and p.top.state == K_LOAD
 
 
 def test_an_action_refused_toasts_why(fw):
@@ -2103,7 +2103,7 @@ def test_a_swipe_redecides_covers_for_the_section_it_opens(fw):
     assert p.top.art == 1
 
 
-NEXT = (b'page', b'next', b'Next page', b'', b'c200', b'')
+NEXT = (b'page', b'next', b'\xe4\xb8\x8b\xe4\xb8\x80\xe9\xa1\xb5', b'', b'c200', b'')
 
 
 def windowed(fw):
@@ -2136,7 +2136,7 @@ def test_a_failed_window_selects_retry(fw, uri):
 def test_an_empty_context_asks_for_the_lists_start(fw):
     """addon.c page_to: a Previous page back to the first window sends no cursor, not an empty last argument."""
     p = windowed(fw)
-    p.answer(rows=[item(2), (b'page', b'prev', b'Previous page', b'', b'', b'')])
+    p.answer(rows=[item(2), (b'page', b'prev', b'\xe4\xb8\x8a\xe4\xb8\x80\xe9\xa1\xb5', b'', b'', b'')])
     p.click(1)
     assert p.request().endswith(b'\top1\tctx\n') and p.top.base == 4
 
@@ -2222,7 +2222,7 @@ def test_a_list_without_pages_keeps_more(fw):
     assert p.pg.paging == 0 and p.drawn == 3
 
 
-SEARCH = (b'search', b'', b'Search', b'', b'', b'')
+SEARCH = (b'search', b'', b'\xe6\x90\x9c\xe7\xb4\xa2', b'', b'', b'')
 
 
 def live(fw, rows, covers=()):
@@ -2272,8 +2272,8 @@ def test_a_press_while_a_live_level_is_asked_again_takes_its_place(fw):
     assert p.request().endswith(b'\tmenu\n') and p.pg.act == 0  # the level asked again, not answered yet
     p.click(1)
     assert p.request().endswith(b'\tb\n') and p.pg.act == 1  # the second action in its place
-    p.answer(msg=b'Done')
-    assert p.toasts == [b'Done'] and p.request().endswith(b'\tmenu\n') and p.top.state == K_READY
+    p.answer(msg=b'\xe5\xae\x8c\xe6\x88\x90')
+    assert p.toasts == [b'\xe5\xae\x8c\xe6\x88\x90'] and p.request().endswith(b'\tmenu\n') and p.top.state == K_READY
 
 
 def test_an_action_on_a_live_level_that_fails_reloads_it_as_before(fw):
@@ -2300,7 +2300,7 @@ def test_a_return_under_an_actions_toast_leaves_the_new_tops_request_alone(fw):
     p.answer(msg=b'refresh', rows=[row_of(b'a', b'One', b'', kind=b'action')])
     p.click(0)
     fw.mock('navigator_to_with_context', lambda *_: p.back())
-    p.answer(msg=b'Done')
+    p.answer(msg=b'\xe5\xae\x8c\xe6\x88\x90')
     assert p.pg.depth == 1 and p.top.id == p.req.id and p.request().endswith(b'\tmenu\n')
 
 
@@ -3222,12 +3222,12 @@ def test_a_pin_of_another_length_shows_as_it_is(fw):
 
 
 @pytest.mark.parametrize('raw,say', [
-    (None, b'Not running'), (b'', b'Not running'),
-    (b'hold=1\n', b'Connect the Q2 to Wi-Fi'),
-    (b'addr=x\n', b'No code yet'),
-    (qr_state(size=20), b'No code yet'), (qr_state(size=178), b'No code yet'),
-    (qr_state(code=HEX21[:-1]), b'No code yet'), (qr_state(code=HEX21 + b'f'), b'No code yet'),
-    (qr_state(addr=b''), b'Connect the Q2 to Wi-Fi'),
+    (None, b'\xe6\x9c\xaa\xe8\xbf\x90\xe8\xa1\x8c'), (b'', b'\xe6\x9c\xaa\xe8\xbf\x90\xe8\xa1\x8c'),
+    (b'hold=1\n', b'\xe8\xaf\xb7\xe5\xb0\x86 Q2 \xe8\xbf\x9e\xe6\x8e\xa5\xe5\x88\xb0 Wi-Fi'),
+    (b'addr=x\n', b'\xe6\x9a\x82\xe6\x97\xa0\xe4\xba\x8c\xe7\xbb\xb4\xe7\xa0\x81'),
+    (qr_state(size=20), b'\xe6\x9a\x82\xe6\x97\xa0\xe4\xba\x8c\xe7\xbb\xb4\xe7\xa0\x81'), (qr_state(size=178), b'\xe6\x9a\x82\xe6\x97\xa0\xe4\xba\x8c\xe7\xbb\xb4\xe7\xa0\x81'),
+    (qr_state(code=HEX21[:-1]), b'\xe6\x9a\x82\xe6\x97\xa0\xe4\xba\x8c\xe7\xbb\xb4\xe7\xa0\x81'), (qr_state(code=HEX21 + b'f'), b'\xe6\x9a\x82\xe6\x97\xa0\xe4\xba\x8c\xe7\xbb\xb4\xe7\xa0\x81'),
+    (qr_state(addr=b''), b'\xe8\xaf\xb7\xe5\xb0\x86 Q2 \xe8\xbf\x9e\xe6\x8e\xa5\xe5\x88\xb0 Wi-Fi'),
 ])
 def test_no_code_says_why(fw, raw, say):
     q = Qr(fw, raw)
@@ -3874,7 +3874,7 @@ def test_an_apps_request_scans_then_imports_what_it_names_and_answers(fw):
     lib.poll()
     # what it named, but not an add whose playlist is there already, nor the user's own export beside them
     assert lib.imports == [[b'a.m3u', b'b.m3u']] and not libup(fw).only
-    assert lib.answer() == f'7 ok\nexists {LIB_DIR}c.m3u\n'.encode() and lib.toasts == [b'Playlists updated']
+    assert lib.answer() == f'7 ok\nexists {LIB_DIR}c.m3u\n'.encode() and lib.toasts == [b'\xe6\x92\xad\xe6\x94\xbe\xe5\x88\x97\xe8\xa1\xa8\xe5\xb7\xb2\xe6\x9b\xb4\xe6\x96\xb0']
     lib.poll()
     assert lib.scans == 1 and len(lib.imports) == 1 and libup(fw).state == L_IDLE  # done once
 
@@ -3980,7 +3980,7 @@ def test_the_card_gone_during_the_import_is_the_answer(fw):
     lib.result = -2
     lib.request(f'7\nimport {LIB_DIR}a.m3u\n'.encode())
     lib.poll()
-    assert lib.answer() == b'7 error No memory card\n' and lib.toasts == [b'No memory card']
+    assert lib.answer() == b'7 error No memory card\n' and lib.toasts == [b'\xe6\x9c\xaa\xe6\x8f\x92\xe5\x85\xa5\xe5\xad\x98\xe5\x82\xa8\xe5\x8d\xa1']
 
 
 def test_adds_whose_playlists_are_there_import_nothing(fw):
@@ -4022,7 +4022,7 @@ def test_one_request_at_a_time_and_none_from_a_dialogs_own_loop(fw):
     assert lib.scans == 1 and lib.answer(b'bar') is None  # its scan dialog's polls took nothing
     lib.poll()
     # foo's answered before its toast, whose own loop polled with no request running: that took none either
-    assert lib.answer(b'foo') == b'7 ok\n' and lib.toasts == [b'Playlists updated'] and lib.answer(b'bar') is None
+    assert lib.answer(b'foo') == b'7 ok\n' and lib.toasts == [b'\xe6\x92\xad\xe6\x94\xbe\xe5\x88\x97\xe8\xa1\xa8\xe5\xb7\xb2\xe6\x9b\xb4\xe6\x96\xb0'] and lib.answer(b'bar') is None
     lib.poll()
     assert lib.answer(b'bar') == b'5 ok\n' and lib.imports == [[b'a.m3u']]
 
@@ -4277,8 +4277,8 @@ def test_the_groovebox_shortcut_starts_the_card_game_with_the_sound(fw):
     assert fw.calls('player_stop') and fw.calls('mclSetMute') and fw.calls('device_set_volume')  # the jack readied, dac_take
 
 
-@pytest.mark.parametrize('folder, said', [({}, b'Groovebox is not on the card'),
-                                          ({'groovebox': b'name=Groovebox\n'}, b"Groovebox can't start from the card")])
+@pytest.mark.parametrize('folder, said', [({}, b'\xe5\xad\x98\xe5\x82\xa8\xe5\x8d\xa1\xe4\xb8\x8a\xe6\x9c\xaa\xe5\xae\x89\xe8\xa3\x85 Groovebox'),
+                                          ({'groovebox': b'name=Groovebox\n'}, b'\xe5\xad\x98\xe5\x82\xa8\xe5\x8d\xa1\xe4\xb8\x8a\xe7\x9a\x84 Groovebox \xe6\x97\xa0\xe6\xb3\x95\xe5\x90\xaf\xe5\x8a\xa8')])
 def test_the_groovebox_shortcut_says_when_no_card_game_is_it(fw, folder, said):
     """No .groovebox, or one whose q2app isn't a game's: the binary is there, the row shows, the tap says so."""
     card(fw, other=b'name=Other\ngame=1\n', **folder)
@@ -4296,7 +4296,7 @@ def test_a_card_game_that_can_t_fork_says_so(fw):
     fw.mock('fw_fork', lambda *_: -1)
     seen = toasts(fw)
     assert shortcut(fw, b'10')(None, None) == 0
-    assert seen == [b"It couldn't start"] and fw.var('addon__gm', Game).pid == 0 and fw.calls('player_stop')
+    assert seen == [b'\xe5\xba\x94\xe7\x94\xa8\xe6\x97\xa0\xe6\xb3\x95\xe5\x90\xaf\xe5\x8a\xa8'] and fw.var('addon__gm', Game).pid == 0 and fw.calls('player_stop')
 
 
 @pytest.mark.parametrize('status, stops', [(3, 1), (1, 0)])

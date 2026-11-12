@@ -1,6 +1,8 @@
 # 本地简体中文版
 
-这是基于本仓库 Q2 Pod 1.5.5、用于 Shanling Q2 的个人自用固定简体中文版，不是山灵官方固件，也不是上游发布的正式中文版本。
+这是基于本仓库 Q2 Pod 1.7.6、用于 Shanling Q2 的个人自用固定简体中文版，不是山灵官方固件，也不是上游发布的正式中文版本。
+
+当前开发分支为 `update-1.7.6`，基线是上游标签 `1.7.6`（`37a37bda2d95a65f7f6ac59231c3999ed8ee7753`）。`1.8.0` 当时是预发布版本，没有纳入本次基线。
 
 ## 翻译范围
 
@@ -8,25 +10,29 @@
 
 本轮以 Apple 的 [iPod classic 2009 简体中文使用手册](https://cdsassets.apple.com/live/6GJYWVAV/user/locale/zh-cn/ma1195_ipod_classic_160gb_user_guide.pdf) 为术语参考：主菜单入口使用“音乐”，保留“Cover Flow”，使用“表演者”“有声读物”“评价”“重复播放”和“打开/关闭”。Q2 独有功能采用相近风格，不伪称为原版 iPod 功能；评价仍使用本项目的爱心图标，不改成星星。
 
-设置选项同时统一为“主菜单：分栏/全屏”“低功耗模式：打开/关闭”“主题：简约/经典”“电池显示：图标与百分比”等。未重写原厂全部中文语言资源，因此原厂页面里可能仍有与新增菜单不同的历史用词。
+1.7.6 新增的主题、外观、设置分组、EQ per Output、播放列表选择模式、应用商店、睡眠定时和 USB 弹出提示也已补齐中文。
 
-原厂页面继续使用原厂语言机制。建议在设备的系统设置中选择简体中文；切换到英文或其他语言时，本次新增文案仍然显示中文。品牌、音频单位、歌曲/艺术家/专辑/文件名、外部服务回复及部分底层错误保持原文；没有修改存储卡目录名、配置键或协议字段。
+设置选项统一为“主菜单：分栏/全屏/旋转封面”“低功耗模式：打开/关闭”“主题：简约/经典”“电池显示：图标与百分比”“按输出独立 EQ”“标题显示时间”等。未重写原厂全部中文语言资源，因此原厂页面里可能仍有与新增菜单不同的历史用词。
+
+原厂页面继续使用原厂语言机制。建议在设备的系统设置中选择简体中文；切换到英文或其他语言时，本次新增文案仍然显示中文。品牌、音频单位、歌曲/艺术家/专辑/文件名、外部服务回复及部分底层错误保持原文；没有修改存储卡目录名、配置键或协议字段。`Podcasts`、`Audiobooks`、`Photos`、`Books`、`Videos` 仍是卡内真实目录名，界面另用中文显示标签。
 
 自绘 caption 原先仅按 ASCII 字节绘制，现已支持 UTF-8 转 Unicode，并保留 32 码点长度限制及非法编码替换。自绘音量文字也改为中文码点。
 
 ## 上游基线
 
-1.4.8 汉化保留在独立的 `update-1.4.8` 分支（上游标签 `1.4.8`，`e9095613bd2115eb50458d5f0906f3a79260b827`）。当前 `update-1.5.5` 分支基于上游 `1.5.5`（`4a23606ef019ad52f12fb592b17760d22bc4af63`），不修改 Fork 的 `main`，并保留原厂百度网盘入口。远程服务返回的内容和第三方应用自己提供的界面文本仍是数据，不能保证全中文。
+- `1.4.8` 汉化保留在独立的 `update-1.4.8` 分支。
+- `1.5.5` 汉化和百度/酷狗修复保留在 `update-1.5.5.fix` 分支。
+- 上一版迁移为 `update-1.6.3`，基线是上游 `1.6.3`。
+- 当前 `update-1.7.6` 基于上游 `1.7.6`，不修改 Fork 的 `main`，并保留原厂百度网盘入口。
 
-## 1.5.5 本地修复（dev 包）
+## 1.7.6 本地修复
 
-- 百度网盘：恢复原厂 `baidu_pthread_playurl` 的 10ms 轮询，不再把在线播放 URL 线程永久挂起；Tidal 的按需唤醒逻辑不变，百度下载路径不变。
-- 播放中歌曲的歌词发现：先尝试 LRCLIB；无同步歌词、连接失败、忙碌重试用尽或写入失败时，恢复原厂酷狗搜索。返回酷狗的原始结果，酷狗失败时允许原厂线程继续尝试网易云。酷狗可能匹配到不同版本或其他歌曲，保存前请预览。
-- 封面发现不变：MusicBrainz/Cover Art Archive、iTunes 的候选在前，之后保留原厂酷狗、网易云和百度来源。
-- “下载专辑歌词”的批量功能仍只使用 LRCLIB；本次酷狗回退仅作用于原厂的单曲“封面/歌词发现”。
-- 显示版本仍为 `1.5.5 Pod dev N`，使用 `--dev` 生成独立的 5 字符升级标记，例如第 10 包为 `V00Ai`，与原 1.5.5 的 `V155I` 及旧 dev 包 `V009i` 不同，可直接从这些版本通过 TF 卡升级，无需中间包。
-- 每次重新打包会递增 `.build-number` 并产生新标记；同一个 `update.tar` 再刷一次仍会被原厂同版本检查拒绝，并非关闭升级校验。
-- dev 包包含 `q2remote` 调试服务，使用明文的密钥和命令，只应在可信局域网使用；不是纯粹换标记的日常包。无需远程调试时，不要配置 `q2remote.key`，既有密钥可按 [远程调试说明](remote.md) 撤销。
+- 百度网盘：恢复原厂 `baidu_pthread_playurl` 的 10ms 轮询，不再生成会永久阻塞百度线程的 `ringnav_baidu_poll`；Tidal 的信号量按需唤醒保持不变。
+- 播放中歌曲的歌词发现：先尝试 LRCLIB；无同步歌词、连接失败、忙碌重试用尽或写入失败时，恢复原厂酷狗搜索，之后仍允许原厂流程尝试网易云。酷狗可能匹配到不同版本或其他歌曲，保存前请预览。
+- 批量“下载专辑歌词”仍只使用 LRCLIB；酷狗回退只作用于原厂单曲“封面/歌词发现”。
+- 保留 1.6.3 已补齐的夜间模式、应用商店、显示设置、Crossfade、Resume Songs、书籍、游戏、照片、视频和播放重启提示。
+- 对 1.7.6 的主题系统、设置分组、EQ per Output、播放列表和 USB 提示重新迁移汉化，没有整文件回退上游新功能。
+- 为当前 GCC `-Werror` 保留了无行为变化的可移植性修正：`peq.h` 检查 `write()` 返回值，`netupdate.c` 用 `run_best_effort()` 显式忽略 `system()` 返回值。
 
 ## 构建
 
@@ -36,46 +42,53 @@
 154c17822d09be001be35c03d2d3488424dee195221790bd70864480d55b0f00
 ```
 
-本机补齐的工具放在忽略版本管理的 `work/toolchain/`，不会替换系统工具。使用 Python 3.12 虚拟环境（既有 MIPS 测试有 Python 3.12 f-string 语法）：
+本机补齐的工具放在忽略版本管理的 `work/toolchain/`，不会替换系统工具。1.7.6 当前使用：
+
+- LLVM/Clang/Lld 21
+- SquashFS 4.6.1
+- ImageMagick 7
+- Python 3.14 venv（构建与普通测试）
+- PIE Python 3.12（`test/fw` 的固定地址主机测试）
 
 ```bash
-UV_CACHE_DIR="$PWD/.cache/uv" uv venv .venv
-UV_CACHE_DIR="$PWD/.cache/uv" uv pip install --python .venv/bin/python -r requirements.txt
 export PATH="$PWD/work/toolchain/bin:$PATH"
-.venv/bin/python tools/build.py '/home/ericwyn/Downloads/Q2 Firmware V1.32.zip' \
-  --out build-cn-155-fix-dev --ipod --dev
+.venv/bin/python tools/build.py '/tmp/Q2-Firmware-V1.32.zip' \
+  --out build-cn-176-dev-5 --dev
 ```
 
-输出目录必须不存在；重复构建请换一个新目录。
-
-当前本地工具链为 LLVM 14、SquashFS 4.6.1（含 LZO 支持）与系统 ImageMagick。不要用系统 SquashFS 4.5 代替项目要求的新版本。LZO 是原厂文件系统的解压格式。
-
-不带 `--dev` 的固件没有新增 q2remote 远程调试服务，适合日常使用。带 `--dev` 的开发版包含该调试服务，并使用独立版本标记，不建议作为首选日常安装包。
+1.7.6 的构建命令不再使用 `--ipod`。输出目录必须不存在；重复构建请换一个新目录。
 
 ## 验证与限制
 
-字体覆盖检查数量会随新增文案变化，使用下述中文专项检查验证实际打包字体；中文均衡器预览没有发现明显裁切。截图由主机测试绘制，不是设备截图，仍需实机确认各菜单、滚动标题和蓝牙/流媒体流程。
+当前最终开发构建：
+
+```text
+版本：V00Li
+dev：21
+update.tar SHA-256：18ee7b1911dd7a3688b9b417627d072a198db1f836391bf03bf70dcdbeffd77c
+source_sha256：5c0dcda98cfa90bd11aed34c8086fdc05b0a81e52f840f1ed05fb05f38844e42
+```
+
+`manifest.json` 的 `source_sha256` 与当前源码一致。主机端单元测试通过 1211 项，中文、播放、PEQ、Cover Flow 和主要固件场景已做回归；`V00Li` 已完成 Q2 实机安装与主要界面/播放验收。
+
+本机 `test/build.py --build ...` 仍有一个已复现的上游/环境差异：`scrsaver_playcover.png` 的角像素透明度由当前 ImageMagick 算出为 2/255，而测试要求严格为 0。没有修改断言或不相关的图像生成代码。
 
 可运行的中文专项检查与主要测试：
 
 ```bash
-.venv/bin/python test/chinese.py build-cn-155-fix-dev
+.venv/bin/python test/chinese.py build-cn-176-dev-5
 .venv/bin/python test/peq.py
 .venv/bin/python test/coverflow.py
-.venv/bin/python test/playback.py build-cn-155-fix-dev
-.venv/bin/python test/patch.py build-cn-155-fix-dev
-.venv/bin/python test/build.py --build build-cn-155-fix-dev
+.venv/bin/python test/playback.py build-cn-176-dev-5
+.venv/bin/python test/patch.py build-cn-176-dev-5
+.venv/bin/python test/build.py --build build-cn-176-dev-5
 ```
-
-本机 `test/build.py --build ...` 的完整原始运行存在一个已复现的上游/环境差异：60px `scrsaver_playcover.png` 的角像素透明度由本机 ImageMagick 算出为 2/255，而测试要求严格为 0。未修改的 HEAD 中同一个图片缩放函数也产生 2/255。没有为了过测试修改这个断言或不相关的图像生成代码；单独在内存中报告该检查并继续运行后，其余打包资源断言通过。完整测试不能宣称全部通过。
-
-本次 `V00Ai`（`1.5.5 Pod dev 10`）修复包在主机验证：中文专项检查（460 字形）、1996 个 MIPS 补丁执行场景、353 个高级播放/转轮场景及播放性能/续播检查、均衡器和 Coverflow 主机测试均通过。原始资源检查仍在上述角像素断言失败；仅在内存诊断中报告该已知断言后，其余资源检查通过，未修改或弱化仓库中的断言。升级包内版本、内核/文件系统 MD5、包 SHA-256、百度调用点原厂指令和酷狗 trampoline 均已验证。尚未在 Q2 实机联网验证，不能把主机模拟通过等同于服务接口或实际刷机成功。
 
 ## 安装和回滚
 
 先备份卡内资料，设备充足电。将安装包中的 `update.tar` 放入存储卡根目录，安全弹出后通过系统设置的 TF 卡升级安装。不要在刷机期间断电或拔卡。
 
-原 1.5.5 日常版标记为 `V155I`。本次修复使用不同的 dev 标记（如 `V00Ai`），因此可直接刷入，不需要先降级或手工修改安装包、版本字段及校验值。实际标记和 dev 编号以构建输出的 `manifest.json` 和安装包内的 `firmware_v20.info` 为准。
+本次 `V00Li` 使用独立 dev 标记，可直接从 `V155I`、`V00Gi` 或其他旧包通过 TF 卡升级，不需要先降级或手工修改安装包、版本字段及校验值。实际标记和 dev 编号以构建输出的 `manifest.json` 和安装包内的 `firmware_v20.info` 为准。
 
 需要回滚时，按山灵官方说明使用 Q2 官方 V1.32 固件从 TF 卡升级。本地中文修改不影响这一恢复途径。卡内文件通常不因正常升级而格式化，但设置、评分、续播记录等内部数据不保证被原厂固件保留或识别。
 

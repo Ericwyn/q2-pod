@@ -1462,7 +1462,7 @@ def test_a_failed_save_says_so_when_it_can(fw):
     p.s.dirty = 1
     p.card.fail = True
     p.g.flush(1)
-    assert toasts == [b"Couldn't save"] and not p.s.dirty
+    assert toasts == [b'\xe6\x97\xa0\xe6\xb3\x95\xe4\xbf\x9d\xe5\xad\x98'] and not p.s.dirty
 
 
 def test_flush_writes_only_the_dirty_games(fw):
@@ -1873,7 +1873,7 @@ def test_the_chooser_lists_its_games_then_the_card_s_by_name_and_each_row_opens_
     texts = []
     fw.mock('widget_set_text_utf8', lambda w, s, *_: texts.append(C.string_at(s).decode()))
     p = Page(fw, files)
-    assert texts[-6:] == ['Sudoku', 'Vortex', 'Solitaire', 'Snake', 'Blocks', 'Zork']  # Tunes isn't a game
+    assert texts[-6:] == ['数独', '旋涡', '纸牌', '贪吃蛇', 'Blocks', 'Zork']  # Tunes isn't a game
     rows = handlers(fw, EVT_CLICK)
     assert len(rows) == 6
     fw.mock('fw_fork', lambda *_: 4242)
@@ -1924,7 +1924,7 @@ def test_a_record_that_can_t_be_written_says_so_and_still_shows(fw):
     p.s.vx.score = 50
     p.card.fail = True
     fw.fn('games__game_over', None)()
-    assert toasts == [b"Couldn't save"] and p.s.record and p.s.best.score == 50
+    assert toasts == [b'\xe6\x97\xa0\xe6\xb3\x95\xe4\xbf\x9d\xe5\xad\x98'] and p.s.record and p.s.best.score == 50
 
 
 # The sheet. games_paint draws on a canvas whose every call is recorded with the colour it reached stock in.
@@ -2165,12 +2165,12 @@ def test_sudoku_paint_asks_over_the_board_and_says_when_it_is_solved(fw):
     assert banner(paint(p)) == []
     p.key(PLAY)
     (ask, white), (keys, _) = banner(paint(p))
-    assert ask == 'New game?' and 'Centre' in keys and 'Return' in keys and light(white)
+    assert ask == '开始新游戏？' and 'Centre' in keys and 'Return' in keys and light(white)
     p.key(RETURN)
     assert banner(paint(p)) == []
     s.sud.cell[:] = SOLVED
     (said, color), _ = banner(paint(p))
-    assert said == 'Solved!' and color == tone(fw)
+    assert said == '解答完成！' and color == tone(fw)
 
 
 def test_a_canvas_that_won_t_round_gets_square_boxes_and_frames_in_their_place(fw):
@@ -2304,7 +2304,7 @@ def test_arcade_paint_return_s_menu_shows_the_choice_in_the_tone(fw, screen):
     p.go(screen)
     p.key(RETURN)
     (a, ca), (b, cb) = banner(paint(p))
-    assert (a, b) == ('Continue', 'Quit') and ca == tone(fw) and cb != ca and grey(cb)
+    assert (a, b) == ('继续', '退出') and ca == tone(fw) and cb != ca and grey(cb)
     p.key(NEXT)
     assert [c for _, c in banner(paint(p))] == [cb, ca]
 
@@ -2315,14 +2315,14 @@ def test_arcade_paint_pause_and_the_game_over_banners(fw, screen):
     p.go(screen)
     assert banner(paint(p)) == []
     p.key(PLAY)
-    assert banner(paint(p))[0][0] == 'Paused'
+    assert banner(paint(p))[0][0] == '已暂停'
     p.key(PLAY)
     assert banner(paint(p)) == []
     end(p, screen, 40)
-    assert banner(paint(p))[0][0] == 'New best!'  # it raised Best
+    assert banner(paint(p))[0][0] == '新纪录！'  # it raised Best
     p.key(CENTER)
     end(p, screen, 0)
-    assert banner(paint(p))[0][0] == 'Game over'
+    assert banner(paint(p))[0][0] == '游戏结束'
 
 
 # Snake.
@@ -2468,14 +2468,14 @@ def test_solitaire_paint_asks_before_a_new_deal_and_says_when_it_is_won(fw):
     p.go(SOLITAIRE)
     s = p.s
     p.key(PLAY)
-    assert banner(paint(p))[0][0] == 'New game?'
+    assert banner(paint(p))[0][0] == '开始新游戏？'
     p.key(RETURN)
     assert banner(paint(p)) == []
     game_table(s)
     for f in range(FOUND, TABLEAU):
         put(s.sol, f, [(f - FOUND) * 13 + k | UP for k in range(13)])
     (said, color), _ = banner(paint(p))
-    assert said == 'You win!' and color == tone(fw)
+    assert said == '你赢了！' and color == tone(fw)
 
 
 def config(fw, **values):

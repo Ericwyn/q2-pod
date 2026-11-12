@@ -25,7 +25,7 @@ RET_REPEAT = 8
 FETCH_MAX = 256 << 10  # "at most 256 KB" (docs/internals.md)
 FEATURED = ['Radio Paradise', 'SomaFM Groove Salad', 'BBC World Service', 'KEXP', 'FIP', 'NTS 1']
 KEXP = ('KEXP', 'https://kexp-mp3-128.streamguys1.com/kexp128.mp3')
-MENU_ROWS = ['Now Playing', 'Favourites', 'Featured', 'Top Stations', 'By Country', 'By Genre']
+MENU_ROWS = ['正在播放', '收藏', '精选', '热门电台', '按国家', '按流派']
 SPOT_SOCK = '/tmp/q2-librespot.sock'
 # libcurl's numbering (curl.h: CURLOPTTYPE_LONG 0, _OBJECTPOINT 10000, _FUNCTIONPOINT 20000; CURLINFO_LONG 0x200000)
 CURLOPT_NOPROGRESS, CURLOPT_WRITEFUNCTION = 43, 20011
@@ -333,7 +333,7 @@ class Page:
     def menu(self, caption):
         """The menu's row with caption, clicked, and the rebuild it schedules."""
         self.rows('menu_click')[self.menu_rows().index(caption)]()
-        if caption != 'Now Playing':
+        if caption != '正在播放':
             self.run('go')
 
     def handler(self, w, event):
@@ -390,10 +390,10 @@ def test_the_menu_after_a_restart_has_now_playing_from_last(fw):
 
 def test_featured_is_the_six_built_in_stations(fw):
     p = page(fw)
-    p.menu('Featured')
+    p.menu('精选')
     stations = ui(fw).list.stations()
     assert [n for n, _ in stations] == FEATURED and all('://' in u for _, u in stations)
-    assert ui(fw).caption == b'Featured' and ui(fw).level == STATIONS
+    assert ui(fw).caption == b'\xe7\xb2\xbe\xe9\x80\x89' and ui(fw).level == STATIONS
 
 
 def test_favourites_are_favourites_m3u_then_every_other_playlist(fw):
@@ -402,34 +402,34 @@ def test_favourites_are_favourites_m3u_then_every_other_playlist(fw):
                   f'{RADIO}/a.m3u': m3u(('Two', 'http://2.example/')),
                   f'{RADIO}/.hidden.m3u': m3u(('Hidden', 'http://h.example/')),
                   f'{RADIO}/notes.txt': b'http://x.example/\n', f'{RADIO}/._a.m3u': b'junk'})
-    p.menu('Favourites')
+    p.menu('收藏')
     first, *rest = ui(fw).list.stations()
     assert first == ('One', 'http://1.example/')  # the rest in the folder's order
     assert sorted(rest) == [('Three', 'http://3.example/'), ('Two', 'http://2.example/')]
-    assert ui(fw).caption == b'Favourites'
+    assert ui(fw).caption == b'\xe6\x94\xb6\xe8\x97\x8f'
 
 
 def test_no_favourites(fw):
     p = page(fw)
-    p.menu('Favourites')
-    assert ui(fw).list.n == 0 and ui(fw).caption == b'No favourites'
+    p.menu('收藏')
+    assert ui(fw).list.n == 0 and ui(fw).caption == b'\xe6\x9a\x82\xe6\x97\xa0\xe6\x94\xb6\xe8\x97\x8f'
 
 
 def test_the_menu_is_internet_radio_s_and_only_now_playing_plays_at_once(fw):
     """The page is the Streaming row's, Internet Radio; Now Playing plays, so its row has no chevron (row_into's
     list_into), and the rest open lists."""
     p = page(fw, {LAST: m3u(KEXP)})
-    assert title(p) == 'Internet Radio'
+    assert title(p) == '网络电台'
     rows = {ctx: w for _, (w, evt, fn, ctx, *_) in fw.calls('widget_on') if evt == EVT_CLICK and fn == p.fn('menu_click')}
     inside = {w for item in rows.values() for w in p.w.under(item)}
     into = {a[0] for _, a in fw.calls('image_base_set_image') if a[0] in inside and C.string_at(a[1]) == b'list_into'}
     shown = p.menu_rows()
-    assert [(shown[k], bool(into & set(p.w.under(rows[k])))) for k in sorted(rows)] == [(r, r != 'Now Playing') for r in MENU_ROWS]
+    assert [(shown[k], bool(into & set(p.w.under(rows[k])))) for k in sorted(rows)] == [(r, r != '正在播放') for r in MENU_ROWS]
 
 
 def test_a_list_has_a_row_for_each_station_and_no_more(fw):
     p = page(fw)
-    p.menu('Featured')
+    p.menu('精选')
     captions = p.captions('station_click')
     assert [captions[k] for k in sorted(captions)] == FEATURED
 
@@ -437,28 +437,28 @@ def test_a_list_has_a_row_for_each_station_and_no_more(fw):
 def test_every_level_has_the_same_plain_rows(fw):
     """The menu, the lists and a note under them are page_list's rows, every level's as high as the others'."""
     p = page(fw, wifi=0)
-    p.menu('Featured')
+    p.menu('精选')
     p.key(ui(fw).page)
     p.run('leave')
-    p.menu('Top Stations')  # No Wi-Fi: a note
+    p.menu('热门电台')  # No Wi-Fi: a note
     heights = [v for _, key, v in p.w.set if key == b'item_height']
     assert len(heights) == 4 and len(set(heights)) == 1
 
 
 def test_a_new_list_from_the_menu_opens_on_its_first_row(fw):
     p = page(fw, {FAVS: m3u(('One', 'http://1.example/'), ('Two', 'http://2.example/'), ('Three', 'http://3.example/'))})
-    p.menu('Featured')
+    p.menu('精选')
     at(p, 4)
     p.key(ui(fw).page)
     p.run('leave')  # the menu, Featured's row 4 kept for it
-    p.menu('Favourites')
+    p.menu('收藏')
     assert selected(p) == 0
 
 
 def test_a_list_shorter_than_its_kept_row_selects_its_last(fw):
     p = page(fw, {FAVS: m3u(('One', 'http://1.example/'), ('Two', 'http://2.example/'), ('Three', 'http://3.example/'))})
-    p.menu('Favourites')
-    assert hold(fw, p, 2) == 'Removed from Favourites'  # the last row, held
+    p.menu('收藏')
+    assert hold(fw, p, 2) == '已取消收藏'  # the last row, held
     p.run('go')
     assert ui(fw).list.n == 2 and selected(p) == 1
 
@@ -469,20 +469,20 @@ def test_no_favourites_under_classic_is_an_empty_page_its_bar_names_favourites(f
     classic(fw)
     p = page(fw)
     fw.mock('widget_get_child', lambda w, i, *_: (p.w.under(w) + [0] * (i + 1))[i])
-    p.menu('Featured')
-    assert not [t for w, t in p.w.text.items() if t == 'Internet Radio' and w in p.w.under(ui(fw).page)]
+    p.menu('精选')
+    assert not [t for w, t in p.w.text.items() if t == '网络电台' and w in p.w.under(ui(fw).page)]
     p.key(ui(fw).page)
     p.run('leave')
     marks = len(p.w.set)
-    p.menu('Favourites')
+    p.menu('收藏')
     shown = {p.w.text.get(w) for w in p.w.under(ui(fw).page, 'hscroll_label_create')}
-    assert {'No favourites', 'Favourites'} <= shown
+    assert {'暂无收藏', '收藏'} <= shown
     assert not [key for _, key, _ in p.w.set[marks:] if key.startswith(b'_ringnav')]  # ringnav_select's
 
 
 # Playing.
 
-def play(fw, p, i=0, pid=4242, caption='Featured'):
+def play(fw, p, i=0, pid=4242, caption='精选'):
     player = Player(fw, pid)
     p.menu(caption)
     p.rows('station_click')[i]()
@@ -603,7 +603,7 @@ def test_a_station_runs_q2video_in_its_radio_mode(fw):
     """The child's exec (docs/internals.md): q2video -r DEVICE URL, the headphone DAC's plughw:0,0 and no volume here."""
     p = page(fw)
     fw.mock('fw_fork', lambda *_: 0)  # the child's side
-    p.menu('Featured')
+    p.menu('精选')
     p.rows('station_click')[3]()
     (_, argv), = fw.calls('fw_execl')
     assert [a and C.string_at(a).decode() for a in argv] == ['/usr/bin/q2video', '/usr/bin/q2video', '-r', 'plughw:0,0',
@@ -639,7 +639,7 @@ def test_the_next_station_shows_nothing_of_the_last(fw):
     media(fw, KEY_FWD_BTN)
     fw.var('g_backlight_status', C.c_ubyte).value = 1
     p.run('np_tick')
-    assert now_playing(fw, p) == {'station': FEATURED[1], 'artist': '', 'song': '', 'info': 'Connecting…', 'elapsed': ''}
+    assert now_playing(fw, p) == {'station': FEATURED[1], 'artist': '', 'song': '', 'info': '连接中…', 'elapsed': ''}
 
 
 def test_a_station_s_error_is_its_own(fw):
@@ -655,14 +655,14 @@ def test_a_station_s_error_is_its_own(fw):
     player.pid = 0  # the next can't start
     media(fw, KEY_FWD_BTN)
     p.run('np_tick')
-    assert now_playing(fw, p)['info'] == "Can't play this station"
+    assert now_playing(fw, p)['info'] == '无法播放此电台'
     player.pid = 4243  # the one after starts, and fails with no reason
     media(fw, KEY_FWD_BTN)
     p.card.files[STATE] = b'state=error\n'
     rd(fw).polled -= 500
     poll(fw)
     p.run('np_tick')
-    assert now_playing(fw, p)['info'] == "Can't play this station"
+    assert now_playing(fw, p)['info'] == '无法播放此电台'
 
 
 def test_now_playing_from_the_menu_keeps_the_list_playing(fw):
@@ -672,7 +672,7 @@ def test_now_playing_from_the_menu_keeps_the_list_playing(fw):
     p.handler(np_(fw).page, EVT_DESTROY)()
     p.key(ui(fw).page)
     p.run('leave')
-    p.menu('Now Playing')
+    p.menu('正在播放')
     assert [n for n, _ in rd(fw).list.stations()] == FEATURED and rd(fw).at == 2
 
 
@@ -707,7 +707,7 @@ def test_now_playing_with_no_station_to_play(fw):
     nothing."""
     p = page(fw, {LAST: b'#EXTM3U\n'})
     player = Player(fw)
-    p.menu('Now Playing')
+    p.menu('正在播放')
     assert player.started == [] and np_(fw).page and now_playing(fw, p)['station'] == ''
     p.handler(np_(fw).heart, EVT_CLICK)()
     assert hearts(fw) == [] and p.toasts == [] and FAVS not in p.card.files
@@ -829,11 +829,11 @@ def hold(fw, p, row):
 
 def test_held_on_a_station_it_goes_into_favourites_and_out_again(fw):
     p = page(fw, {FAVS: m3u(('One', 'http://1.example/'))})
-    p.menu('Featured')
-    assert hold(fw, p, 3) == 'Added to Favourites'
+    p.menu('精选')
+    assert hold(fw, p, 3) == '已加入收藏'
     assert p.card.files[FAVS] == m3u(('One', 'http://1.example/'), ('KEXP', 'https://kexp-mp3-128.streamguys1.com/kexp128.mp3'))
     assert f'{FAVS}.tmp' not in p.card.files and fw.calls('fw_fsync')  # written aside, synced, renamed
-    assert hold(fw, p, 3) == 'Removed from Favourites'
+    assert hold(fw, p, 3) == '已取消收藏'
     assert p.card.files[FAVS] == m3u(('One', 'http://1.example/'))
 
 
@@ -841,38 +841,38 @@ def test_a_full_favourites_file_takes_no_more_but_gives_one_up(fw):
     kexp = ('KEXP', 'https://kexp-mp3-128.streamguys1.com/kexp128.mp3')
     full = m3u(*[(f'S{i}', f'http://{i}.example/') for i in range(199)], kexp)
     p = page(fw, {FAVS: full})
-    p.menu('Featured')
-    assert hold(fw, p, 0) == 'Could not save Favourites' and p.card.files[FAVS] == full
-    assert hold(fw, p, 3) == 'Removed from Favourites'
+    p.menu('精选')
+    assert hold(fw, p, 0) == '无法保存收藏' and p.card.files[FAVS] == full
+    assert hold(fw, p, 3) == '已取消收藏'
     assert p.card.files[FAVS] == m3u(*[(f'S{i}', f'http://{i}.example/') for i in range(199)])
 
 
 def test_a_favourites_file_past_200_is_never_rewritten(fw):
     over = m3u(*[(f'S{i}', f'http://{i}.example/') for i in range(201)])
     p = page(fw, {FAVS: over})
-    p.menu('Featured')
-    assert hold(fw, p, 0) == 'Could not save Favourites' and p.card.files[FAVS] == over
+    p.menu('精选')
+    assert hold(fw, p, 0) == '无法保存收藏' and p.card.files[FAVS] == over
 
 
 def test_a_favourites_file_with_a_nul_is_never_rewritten(fw):
     """The rest after a NUL would be lost."""
     odd = m3u(('One', 'http://1.example/')) + b'\0' + m3u(('Two', 'http://2.example/'))
     p = page(fw, {FAVS: odd})
-    p.menu('Featured')
-    assert hold(fw, p, 0) == 'Could not save Favourites' and p.card.files[FAVS] == odd
+    p.menu('精选')
+    assert hold(fw, p, 0) == '无法保存收藏' and p.card.files[FAVS] == odd
 
 
 def test_a_failed_rename_is_a_failed_save(fw):
     p = page(fw)
-    p.menu('Featured')
+    p.menu('精选')
     p.card.fail_rename = True
-    assert hold(fw, p, 0) == 'Could not save Favourites' and FAVS not in p.card.files
+    assert hold(fw, p, 0) == '无法保存收藏' and FAVS not in p.card.files
 
 
 def test_a_toggle_from_the_favourites_list_rebuilds_it(fw):
     p = page(fw, {FAVS: m3u(('One', 'http://1.example/'), ('Two', 'http://2.example/'))})
-    p.menu('Favourites')
-    assert hold(fw, p, 0) == 'Removed from Favourites'
+    p.menu('收藏')
+    assert hold(fw, p, 0) == '已取消收藏'
     p.run('go')
     assert ui(fw).list.stations() == [('Two', 'http://2.example/')]
 
@@ -880,14 +880,14 @@ def test_a_toggle_from_the_favourites_list_rebuilds_it(fw):
 @pytest.mark.parametrize('row', [-1, 6])
 def test_held_on_no_station_does_nothing(fw, row):
     p = page(fw)
-    p.menu('Featured')
+    p.menu('精选')
     assert hold(fw, p, row) is None
 
 
 def test_held_on_the_menu_or_another_page_does_nothing(fw):
     p = page(fw)
     assert hold(fw, p, 0) is None
-    p.menu('Featured')
+    p.menu('精选')
     assert fw.fn('radio_hold', C.c_char_p, C.c_void_p)(0x1234) is None
 
 
@@ -895,11 +895,11 @@ def test_held_on_the_menu_or_a_country_list_after_a_station_list_does_nothing(fw
     """The station list left behind (ui.list) is not what the menu's or a country list's row means."""
     p = page(fw)
     curl = Curl(fw, b'name,iso_3166_1,stationcount\nGermany,DE,99\n')
-    p.menu('Featured')
+    p.menu('精选')
     p.key(ui(fw).page)
     p.run('leave')
     assert hold(fw, p, 0) is None
-    p.menu('By Country')
+    p.menu('按国家')
     fetched(fw, p, curl)
     assert hold(fw, p, 0) is None and FAVS not in p.card.files
 
@@ -910,21 +910,21 @@ def test_held_on_another_page_over_now_playing_does_nothing(fw):
     assert fw.fn('radio_hold', C.c_char_p, C.c_void_p)(0x1234) is None and FAVS not in p.card.files
 
 
-@pytest.mark.parametrize('where', ['Featured', 'a country'])
+@pytest.mark.parametrize('where', ['精选', 'a country'])
 def test_a_toggle_on_another_list_rebuilds_nothing(fw, where):
     """Only the Favourites list shows the change; any other stays as it is."""
     p = page(fw)
     curl = Curl(fw, b'name,iso_3166_1,stationcount\nGermany,DE,99\n')
-    if where == 'Featured':
-        p.menu('Featured')
+    if where == '精选':
+        p.menu('精选')
     else:
-        p.menu('By Country')
+        p.menu('按国家')
         fetched(fw, p, curl)
         curl.body = m3u(('A', 'http://a.example/'))
         p.rows('pick_click')[0]()
         p.run('go')
         fetched(fw, p, curl)
-    assert hold(fw, p, 0) == 'Added to Favourites' and p.live('go') == []
+    assert hold(fw, p, 0) == '已加入收藏' and p.live('go') == []
 
 
 def test_favourites_read_m3u_files_as_people_write_them(fw):
@@ -966,7 +966,7 @@ def test_favourites_read_pls_files_by_their_titles(fw):
 
 def favourites(fw, files):
     p = page(fw, files)
-    p.menu('Favourites')
+    p.menu('收藏')
     return p, ui(fw).list.stations()
 
 
@@ -999,24 +999,24 @@ def test_a_favourites_file_past_200_gives_none_up_either(fw):
     """Taking one out would lose the stations past 200 too."""
     over = m3u(*[(f'S{i}', f'http://{i}.example/') for i in range(201)])
     p, _ = favourites(fw, {FAVS: over})
-    assert hold(fw, p, 0) == 'Could not save Favourites' and p.card.files[FAVS] == over
+    assert hold(fw, p, 0) == '无法保存收藏' and p.card.files[FAVS] == over
 
 
 def test_a_full_favourites_file_gives_up_its_first(fw):
     full = [(f'S{i}', f'http://{i}.example/') for i in range(200)]
     p, _ = favourites(fw, {FAVS: m3u(*full)})
-    assert hold(fw, p, 0) == 'Removed from Favourites' and p.card.files[FAVS] == m3u(*full[1:])
+    assert hold(fw, p, 0) == '已取消收藏' and p.card.files[FAVS] == m3u(*full[1:])
 
 
 @pytest.mark.parametrize('fault', ['past 256 KB', 'read error', "won't open"])
 def test_a_favourites_file_not_read_whole_is_never_rewritten(fw, fault):
     favs = m3u(('One', 'http://1.example/')) + (b'#' * FETCH_MAX + b'\n' if fault == 'past 256 KB' else b'')
     p = page(fw, {FAVS: favs})
-    p.menu('Featured')
+    p.menu('精选')
     p.card.error = fault == 'read error'
     if fault == "won't open":
         p.card.unreadable.add(FAVS)
-    assert hold(fw, p, 0) == 'Could not save Favourites' and p.card.files[FAVS] == favs
+    assert hold(fw, p, 0) == '无法保存收藏' and p.card.files[FAVS] == favs
 
 
 @pytest.mark.parametrize('cut', ['in a URL', 'after a URL'])
@@ -1037,9 +1037,9 @@ def test_a_station_too_long_to_save_leaves_favourites_as_they_were(fw):
     before = m3u(('One', 'http://1.example/'))
     p = page(fw, {FAVS: before})
     curl = Curl(fw, m3u(('Long', 'http://long.example/' + 'x' * 2000)))
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
-    assert hold(fw, p, 0) == 'Could not save Favourites' and p.card.files[FAVS] == before
+    assert hold(fw, p, 0) == '无法保存收藏' and p.card.files[FAVS] == before
 
 
 def test_a_favourite_is_saved_whole_or_not_at_all(fw):
@@ -1050,12 +1050,12 @@ def test_a_favourite_is_saved_whole_or_not_at_all(fw):
     long = [('Long', 'http://long.example/' + 'x' * k) for k in range(960, 1010)]
     p = page(fw, {FAVS: m3u(one)})
     curl = Curl(fw, m3u(*long))
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
     saved = []
     for row, station in enumerate(long):
         p.card.files[FAVS] = m3u(one)
-        saved.append(hold(fw, p, row) == 'Added to Favourites')
+        saved.append(hold(fw, p, row) == '已加入收藏')
         assert p.card.files[FAVS] == (m3u(one, station) if saved[-1] else m3u(one))
     assert saved == sorted(saved, reverse=True) and saved[0] and not saved[-1]
 
@@ -1063,7 +1063,7 @@ def test_a_favourite_is_saved_whole_or_not_at_all(fw):
 def test_a_save_writes_beside_favourites_then_renames(fw):
     """The .tmp in the same folder, so the rename is atomic on the card."""
     p = page(fw)
-    p.menu('Featured')
+    p.menu('精选')
     hold(fw, p, 0)
     assert [path for path, mode in p.card.made if 'w' in mode] == [f'{FAVS}.tmp'] and FAVS in p.card.files
 
@@ -1072,13 +1072,13 @@ def test_a_save_writes_beside_favourites_then_renames(fw):
 def test_a_save_the_card_fails_leaves_favourites_as_they_were(fw, fault):
     before = m3u(('One', 'http://1.example/'), ('Two', 'http://2.example/'))
     p = page(fw, {FAVS: before})
-    p.menu('Featured')
+    p.menu('精选')
     p.card.fail_create = fault == 'create'
     p.card.fail_write = 2 if fault == 'write' else 0  # One's line, after the header
     p.card.fail_close = fault == 'close'
     if fault in ('flush', 'sync'):
         fw.mock(f'fw_f{fault}', lambda *_: -1)
-    assert hold(fw, p, 0) == 'Could not save Favourites' and p.card.files[FAVS] == before
+    assert hold(fw, p, 0) == '无法保存收藏' and p.card.files[FAVS] == before
     streams = {a[0] for n in ('fw_fflush', 'fw_fileno') for _, a in fw.calls(n)} | {a[3] for _, a in fw.calls('fw_fwrite')}
     assert streams <= p.card.handles  # nothing done to a file it hasn't got
 
@@ -1089,8 +1089,8 @@ def test_favourites_are_favourites_m3u_s_to_the_toggle_and_the_heart(fw):
     paradise = ('Radio Paradise', 'http://stream.radioparadise.com/mp3-128')
     p = page(fw, {FAVS: m3u(('One', 'http://1.example/')), f'{RADIO}/other.m3u': m3u(paradise)})
     Player(fw)
-    p.menu('Featured')
-    assert hold(fw, p, 3) == 'Added to Favourites'
+    p.menu('精选')
+    assert hold(fw, p, 3) == '已加入收藏'
     assert p.card.files[FAVS] == m3u(('One', 'http://1.example/'), KEXP)
     p.rows('station_click')[0]()  # Radio Paradise, in other.m3u alone
     assert hearts(fw) == ['play_unfav']
@@ -1159,21 +1159,21 @@ def note(p):
 def test_top_stations_fetches_by_votes_over_verified_tls(fw):
     p = page(fw)
     curl = Curl(fw, m3u(('Zed', 'http://z.example/'), ('Abe', 'http://a.example/')))
-    p.menu('Top Stations')
+    p.menu('热门电台')
     assert fx(fw).running == 1 and 'Loading…' in note(p)
     fetched(fw, p, curl)
     assert curl.opts[10002] == f'{API}/m3u/stations/topvote/100?hidebroken=true'
     assert (curl.opts[10065], curl.opts[64], curl.opts[81], curl.opts[10018]) == ('/etc/scrobble-ca.pem', 1, 2, 'Q2Pod')
     assert (curl.opts[78], curl.opts[13], curl.opts[52], curl.opts[99]) == (10, 30, 1, 1)
     assert ui(fw).list.stations() == [('Zed', 'http://z.example/'), ('Abe', 'http://a.example/')]  # vote order
-    assert ui(fw).level == STATIONS and ui(fw).caption == b'Top Stations' and fx(fw).running == 0
+    assert ui(fw).level == STATIONS and ui(fw).caption == b'\xe7\x83\xad\xe9\x97\xa8\xe7\x94\xb5\xe5\x8f\xb0' and fx(fw).running == 0
 
 
 def test_countries_are_a_to_z_and_a_country_s_stations_too(fw):
     p = page(fw)
     curl = Curl(fw, b'name,iso_3166_1,stationcount\n"Korea, Republic of",KR,10\nThe Netherlands,NL,90\nGermany,DE,99\n'
                     b'Spain,ES,70\nAustria,AT,50\n')
-    p.menu('By Country')
+    p.menu('按国家')
     assert curl.opts == {} and fx(fw).url == f'{API}/csv/countries?order=stationcount&reverse=true&limit=60'.encode()
     fetched(fw, p, curl)
     pick = ui(fw).pick
@@ -1192,7 +1192,7 @@ def test_countries_are_a_to_z_and_a_country_s_stations_too(fw):
 def test_genres_by_tag_escaped(fw):
     p = page(fw)
     curl = Curl(fw, b'name,stationcount\nrock,900\nhip hop,500\n')
-    p.menu('By Genre')
+    p.menu('按流派')
     assert fx(fw).url == f'{API}/csv/tags?order=stationcount&reverse=true&limit=60'.encode()
     fetched(fw, p, curl)
     pick = ui(fw).pick
@@ -1204,8 +1204,8 @@ def test_genres_by_tag_escaped(fw):
 
 def test_no_wifi_no_fetch(fw):
     p = page(fw, wifi=0)
-    p.menu('Top Stations')
-    assert p.threads == [] and fx(fw).running == 0 and 'No Wi-Fi' in note(p) and ui(fw).note == 1
+    p.menu('热门电台')
+    assert p.threads == [] and fx(fw).running == 0 and '未连接 Wi-Fi' in note(p) and ui(fw).note == 1
 
 
 @pytest.mark.parametrize('code, error, body', [(500, 0, m3u(('A', 'http://a/'))), (200, 28, m3u(('A', 'http://a/'))),
@@ -1213,38 +1213,38 @@ def test_no_wifi_no_fetch(fw):
 def test_a_failed_fetch_says_the_directory_is_unavailable(fw, code, error, body):
     p = page(fw)
     curl = Curl(fw, body, code=code, error=error)
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
-    assert 'Directory unavailable' in note(p) and ui(fw).note == 1
+    assert '电台目录不可用' in note(p) and ui(fw).note == 1
 
 
 def test_a_fetch_with_no_stations_says_so(fw):
     p = page(fw)
     curl = Curl(fw, b'#EXTM3U\n')
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
-    assert 'No stations' in note(p)
+    assert '暂无电台' in note(p)
 
 
 def test_a_body_over_256_kb_is_cut_off(fw):
     p = page(fw)
     curl = Curl(fw, m3u(('A', 'http://a/')) + b'#' * (300 << 10), chunk=64 << 10)
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
-    assert curl.wrote == [64 << 10] * 3 + [0] and 'Directory unavailable' in note(p)
+    assert curl.wrote == [64 << 10] * 3 + [0] and '电台目录不可用' in note(p)
 
 
 def test_the_tick_waits_for_the_worker(fw):
     p = page(fw)
     Curl(fw)
-    p.menu('Top Stations')
+    p.menu('热门电台')
     assert p.run('tick') == 8 and fx(fw).running == 1 and fw.calls('fw_pthread_join') == []
 
 
 def test_return_while_loading_cancels_the_transfer_and_shows_the_menu(fw):
     p = page(fw)
     curl = Curl(fw, m3u(('A', 'http://a/')))
-    p.menu('Top Stations')
+    p.menu('热门电台')
     p.key(ui(fw).page)
     p.run('leave')
     assert fx(fw).cancel == 1 and fx(fw).running == 0 and len(fw.calls('fw_pthread_join')) == 1
@@ -1258,7 +1258,7 @@ def test_return_while_loading_cancels_the_transfer_and_shows_the_menu(fw):
 def test_return_goes_up_a_level_each_time(fw):
     p = page(fw)
     curl = Curl(fw, b'name,iso_3166_1,stationcount\nGermany,DE,99\n')
-    p.menu('By Country')
+    p.menu('按国家')
     fetched(fw, p, curl)
     curl.body = m3u(('A', 'http://a/'))
     p.rows('pick_click')[0]()
@@ -1275,13 +1275,13 @@ def test_return_goes_up_a_level_each_time(fw):
 def test_each_level_keeps_its_selected_row(fw):
     p = page(fw)
     fw.mock('widget_get_prop_int', lambda w, key, default, *_: 4 if C.string_at(key) == b'_ringnav_index' else default)
-    p.menu('Featured')
+    p.menu('精选')
     assert ui(fw).sel[MENU] == 4
 
 
 def test_the_page_s_end_frees_its_lists_and_stops_its_timers(fw):
     p = page(fw)
-    p.menu('Featured')
+    p.menu('精选')
     p.handler(ui(fw).page, EVT_DESTROY)()
     assert bytes(ui(fw)) == bytes(C.sizeof(Ui))
 
@@ -1302,7 +1302,7 @@ def test_a_second_open_arms_and_builds_nothing(fw):
 
 def test_the_page_s_end_stops_every_timer_it_armed(fw):
     p = page(fw)
-    p.rows('menu_click')[p.menu_rows().index('Featured')]()  # a row's choice, still to come
+    p.rows('menu_click')[p.menu_rows().index('精选')]()  # a row's choice, still to come
     p.key(ui(fw).page)  # and Return
     assert p.live('tick') and p.live('go') and p.live('leave')
     p.handler(ui(fw).page, EVT_DESTROY)()
@@ -1312,7 +1312,7 @@ def test_the_page_s_end_stops_every_timer_it_armed(fw):
 def test_closing_while_loading_ends_the_transfer(fw):
     p = page(fw)
     Curl(fw)
-    p.menu('Top Stations')
+    p.menu('热门电台')
     p.handler(ui(fw).page, EVT_DESTROY)()
     assert (fx(fw).cancel, fx(fw).running, fx(fw).body) == (1, 0, None) and len(fw.calls('fw_pthread_join')) == 1
 
@@ -1321,7 +1321,7 @@ def test_closing_after_a_cancelled_fetch(fw):
     """The body went with the cancel, and goes once."""
     p = page(fw)
     Curl(fw)
-    p.menu('Top Stations')
+    p.menu('热门电台')
     p.key(ui(fw).page)
     p.run('leave')
     p.handler(ui(fw).page, EVT_DESTROY)()
@@ -1331,10 +1331,10 @@ def test_closing_after_a_cancelled_fetch(fw):
 def test_a_fetch_after_a_cancelled_one_completes(fw):
     p = page(fw)
     curl = Curl(fw, m3u(('A', 'http://a.example/')))
-    p.menu('Top Stations')
+    p.menu('热门电台')
     p.key(ui(fw).page)
     p.run('leave')
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
     assert ui(fw).list.stations() == [('A', 'http://a.example/')]
 
@@ -1342,21 +1342,21 @@ def test_a_fetch_after_a_cancelled_one_completes(fw):
 def test_a_fetch_that_fails_after_a_good_one_says_so(fw):
     p = page(fw)
     curl = Curl(fw, m3u(('A', 'http://a.example/')))
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
     p.key(ui(fw).page)
     p.run('leave')
     curl.error = 28  # CURLE_OPERATION_TIMEDOUT, part of the body in
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
-    assert ui(fw).note == 1 and 'Directory unavailable' in note(p)
+    assert ui(fw).note == 1 and '电台目录不可用' in note(p)
 
 
 def test_a_finished_fetch_s_thread_is_joined_once(fw):
     """Its tick takes the list once; the ticks after it leave the list alone."""
     p = page(fw)
     curl = Curl(fw, m3u(('A', 'http://a.example/')))
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
     assert p.run('tick') == RET_REPEAT and len(fw.calls('fw_pthread_join')) == 1
     assert ui(fw).list.stations() == [('A', 'http://a.example/')] and curl.cleaned == [0x9000]
@@ -1366,7 +1366,7 @@ def test_the_directory_s_last_line_needs_no_newline(fw):
     p = page(fw)
     curl = Curl(fw, m3u(('A', 'http://a.example/'), ('B', 'http://b.example/'))[:-1])
     Player(fw)
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
     p.rows('station_click')[1]()
     assert rd(fw).list.stations() == [('A', 'http://a.example/'), ('B', 'http://b.example/')] and rd(fw).at == 1
@@ -1378,7 +1378,7 @@ def test_a_reply_may_fill_256_kb_but_for_its_nul(fw, extra, whole):
     body += b'#' * (FETCH_MAX - 1 + extra - len(body) - 1) + b'\n'
     p = page(fw)
     curl = Curl(fw, body, chunk=64 << 10)
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
     assert (ui(fw).list.stations() == [('A', 'http://a.example/')]) == whole and ui(fw).note == (not whole)
 
@@ -1387,7 +1387,7 @@ def test_the_directory_s_csv_leaves_out_rows_it_can_t_use(fw):
     """A row without a comma, with no name or with no code; a quoted name keeps its commas."""
     p = page(fw)
     curl = Curl(fw, b'name,iso_3166_1,stationcount\nbad row\n,XX,5\nNowhere,,3\n"Korea, Republic of",KR,10\nGermany,DE,99\n')
-    p.menu('By Country')
+    p.menu('按国家')
     fetched(fw, p, curl)
     pick = ui(fw).pick
     assert [(pick.at(pick.name[i]), pick.at(pick.url[i])) for i in range(pick.n)] == [('Germany', 'DE'),
@@ -1397,7 +1397,7 @@ def test_the_directory_s_csv_leaves_out_rows_it_can_t_use(fw):
 def test_a_quoted_genre_is_fetched_by_its_name(fw):
     p = page(fw)
     curl = Curl(fw, b'name,stationcount\n"rock, pop",50\njazz,40\n')
-    p.menu('By Genre')
+    p.menu('按流派')
     fetched(fw, p, curl)
     assert p.captions('pick_click') == {0: 'jazz', 1: 'rock, pop'}
     p.rows('pick_click')[1]()
@@ -1408,7 +1408,7 @@ def test_a_quoted_genre_is_fetched_by_its_name(fw):
 def test_a_directory_list_holds_200_rows(fw):
     p = page(fw)
     curl = Curl(fw, b'name,stationcount\n' + b''.join(b'tag%03d,%d\n' % (i, 1000 - i) for i in range(250)))
-    p.menu('By Genre')
+    p.menu('按流派')
     fetched(fw, p, curl)
     pick = ui(fw).pick
     tags = [f'tag{i:03}' for i in range(200)]
@@ -1419,7 +1419,7 @@ def test_equal_names_keep_the_directory_s_vote_order(fw):
     """list_sort is stable: names the library sorts alike (case, a leading "The") stay in vote order."""
     p = page(fw)
     curl = Curl(fw, b'name,iso_3166_1,stationcount\nGermany,DE,99\n')
-    p.menu('By Country')
+    p.menu('按国家')
     fetched(fw, p, curl)
     curl.body = m3u(('Radio 1', 'http://first.example/'), ('Alpha', 'http://a.example/'), ('radio 1', 'http://second.example/'),
                     ('The Radio 1', 'http://third.example/'))
@@ -1433,7 +1433,7 @@ def test_equal_names_keep_the_directory_s_vote_order(fw):
 def test_a_country_s_stations_are_titled_with_its_name(fw):
     p = page(fw)
     curl = Curl(fw, b'name,iso_3166_1,stationcount\nGermany,DE,99\n')
-    p.menu('By Country')
+    p.menu('按国家')
     fetched(fw, p, curl)
     curl.body = m3u(('A', 'http://a.example/'))
     p.rows('pick_click')[0]()
@@ -1446,7 +1446,7 @@ def test_a_new_directory_list_opens_on_its_first_row(fw):
     """Each fetch's list starts at the top, whatever row a list at its level was left on."""
     p = page(fw)
     curl = Curl(fw, b'name,iso_3166_1,stationcount\nAustria,AT,9\nBelgium,BE,8\nChile,CL,7\nDenmark,DK,6\n')
-    p.menu('By Country')
+    p.menu('按国家')
     fetched(fw, p, curl)
     at(p, 3)
     curl.body = m3u(('A', 'http://a.example/'), ('B', 'http://b.example/'), ('C', 'http://c.example/'))
@@ -1458,7 +1458,7 @@ def test_a_new_directory_list_opens_on_its_first_row(fw):
         p.key(ui(fw).page)
         p.run('leave')  # the countries, then the menu
     curl.body = b'name,stationcount\njazz,4\npop,3\nrock,2\nsoul,1\n'
-    p.menu('By Genre')
+    p.menu('按流派')
     fetched(fw, p, curl)
     assert selected(p) == 0
 
@@ -1467,26 +1467,26 @@ def test_a_fetch_whose_thread_won_t_start_says_the_directory_is_unavailable(fw):
     """The weakest signal is still Wi-Fi."""
     p = page(fw, wifi=1)
     fw.mock('fw_pthread_create', lambda *_: 11)  # EAGAIN
-    p.menu('Top Stations')
-    assert fx(fw).running == 0 and ui(fw).note == 1 and 'Directory unavailable' in note(p)
+    p.menu('热门电台')
+    assert fx(fw).running == 0 and ui(fw).note == 1 and '电台目录不可用' in note(p)
 
 
 def test_wi_fi_lost_during_a_fetch_says_no_wi_fi(fw):
     p = page(fw)
     curl = Curl(fw, error=6)  # CURLE_COULDNT_RESOLVE_HOST
-    p.menu('Top Stations')
+    p.menu('热门电台')
     p.wifi = 0
     fetched(fw, p, curl)
-    assert 'No Wi-Fi' in note(p)
+    assert '未连接 Wi-Fi' in note(p)
 
 
 def test_no_curl_handle_no_transfer(fw):
     p = page(fw)
     curl = Curl(fw, m3u(('A', 'http://a.example/')))
     fw.mock('fw_curl_easy_init', lambda *_: 0)
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
-    assert curl.opts == {} and fw.calls('fw_curl_easy_perform') == [] and 'Directory unavailable' in note(p)
+    assert curl.opts == {} and fw.calls('fw_curl_easy_perform') == [] and '电台目录不可用' in note(p)
 
 
 def test_return_while_connecting_ends_the_transfer_through_its_progress_callback(fw):
@@ -1494,7 +1494,7 @@ def test_return_while_connecting_ends_the_transfer_through_its_progress_callback
     off) can hear the cancel: the transfer ends aborted by it, before a byte is taken."""
     p = page(fw)
     curl = Curl(fw, m3u(('A', 'http://a.example/')))
-    p.menu('Top Stations')
+    p.menu('热门电台')
     p.key(ui(fw).page)
     p.run('leave')
     C.CFUNCTYPE(C.c_void_p, C.c_void_p)(p.threads[-1])(0)  # the worker, running until the join
@@ -1506,7 +1506,7 @@ def test_the_directory_s_certificate_is_checked_without_the_clock(fw):
     pinned roots expire."""
     p = page(fw)
     curl = Curl(fw, m3u(('A', 'http://a.example/')))
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fetched(fw, p, curl)
     assert curl.flags & X509_V_FLAG_NO_CHECK_TIME and ui(fw).list.n == 1
 
@@ -1550,7 +1550,7 @@ def test_an_empty_search_shows_the_page_again(fw):
 def test_a_search_too_long_for_the_box_says_so(fw):
     p = page(fw)
     search(fw, p, 'x', failed=1)
-    assert p.toasts == ['Search is too long']
+    assert p.toasts == ['搜索内容过长']
 
 
 def test_the_box_left_without_a_search_shows_the_page(fw):
@@ -1573,7 +1573,7 @@ def test_return_with_the_box_up_empties_and_blurs_it(fw):
 
 def test_no_search_over_a_note(fw):
     p = page(fw, wifi=0)
-    p.menu('Top Stations')
+    p.menu('热门电台')
     fw.fn('radio_search', None)()
     assert ui(fw).edit is None
 
@@ -1628,7 +1628,7 @@ def test_the_keyboard_closing_after_ok_still_searches(fw):
 
 def test_the_box_left_puts_the_list_back_on_its_row(fw):
     p = page(fw)
-    p.menu('Featured')  # a row's choice has come and gone
+    p.menu('精选')  # a row's choice has come and gone
     at(p, 3)
     fw.fn('radio_search', None)()
     p.handler(ui(fw).edit, EVT_BLUR)()
@@ -1645,13 +1645,13 @@ def test_the_box_s_blur_after_the_page_closed_does_nothing(fw):
     assert p.live('go') == []
 
 
-@pytest.mark.parametrize('over, back', [('By Country', PICK), ('Featured', MENU)])
+@pytest.mark.parametrize('over, back', [('按国家', PICK), ('精选', MENU)])
 def test_return_from_search_results_goes_back_to_the_menu_or_the_country_list(fw, over, back):
     """The results take the station list's place, so Return goes where a station list would."""
     p = page(fw)
     curl = Curl(fw, b'name,iso_3166_1,stationcount\nGermany,DE,99\n')
     p.menu(over)
-    if over == 'By Country':
+    if over == '按国家':
         fetched(fw, p, curl)
     curl.body = m3u(('A', 'http://a.example/'))
     search(fw, p, 'jazz')
@@ -1679,7 +1679,7 @@ def test_return_from_loading_selects_the_row_that_opened_it(fw):
     p = page(fw)
     Curl(fw)
     at(p, 2)  # Top Stations, the third row with no Now Playing
-    p.menu('Top Stations')
+    p.menu('热门电台')
     at(p, 0)
     p.key(ui(fw).page)
     p.run('leave')
@@ -1701,11 +1701,11 @@ def test_search_results_over_favourites_are_no_favourites_list(fw):
     """A toggle on them rebuilds nothing."""
     p = page(fw, {FAVS: m3u(('One', 'http://1.example/'))})
     curl = Curl(fw, m3u(('A', 'http://a.example/')))
-    p.menu('Favourites')
+    p.menu('收藏')
     search(fw, p, 'a')
     p.run('go')
     fetched(fw, p, curl)
-    assert hold(fw, p, 0) == 'Added to Favourites' and p.live('go') == []
+    assert hold(fw, p, 0) == '已加入收藏' and p.live('go') == []
 
 
 def test_a_search_is_percent_encoded_as_rfc_3986_says(fw):
@@ -1743,8 +1743,8 @@ def test_now_playing_shows_the_station_and_its_stream(fw):
     p = page(fw)
     player = play(fw, p, 1)
     shown = now_playing(fw, p)
-    assert shown == {'station': 'SomaFM Groove Salad', 'artist': '', 'song': '', 'info': 'Connecting…', 'elapsed': ''}
-    assert 'Internet Radio' in p.w.text.values()
+    assert shown == {'station': 'SomaFM Groove Salad', 'artist': '', 'song': '', 'info': '连接中…', 'elapsed': ''}
+    assert '网络电台' in p.w.text.values()
     player.ends = False
     state = rd(fw)
     state.title, state.codec, state.bitrate, state.since = b'Air - La Femme d\'Argent', b'MP3', b'128', 100000 - 65000
@@ -1755,9 +1755,9 @@ def test_now_playing_shows_the_station_and_its_stream(fw):
                                   'info': 'MP3  128 kbps', 'elapsed': '65'}
 
 
-@pytest.mark.parametrize('state, error, bitrate, info', [(b'stopped', b'', b'', 'Stopped'),
+@pytest.mark.parametrize('state, error, bitrate, info', [(b'stopped', b'', b'', '已停止'),
                                                          (b'error', b'open: Device busy', b'', "Can't play: open: Device busy"),
-                                                         (b'error', b'', b'', "Can't play this station")])
+                                                         (b'error', b'', b'', '无法播放此电台')])
 def test_now_playing_says_why_nothing_plays(fw, state, error, bitrate, info):
     p = page(fw)
     play(fw, p)
@@ -1795,7 +1795,7 @@ def test_the_heart_is_the_station_in_favourites_and_a_tap_toggles_it(fw):
     play(fw, p, 4)
     assert hearts(fw) == ['play_unfav']
     p.handler(np_(fw).heart, EVT_CLICK)()
-    assert p.toasts == ['Added to Favourites'] and p.card.files[FAVS] == m3u(('FIP', 'http://icecast.radiofrance.fr/fip-midfi.mp3'))
+    assert p.toasts == ['已加入收藏'] and p.card.files[FAVS] == m3u(('FIP', 'http://icecast.radiofrance.fr/fip-midfi.mp3'))
     fw.var('g_backlight_status', C.c_ubyte).value = 1
     p.run('np_tick')
     p.run('np_tick')  # favourites.m3u read again only when the serial moves
@@ -1805,7 +1805,7 @@ def test_the_heart_is_the_station_in_favourites_and_a_tap_toggles_it(fw):
 def test_now_playing_from_the_menu_after_a_restart_plays_last(fw):
     p = page(fw, {LAST: m3u(('KEXP', 'https://kexp.example/128.mp3'))})
     player = Player(fw)
-    p.menu('Now Playing')
+    p.menu('正在播放')
     assert player.started == [4242] and rd(fw).list.stations() == [('KEXP', 'https://kexp.example/128.mp3')]
     assert np_(fw).page and now_playing(fw, p)['station'] == 'KEXP'
 
@@ -1821,7 +1821,7 @@ def test_now_playing_from_the_menu_while_playing_just_opens(fw):
     p.key(ui(fw).page)  # Featured back to the menu, which now has Now Playing
     p.run('leave')
     assert p.menu_rows() == MENU_ROWS
-    p.menu('Now Playing')
+    p.menu('正在播放')
     assert player.started == [4242] and np_(fw).page
 
 
@@ -1846,14 +1846,14 @@ def test_classic_s_now_playing_is_the_local_page_s(fw):
     play(fw, p, 0)
     arts = [C.string_at(a[1]).decode() for _, a in fw.calls('image_base_set_image') if a[0] != np_(fw).heart]
     assert np_(fw).ipod == 1 and arts[-2:] == ['stream_radio', 'classic_light_station']  # after the rows' arrows
-    name = [w for w, t in p.w.text.items() if t == 'Internet Radio'][-1]  # the page's, after the menu's title
+    name = [w for w, t in p.w.text.items() if t == '网络电台'][-1]  # the page's, after the menu's title
     assert (name, 0) in [a[:2] for _, a in fw.calls('widget_set_visible')]  # Classic's bar names the page
 
 
 def test_held_on_now_playing_toggles_the_station_playing(fw):
     p = page(fw)
     play(fw, p, 5)
-    assert fw.fn('radio_hold', C.c_char_p, C.c_void_p)(np_(fw).page) == b'Added to Favourites'
+    assert fw.fn('radio_hold', C.c_char_p, C.c_void_p)(np_(fw).page) == b'\xe5\xb7\xb2\xe5\x8a\xa0\xe5\x85\xa5\xe6\x94\xb6\xe8\x97\x8f'
     assert p.card.files[FAVS] == m3u(('NTS 1', 'https://stream-relay-geo.ntslive.net/stream'))
 
 
@@ -2027,7 +2027,7 @@ def test_the_pages_go_by_the_names_the_firmware_knows_them_by(fw):
     assert forward(other) == (1, [b'f'])
     assert forward(np_(fw).page) == (2, [b'f'])
     bar_title_of, label = fw.fn('navigation__bar_title_of', C.c_char_p, C.c_void_p, C.c_void_p), C.c_void_p()
-    assert bar_title_of(np_(fw).page, C.byref(label)) == b'Internet Radio'
+    assert bar_title_of(np_(fw).page, C.byref(label)) == b'\xe7\xbd\x91\xe7\xbb\x9c\xe7\x94\xb5\xe5\x8f\xb0'
 
 
 def test_nothing_read_is_kept(fw):

@@ -420,7 +420,7 @@ int ringnav_speed(int mode) {
     if (!blob_io(path, tmp, &saved, sizeof saved, 1)) {
         unlink(tmp);
         playback_speed_start();
-        toast("Could not save folder speed");
+        toast("无法保存文件夹播放速度");
         return stock_speed_trampoline(g_playspeed_mode);
     }
     g_playspeed_mode = (unsigned char)mode;
@@ -1693,11 +1693,11 @@ void playback_poll(void) {
     wheel_pct(); /* the saved sensitivity from the first UI pass */
     if (too_long) {
         too_long = 0;
-        toast("Too long to play on the Q2: split it into parts");
+        toast("文件过长，Q2 无法播放：请分割为多段");
     }
     if (restart_ask) {
         restart_ask = 0;
-        toast("Press again to restart");
+        toast("再次按下以重新开始");
     }
     follow_queue(); /* before Crossfade reads the next track */
     xfade_poll(playback_next(), !s.active && M(MCL_MODE) == 2);

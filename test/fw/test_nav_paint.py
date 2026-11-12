@@ -1511,9 +1511,9 @@ def sync(fw, win):
     fw.fn('bar_title_sync', None, C.c_void_p)(win)
 
 
-@pytest.mark.parametrize('name, title', [('playing_page', 'Now Playing'), ('playing_page_stock', 'Now Playing'),
+@pytest.mark.parametrize('name, title', [('playing_page', '正在播放'), ('playing_page_stock', '正在播放'),
                                          ('coverflow_page', 'Cover Flow'), ('equalizer_page', 'EQ'),
-                                         ('spotify_page', 'Spotify'), ('radionp_page', 'Internet Radio'),
+                                         ('spotify_page', 'Spotify'), ('radionp_page', '网络电台'),
                                          ('usbmode_page', 'Q2 Pod')])
 def test_a_page_known_by_name_titles_the_bar(fw, world, st, name, title):
     label = bar_title(fw, world, st)
@@ -1530,7 +1530,7 @@ def test_search_is_titled_though_a_dialog(fw, world, st):
     win = world.window('search_dialog', 'dialog')
     st('search_win', C.c_void_p).value = win
     sync(fw, win)
-    assert world[label].text == 'Search'
+    assert world[label].text == '搜索'
 
 
 def navbar_page(world, text='Albums', kind='hscroll_label'):
@@ -1566,7 +1566,7 @@ def test_a_payload_page_s_caption_on_show_titles_the_bar(fw, world, st):
     label = bar_title(fw, world, st)
     win = world.window('games_page')
     world.add(win, 'sheet', 'view')
-    hidden = world.add(win, 'caption', 'hscroll_label', box=(0, 0, 375, 48), text='Games')
+    hidden = world.add(win, 'caption', 'hscroll_label', box=(0, 0, 375, 48), text='游戏')
     world[hidden].visible = 0
     world.add(win, 'note', 'hscroll_label', box=(0, 60, 375, 30), text='Not a caption')
     body = world.add(win, 'body', 'view')
@@ -1578,11 +1578,11 @@ def test_a_payload_page_s_caption_on_show_titles_the_bar(fw, world, st):
 def test_a_hidden_caption_still_names_the_page(fw, world, st):
     label = bar_title(fw, world, st)
     win = world.window('games_page')
-    first = world.add(win, '_page_title', 'hscroll_label', box=(0, 0, 375, 32), text='Games')  # page_title's
+    first = world.add(win, '_page_title', 'hscroll_label', box=(0, 0, 375, 32), text='游戏')  # page_title's
     second = world.add(win, 'other', 'hscroll_label', box=(0, 0, 375, 48), text='Second')
     world[first].visible = world[second].visible = 0
     sync(fw, win)
-    assert world[label].text == 'Games'
+    assert world[label].text == '游戏'
 
 
 def test_a_dialog_keeps_the_window_s_title(fw, world, st):
@@ -1659,7 +1659,7 @@ def test_songs_action_bar_is_found_with_the_title(fw, world, st):
 
 def action_view(world, n):
     view = world.add(world.window('songs_page'), 'view_navbar_allplay', box=(0, 0, 375, 40))
-    made = [lambda: world.add(view, 'label', 'label', box=(40, 0, 200, 40), text='Play All'),
+    made = [lambda: world.add(view, 'label', 'label', box=(40, 0, 200, 40), text='顺序播放'),
             lambda: world.add(view, 'play', 'image', box=(0, 0, 40, 40), style='s_img_playall'),
             lambda: world.add(view, 'sort', 'image', box=(335, 0, 40, 40), style='s_img_sort')]
     return view, [make() for make in made[:n]]
@@ -2955,7 +2955,7 @@ def test_a_set_date_page_is_painted_as_the_time_form(fw, world, st):
     st('slider_win', C.c_void_p).value = win
     canvas = Canvas(fw)
     paint_bg(fw, win, canvas)
-    assert 'Save' in [t for t, *_ in canvas.texts] and canvas.art('classic_light_band_top') == []
+    assert '保存' in [t for t, *_ in canvas.texts] and canvas.art('classic_light_band_top') == []
 
 
 # The theme's boot, at the system bar's load (application_init's first window).

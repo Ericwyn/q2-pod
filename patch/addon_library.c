@@ -95,7 +95,7 @@ static const char *library_parse(char *s, char *why, unsigned size) {
         }
         int add = tk_str_start_with(s, "add ");
         if (!add && !tk_str_start_with(s, "import ")) {
-            tk_snprintf(why, size, "Unknown request: %s", s);
+            tk_snprintf(why, size, "未知请求：%s", s);
             return why;
         }
         char *p = s + (add ? 4 : 7), *name = p + sizeof LIB_DIR - 1;
@@ -103,16 +103,16 @@ static const char *library_parse(char *s, char *why, unsigned size) {
         /* stock lists that folder alone, by name: no subfolder, a name before .m3u (so never ..) */
         if (!tk_str_start_with(p, LIB_DIR) || strstr(name, "/") || k < sizeof LIB_DIR + 4 ||
             strcasecmp(p + k - 4, ".m3u")) {
-            tk_snprintf(why, size, "Not a playlist in /mnt/mmc/_explaylist_data: %s", p);
+            tk_snprintf(why, size, "/mnt/mmc/_explaylist_data 中不是播放列表：%s", p);
             return why;
         }
         if (k - (sizeof LIB_DIR - 1) - 4 >= LIB_NAME) {
             p[k - 4] = 0;
-            tk_snprintf(why, size, "Name too long: %s", name);
+            tk_snprintf(why, size, "名称过长：%s", name);
             return why;
         }
         if (access(p, 0)) {
-            tk_snprintf(why, size, "Not found: %s", p);
+            tk_snprintf(why, size, "未找到：%s", p);
             return why;
         }
         *w++ = add ? 'a' : 'i';
@@ -154,7 +154,7 @@ static const char *library_missing(char *why, unsigned size) {
     for (const char *l = libup.list; *l; l += strlen(l) + 1) {
         if (*l != 'i' || playlist_named(l + 1)) continue;
         /* the name less its .m3u */
-        tk_snprintf(why, size, "Couldn't import %.*s", (int)strlen(l + 1) - 4, l + 1);
+        tk_snprintf(why, size, "无法导入 %.*s", (int)strlen(l + 1) - 4, l + 1);
         return why;
     }
     return 0;
@@ -226,7 +226,7 @@ static void library_take(const char *id) {
     line_end(seq); /* the whole file when it has no newline */
     tk_snprintf(libup.done, sizeof libup.done, "%s.done", path);
     if (!*seq || strlen(seq) >= sizeof libup.seq) { /* can't be kept: never run, answered once */
-        library_refuse(seq, *seq ? "Seq too long" : "Missing seq");
+        library_refuse(seq, *seq ? "序列号过长" : "缺少序列号");
         return;
     }
     if (!strcmp(seq, last)) return; /* the one taken last is done already */
@@ -246,8 +246,8 @@ static void library_take(const char *id) {
     tk_snprintf(libup.seq, sizeof libup.seq, "%s", seq);
     libup.scan = 0;
     libup.list[0] = 0; /* no files until library_parse moves them there */
-    const char *bad = n >= LIB_MAX - 2            ? "Request too long"
-                      : access("/tmp/mmc_add", 0) ? "No memory card"
+    const char *bad = n >= LIB_MAX - 2            ? "请求内容过长"
+                      : access("/tmp/mmc_add", 0) ? "未插入存储卡"
                                                   : library_parse(body, why, sizeof why);
     if (bad || (!libup.scan && !libup.list[0])) { /* a seq alone: nothing to do */
         library_done(bad);
@@ -278,7 +278,7 @@ static void library_step(void) {
             return;
         }
         if (!libup.seen) {
-            library_done("Couldn't start the scan");
+            library_done("无法启动扫描");
             return;
         }
         if (!libup.list[0]) {
@@ -302,9 +302,9 @@ static void library_step(void) {
     int r = importPlayList();
     libup.only = 0;
     char why[300];
-    const char *bad = r == -2 ? "No memory card" : library_missing(why, sizeof why);
+    const char *bad = r == -2 ? "未插入存储卡" : library_missing(why, sizeof why);
     library_done(bad); /* before the toast, whose dialog runs a loop of its own */
-    toast(bad ? bad : "Playlists updated");
+    toast(bad ? bad : "播放列表已更新");
 }
 
 /* addon_poll's, once a pass, every LIB_POLL_MS. A stock dialog it opens (Update Local Music, a

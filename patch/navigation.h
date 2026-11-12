@@ -462,6 +462,7 @@ enum { PODCASTS = 1, AUDIOBOOKS, PHOTOS, BOOKS, VIDEOS };
 enum { TONE_LIGHT = 2, TONE_RED = 3 }; /* columns of ACCENTS */
 int geom_val(int v) __attribute__((pure));
 extern const char *const MEDIA[];
+extern const char *const MEDIA_LABELS[];
 unsigned flip_if(int on, unsigned c) __attribute__((pure));
 int accent(void);
 unsigned accent_map(unsigned c, int preset, int tone);

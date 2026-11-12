@@ -422,10 +422,10 @@ def test_display_settings(fw, clock, st, values, theme, home, light):
 
 
 @pytest.mark.parametrize('value, rockbox, name', [
-    (b'', 1, b'Rockbox'), (b'', 0, b'Favorites'), (b'0', 0, b'Rockbox'), (b'1', 0, b'Artists'), (b'2', 0, b'Albums'),
-    (b'3', 0, b'Favorites'),
-    (b'4', 0, b'Rated Albums'), (b'5', 0, b'Shuffle'), (b'6', 0, b'Games'), (b'7', 0, b'Playlists'), (b'8', 0, b'Podcasts'),
-    (b'9', 0, b'Audiobooks'), (b'10', 0, b'Groovebox'), (b'11', 1, b'Rockbox'), (b'11', 0, b'Favorites'), (b'1x', 0, b'Favorites'),
+    (b'', 1, b'Rockbox'), (b'', 0, b'\xe6\x94\xb6\xe8\x97\x8f'), (b'0', 0, b'Rockbox'), (b'1', 0, b'Artists'), (b'2', 0, b'Albums'),
+    (b'3', 0, b'\xe6\x94\xb6\xe8\x97\x8f'),
+    (b'4', 0, b'\xe5\xb7\xb2\xe8\xaf\x84\xe4\xbb\xb7\xe4\xb8\x93\xe8\xbe\x91'), (b'5', 0, b'\xe9\x9a\x8f\xe6\x9c\xba\xe6\x92\xad\xe6\x94\xbe'), (b'6', 0, b'\xe6\xb8\xb8\xe6\x88\x8f'), (b'7', 0, b'Playlists'), (b'8', 0, b'Podcasts'),
+    (b'9', 0, b'Audiobooks'), (b'10', 0, b'Groovebox'), (b'11', 1, b'Rockbox'), (b'11', 0, b'\xe6\x94\xb6\xe8\x97\x8f'), (b'1x', 0, b'\xe6\x94\xb6\xe8\x97\x8f'),
 ])
 def test_shortcut(fw, clock, value, rockbox, name):
     Config(fw, **({'SHORTCUT': value} if value else {}))
@@ -672,8 +672,8 @@ def test_csv_toggle_round_trip(fw, heap):
 
 
 # Streaming's services.
-@pytest.mark.parametrize('i, key, label', [(0, b'TIDAL', b'TIDAL'), (1, b'SPOTIFY', b'Spotify'), (2, b'DOWNLOADS', b'Tidal Downloads'),
-                                           (3, b'RADIO', b'Internet Radio'), (4, b'AIRPLAY', b'AirPlay')])
+@pytest.mark.parametrize('i, key, label', [(0, b'TIDAL', b'TIDAL'), (1, b'SPOTIFY', b'Spotify'), (2, b'DOWNLOADS', b'Tidal \xe4\xb8\x8b\xe8\xbd\xbd'),
+                                           (3, b'RADIO', b'\xe7\xbd\x91\xe7\xbb\x9c\xe7\x94\xb5\xe5\x8f\xb0'), (4, b'AIRPLAY', b'AirPlay')])
 def test_fixed_services(fw, i, key, label):
     svc = fw.fn('navigation__svc', C.c_char_p, C.c_int, C.c_int)
     assert svc(i, 0) == key and svc(i, 1) == label
@@ -1625,7 +1625,7 @@ def test_stall_record_counts_toasts_open(fw, st, power):
             s.step()
             s.wait(STALL_MS)  # and that one's loop stalls
     fw.mock('navigator_to_with_context', show)
-    toast(b'Could not save boot logo')
+    toast(b'\xe6\x97\xa0\xe6\xb3\x95\xe4\xbf\x9d\xe5\xad\x98\xe5\xbc\x80\xe6\x9c\xba\xe5\x9b\xbe')
     assert depth == [1, 2] and st('toasts').value == 0 and s.record == s.expect(STALL_MS, toasts=2)
 
 
@@ -2101,11 +2101,11 @@ def test_era_keeps_at_most_32_decades(fw):
 
 def test_era_album_row_copies_its_strings(fw, era):
     add = fw.fn('library_lists__era_album_row', *ROW)
-    album, artist, year, path = text(b'Album'), text(b'Band'), text(b'1975'), text(b'/m/a')
+    album, artist, year, path = text(b'Album'), text(b'\xe9\xa2\x91\xe6\xae\xb5'), text(b'1975'), text(b'/m/a')
     fields = (C.c_char_p * 4)(C.cast(album, C.c_char_p), C.cast(artist, C.c_char_p), C.cast(year, C.c_char_p), C.cast(path, C.c_char_p))
     assert add(None, 4, fields, None) == 0
     album[0] = b'X'
-    assert era.m == 1 and C.string_at(era.v[0].album) == b'Album' and C.string_at(era.v[0].artist) == b'Band'
+    assert era.m == 1 and C.string_at(era.v[0].album) == b'Album' and C.string_at(era.v[0].artist) == b'\xe9\xa2\x91\xe6\xae\xb5'
     assert C.string_at(era.v[0].path) == b'/m/a' and era.v[0].year == 1975
 
 

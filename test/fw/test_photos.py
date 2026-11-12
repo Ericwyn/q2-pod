@@ -764,7 +764,7 @@ def test_all_photos_is_the_folder_s_own_then_each_album_s(fw, typed):
     page.fire()
     assert page.ph.screen == GRID
     assert page.paths() == [f'{ROOT}/own.jpg', f'{ROOT}/Beach/2.png', f'{ROOT}/Trip/0.jpg', f'{ROOT}/Trip/1.jpg']
-    assert 'All Photos' in page.w.texts.values()
+    assert '所有照片' in page.w.texts.values()
 
 
 @pytest.mark.parametrize('row, album', [(1, ['Beach/2.png']), (2, ['Trip/0.jpg', 'Trip/1.jpg'])])
@@ -786,7 +786,7 @@ def test_at_most_photos_max(fw):
 
 def test_no_photos(fw):
     page = Page(fw, Card(fw, folders=[ROOT]))
-    assert page.ph.n == 0 and page.tiles() == [] and 'No photos' in page.w.texts.values() and page.workers == []
+    assert page.ph.n == 0 and page.tiles() == [] and '暂无照片' in page.w.texts.values() and page.workers == []
 
 
 def test_the_worker_makes_every_photo_and_the_poll_repaints_and_joins(fw):
@@ -887,7 +887,7 @@ def test_a_photo_not_made_yet_says_loading_and_a_bad_one_says_so(fw):
     assert caption(page) == 'Loading…' and visible(fw, page.ph.info) == 1
     page.ph.state[2] = PH_BAD
     wheel(page, 2)
-    assert caption(page) == "Can't open this photo" and visible(fw, page.ph.info) == 1
+    assert caption(page) == '无法打开此照片' and visible(fw, page.ph.info) == 1
 
 
 def test_the_same_caption_isn_t_written_again(fw):

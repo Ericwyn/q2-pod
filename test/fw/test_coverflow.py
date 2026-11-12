@@ -1903,8 +1903,8 @@ def int_bytes(v):
     return v.to_bytes(4, 'little', signed=True)
 
 
-@pytest.mark.parametrize('sort, name', ((0, b'Sort: Album'), (1, b'Sort: Artist'), (2, b'Sort: Recently Added'), (3, b'Sort: Most Played'),
-                                         (4, b'Sort: Random'), (6, b'Sort: Year')))
+@pytest.mark.parametrize('sort, name', ((0, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe4\xb8\x93\xe8\xbe\x91'), (1, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe8\xa1\xa8\xe6\xbc\x94\xe8\x80\x85'), (2, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe6\x9c\x80\xe8\xbf\x91\xe6\xb7\xbb\xe5\x8a\xa0'), (3, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe6\x9c\x80\xe5\xa4\x9a\xe6\x92\xad\xe6\x94\xbe'),
+                                         (4, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe9\x9a\x8f\xe6\x9c\xba'), (6, b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe5\xb9\xb4\xe4\xbb\xbd')))
 def test_the_library_s_sort_reads_back(fw, sort, name):
     g = api(fw)
     Card(fw, {SORT_FILE: int_bytes(sort)})
@@ -1915,7 +1915,7 @@ def test_the_library_s_sort_reads_back(fw, sort, name):
 def test_a_bad_sort_file_is_album(fw, data):
     g = api(fw)
     Card(fw, {} if data is None else {SORT_FILE: data})
-    assert g.sort_saved() == SORT_ALBUM and g.coverflow_sort_name() == b'Sort: Album'
+    assert g.sort_saved() == SORT_ALBUM and g.coverflow_sort_name() == b'\xe6\x8e\x92\xe5\xba\x8f\xef\xbc\x9a\xe4\xb8\x93\xe8\xbe\x91'
 
 
 def test_sort_file_hostile_sweep(fw):
@@ -2673,7 +2673,7 @@ def test_the_streaming_row_opens_the_page_in_full(fw, stock_bg):
     assert ui.click(h.rows['img_services']) == [9] and stock_bg[1] == 0
 
 
-@pytest.mark.parametrize('shortcut, shown, label', (('0', 0, 'Rockbox'), ('6', 1, 'Games')))
+@pytest.mark.parametrize('shortcut, shown, label', (('0', 0, 'Rockbox'), ('6', 1, '游戏')))
 def test_the_shortcut_row_sits_after_folder_unless_rockbox_is_missing(fw, shortcut, shown, label):
     themed(fw, CLASSIC, SHORTCUT=shortcut)
     ui = Ui(fw)
@@ -3161,9 +3161,9 @@ def test_an_empty_page_says_so_and_a_bar_still_reads_its_name(fw, theme):
     ui = Ui(fw)
     page = ui.make(0, 'window')
     body = ui.make(page, 'view')
-    page_list_or(fw, page, body, b'Photos', b'No photos', 0)
+    page_list_or(fw, page, body, b'Photos', b'\xe6\x9a\x82\xe6\x97\xa0\xe7\x85\xa7\xe7\x89\x87', 0)
     labels = ui.of('hscroll_label', body)
-    assert [ui[w].text for w in labels if ui[w].visible] == ['No photos']
+    assert [ui[w].text for w in labels if ui[w].visible] == ['暂无照片']
     read = [ui[w].text for w in labels if ui[w].name == '_page_title' and not ui[w].visible]
     assert read == (['Photos'] if theme == CLASSIC else [])
     assert ui.at(ui.of('list_view', body)[0])[3] == 0  # no rows
@@ -3300,7 +3300,7 @@ def test_the_captions_name_the_centre_album_and_its_artist(fw):
     assert 'style:normal:font_name' not in ui[c.name].props  # Minimal's captions keep the style's face
 
 
-@pytest.mark.parametrize('scoped, card', ((ARTIST_ALBUMS, 'All albums'), (2, 'Sort: Rating')))
+@pytest.mark.parametrize('scoped, card', ((ARTIST_ALBUMS, '全部专辑'), (2, '排序：评价')))
 def test_the_card_after_the_albums_is_named_for_what_it_does(fw, scoped, card):
     _, ui, c, titles = captions(fw, MINIMAL, scoped)
     c.sort = SORT_RATING

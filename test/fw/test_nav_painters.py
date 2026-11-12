@@ -398,7 +398,7 @@ def kept_as_the_genre(joined, out):
 
 
 @pytest.mark.parametrize('joined, kept', [
-    (b'Rock', b'Rock'), (b'Rock / Pop', b'Rock / Pop'), (b'', b''),
+    (b'\xe6\x91\x87\xe6\xbb\x9a', b'\xe6\x91\x87\xe6\xbb\x9a'), (b'Rock / Pop', b'Rock / Pop'), (b'', b''),
     (b'a' * 100 + b' / ' + b'b' * 30, b'a' * 100),
     (b'a' * 0x7f, b'a' * 0x7f), (b'a' * 0x80, b'a' * 0x7f),
     (('é' * 100).encode(), ('é' * 63).encode()),  # one too long: 126 bytes of whole characters
@@ -420,7 +420,7 @@ def test_genre_copy_any_tag(fw):
     calloc = fw.fn('calloc', C.c_void_p, C.c_size_t, C.c_size_t)
     free = fw.fn('free', None, C.c_void_p)
     rng = random.Random(0x6e7e)
-    pieces = [b'Rock', b'Hip-Hop', b' / ', b'/', b' ', 'é'.encode(), '音楽'.encode(), '\U0001f3b8'.encode(), b'x' * 40]
+    pieces = [b'\xe6\x91\x87\xe6\xbb\x9a', b'Hip-Hop', b' / ', b'/', b' ', 'é'.encode(), '音楽'.encode(), '\U0001f3b8'.encode(), b'x' * 40]
     for _ in range(1500):
         joined = b''.join(rng.choice(pieces) for _ in range(rng.randrange(0, 30)))
         src, dst = calloc(len(joined) + 1, 1), calloc(0x80, 1)
@@ -1031,7 +1031,7 @@ def paint_bg(fw, w, canvas):
 class Confirm:
     """Stock's confirminfo_dialog as dialog_confirminfo_dialog_init leaves it: full-screen and clear, its
     prompt's hscroll_label lines, maybe msg_delcheckbutton, and the asset's two buttons."""
-    def __init__(self, fw, ui, lines=('Delete this song?',), check=None, cells=('Cancel', 'OK')):
+    def __init__(self, fw, ui, lines=('Delete this song?',), check=None, cells=('取消', 'OK')):
         self.fw, self.ui = fw, ui
         self.win = ui.window('confirminfo_dialog', kind='dialog')
         self.lines = []
@@ -1081,7 +1081,7 @@ def test_a_confirm_lays_its_buttons_side_by_side_centred_under_its_prompt(fw, st
 def test_a_cell_grows_with_its_text_past_a_least_width(fw, st):
     """Short words share one least width, wider than either; past it a cell grows as its text does."""
     widths = []
-    for cells in (('No', 'Yes'), ('Cancel', 'Remove'), ('Cancel!!', 'Remove')):
+    for cells in (('No', 'Yes'), ('取消', 'Remove'), ('Cancel!!', 'Remove')):
         confirm = Confirm(fw, classic(fw, st), cells=cells)
         confirm.paint()
         widths.append((confirm.cancel.box[2], confirm.enter.box[2]))
@@ -1130,7 +1130,7 @@ def test_the_pop_up_opens_on_cancel_and_the_wheel_lights_the_other(fw, st, layou
     assert confirm.win.props['_ringnav_index'] == 0
     assert mid(confirm.cancel) == rgba(S.sel_row(15, 30)) != mid(confirm.enter)
     texts = {t: c for t, r, c in canvas.texts if r[1] == confirm.cancel.box[1]}
-    assert texts['Cancel'] != texts['OK'] or light  # dark: the unlit cell's text is dimmer
+    assert texts['取消'] != texts['OK'] or light  # dark: the unlit cell's text is dimmer
     confirm.win.props['_ringnav_index'] = 1
     confirm.paint()
     assert mid(confirm.enter) == rgba(S.sel_row(15, 30)) != mid(confirm.cancel)
@@ -1139,13 +1139,13 @@ def test_the_pop_up_opens_on_cancel_and_the_wheel_lights_the_other(fw, st, layou
 def test_the_cells_texts_sit_over_their_shadows_a_row_up(fw, st):
     confirm = Confirm(fw, classic(fw, st))
     canvas = confirm.paint()
-    for cell, text in ((confirm.cancel, 'Cancel'), (confirm.enter, 'OK')):
+    for cell, text in ((confirm.cancel, '取消'), (confirm.enter, 'OK')):
         drawn = [(r, c) for t, r, c in canvas.texts if t == text]
         (shadow, shade), (box, ink) = drawn
         assert box == cell.box and shadow == (box[0], box[1] - 1, box[2], box[3])
         assert shade >> 24 < 0xff and shade & 0xffffff == 0  # black, part transparent
     inks = {t: c for t, r, c in canvas.texts[1::2]}
-    assert inks['Cancel'] == rgba(0xffffff) != inks['OK']  # the dark half's unlit cell is dimmer
+    assert inks['取消'] == rgba(0xffffff) != inks['OK']  # the dark half's unlit cell is dimmer
 
 
 def test_delete_files_check_is_drawn_where_the_icon_goes(fw, st, layout):
@@ -1196,7 +1196,7 @@ def test_a_row_actions_question_is_the_tray_its_cell_the_verb(fw, st):
     (ix, iy, iw, ih), = images  # the tray's shadow at its art's size, centred, the cells on it
     assert (iw, ih) == (315, 70) and 2 * ix + iw == 375
     assert all(ix <= x and x + w <= ix + iw and iy <= y and y + h <= iy + ih for x, y, w, h in cells)
-    assert inks['Cancel'] == inks['Delete']  # lit or not, both cells' text alike
+    assert inks['取消'] == inks['Delete']  # lit or not, both cells' text alike
     text, shown, (lx, ly, lw, lh), (_, y, _, _) = seen['over']
     assert text == 'OK' and shown and ly + lh <= y  # its prompt asked, the cells under it
     after = Confirm(fw, ui, ['Shut down?'])  # the row action answered: the next confirm is a question
@@ -1225,7 +1225,7 @@ def toast(fw, st, lines, name='msginfo_dialog'):
     return win, labels, canvas
 
 
-@pytest.mark.parametrize('lines', [['Done'], ['Saved', 'Cover Flow rebuilds artwork']])
+@pytest.mark.parametrize('lines', [['完成'], ['Saved', 'Cover Flow rebuilds artwork']])
 def test_a_toasts_box_holds_its_lines_centred(fw, st, lines):
     win, labels, canvas = toast(fw, st, lines)
     (x, y, w, h), color, radius = canvas.boxes[0]
@@ -1243,11 +1243,11 @@ def test_a_toasts_box_holds_its_lines_centred(fw, st, lines):
 
 
 def test_a_toast_grows_a_line_at_a_time_and_with_its_widest_line(fw, st):
-    boxes = [toast(fw, st, lines)[2].boxes[0][0] for lines in (['Done'], ['Done'] * 2, ['Done'] * 3, ['Done', 'Done!!'])]
+    boxes = [toast(fw, st, lines)[2].boxes[0][0] for lines in (['完成'], ['完成'] * 2, ['完成'] * 3, ['完成', 'Done!!'])]
     one, two, three, wider = boxes
     pitch = two[3] - one[3]
     assert pitch > 0 and three[3] - two[3] == pitch and one[1] == two[1] == three[1]  # down from one top
-    assert pitch == toast(fw, st, ['Done'])[1][0].box[3]  # a line's height a line
+    assert pitch == toast(fw, st, ['完成'])[1][0].box[3]  # a line's height a line
     assert (wider[2] - two[2], wider[3]) == (2 * 10, two[3])  # two characters wider
 
 
@@ -1258,7 +1258,7 @@ def test_a_line_too_long_scrolls_in_its_label_never_a_wider_box(fw, st):
 
 
 def test_a_toast_moves_its_lines_once(fw, st):
-    win, labels, canvas = toast(fw, st, ['Done'])
+    win, labels, canvas = toast(fw, st, ['完成'])
     moves = len(fw.calls('widget_move_resize'))
     paint_bg(fw, win, canvas)
     assert len(fw.calls('widget_move_resize')) == moves and len(canvas.boxes) == 2
@@ -1266,15 +1266,15 @@ def test_a_toast_moves_its_lines_once(fw, st):
 
 def test_a_toast_is_the_same_dark_box_in_either_half(fw, st):
     """flip_if undoes the ink's Light Mode flip, to within the flip's rounding."""
-    dark = toast(fw, st, ['Done'])[2].boxes[0][1]
+    dark = toast(fw, st, ['完成'])[2].boxes[0][1]
     st('light').value = 1
-    light = toast(fw, st, ['Done'])[2].boxes[0][1]
+    light = toast(fw, st, ['完成'])[2].boxes[0][1]
     assert dark >> 24 == light >> 24 and all(abs((dark >> s & 255) - (light >> s & 255)) <= 3 for s in (0, 8, 16))
     assert bright(light) < 3 * 0x80  # dark in the light half too
 
 
 def test_the_serials_qr_takes_the_boxs_colour_on_its_own_rect(fw, st):
-    (_, color, radius), = toast(fw, st, ['Done'])[2].boxes
+    (_, color, radius), = toast(fw, st, ['完成'])[2].boxes
     win, labels, canvas = toast(fw, st, ['SN'], name='showsn_dialog')
     assert win.props['style:normal:bg_color'] == i32(color) and win.props['style:normal:round_radius'] == radius
     assert not canvas.boxes and labels[0].box == (0, 140, 375, 30)  # no box: its lines where stock put them
@@ -1649,7 +1649,7 @@ def test_power_adds_standby_charge_and_in_vehicle_rows_after_stocks(fw):
     # Standby, Charge, Smart Wi-Fi, In-Vehicle
     assert icons == ['system_powermanager', 'usb_chargeswitch', 'wifiset_wifi', 'system_carmode']
     standby, charge, *_ = (ui.text(label_of(r)) for r in ours)
-    assert standby.endswith('Off') and f'{O["CHARGE_STOP"]}%' in charge  # Standby off; where Charge stops
+    assert standby.endswith('关闭') and f'{O["CHARGE_STOP"]}%' in charge  # Standby off; where Charge stops
     assert [switch(r) for r in ours] == [None, 'switch_off', 'switch_off', 'switch_off']
     for r in ours:  # stock's settings row: its button, the title clear of the icon, both the row's height
         button, label = r.children[0], label_of(r)
@@ -1671,7 +1671,7 @@ def test_standby_limit_cycles_its_four_choices_and_saves_each(fw):
         texts.append(ui.text(label_of(standby)))
     hours = [O[f'STANDBY_LIMIT_{k}'] for k in (1, 2, 3)]
     assert [re.findall(r'\d+', t) for t in texts] == [[str(h)] for h in hours] + [[]]  # each limit's hours, then none
-    assert texts[-1].endswith('Off')
+    assert texts[-1].endswith('关闭')
     assert settings.written == [('STANDBYLIMIT', v) for v in (1, 2, 3, 0)]
 
 
@@ -1712,15 +1712,15 @@ def test_classic_shows_a_switch_as_its_value(fw, st):
     ui, win, view, settings, build = settings_page(fw, CLASSIC, 'powermanager_page', 'scroll_view_powermanager', CHARGELIMIT=b'1')
     fw.fn('ringnav_powermanager', C.c_int, C.c_void_p, C.c_void_p)(win.addr, None)
     standby, charge, smart, car = view.children
-    assert value(ui, charge) == 'On' and value(ui, smart) == value(ui, car) == 'Off' and switch(charge) is None
+    assert value(ui, charge) == '打开' and value(ui, smart) == value(ui, car) == '关闭' and switch(charge) is None
     assert f'{O["CHARGE_STOP"]}%' in ui.text(label_of(charge))
     v = next(c for c in charge.walk() if c.name == '_setting_value')
     title, width = label_of(charge), charge.children[0].box[2]
     # the value in the trailing column to the row's end, the title ending short of it
     assert title.box[0] + title.box[2] < v.box[0] and width // 2 < v.box[0] and v.box[0] + v.box[2] >= width
-    assert ui.text(label_of(standby)).endswith('Off') and value(ui, standby) is None  # not a switch: its text whole
+    assert ui.text(label_of(standby)).endswith('关闭') and value(ui, standby) is None  # not a switch: its text whole
     click(ui, charge)
-    assert value(ui, charge) == 'Off' and len([c for c in charge.walk() if c.name == '_setting_value']) == 1
+    assert value(ui, charge) == '关闭' and len([c for c in charge.walk() if c.name == '_setting_value']) == 1
 
 
 @pytest.mark.parametrize('bt', [1, 0])
@@ -1753,7 +1753,7 @@ def test_device_volume_off_gives_stock_its_gain_back_at_once(fw, way, sent):
     g(fw, 'g_volume', 37)
     fw.mock('mclGetOutputWay', lambda *_: way)
     fw.fn('ringnav_btrows', C.c_int, C.c_void_p, C.c_void_p)(win.addr, None)
-    link = row(ui, view, 'Control Device Volume')
+    link = row(ui, view, '控制设备音量')
     bt_link = fw.fn('navigation__bt_link', C.c_int)
     assert switch(link) == 'switch_on' and bt_link() == 1
     click(ui, link)
@@ -1782,7 +1782,7 @@ def test_playback_orders_its_rows_and_ends_on_library_and_folders(fw):
     ids = [r.name for r in rows]
     assert len(rows) == 19 and 's13' not in ids and 's14' not in ids  # Folder art and skip: Library & Folders'
     at = {r.name or icon(r): k for k, r in enumerate(rows)}
-    assert rows[-1] is row(ui, view, 'Library & Folders') and 'list_into' in [c.props.get('image') for c in rows[-1].walk()]
+    assert rows[-1] is row(ui, view, '音乐与文件夹') and 'list_into' in [c.props.get('image') for c in rows[-1].walk()]
     assert (at['s3'], at['s2']) == (0, 1)  # Play Mode, then EQ
     assert at['playset_gapless'] == at['s9'] + 1 and at['playset_memplay'] == at['s8'] + 1  # Crossfade, Resume Songs
     balance = [k for k, r in enumerate(rows) if icon(r) == 'playset_balance']
@@ -1809,7 +1809,7 @@ def test_library_and_folders_is_stocks_page_again_with_the_library_rows(fw, st):
         return 0
 
     fw.mock('navigator_to', open_page)
-    opener = row(ui, view, 'Library & Folders')
+    opener = row(ui, view, '音乐与文件夹')
     click(ui, opener)
     assert sub['name'] == b'playset/playset_page' and sub['title'] == ui.text(label_of(opener))  # titled as its row
     ours, kept = sub['rows'][:4], sub['rows'][4:]
@@ -1829,9 +1829,9 @@ def test_artists_toggles_stocks_artist_type(fw):
     fw.var('fw_ctx_artist_type', C.c_int).value = 1
     fw.fn('pod_rows', None, C.c_void_p, C.c_char_p, C.c_int, C.c_int, C.c_void_p)(win.addr, b'scroll_view_playset', 4, 1, (C.c_char_p * 1)(b'x'))
     artists = view.children[0]
-    assert ui.text(label_of(artists)) == 'Artists: Album Artist'
+    assert ui.text(label_of(artists)) == '表演者分类：专辑表演者'
     click(ui, artists)
-    assert fw.var('fw_ctx_artist_type', C.c_int).value == 0 and ui.text(label_of(artists)) == 'Artists: Artist'
+    assert fw.var('fw_ctx_artist_type', C.c_int).value == 0 and ui.text(label_of(artists)) == '表演者分类：曲目表演者'
     assert settings.written == [('ARTISTTYPE', 0)]
 
 
@@ -1893,7 +1893,7 @@ def set_text_row(fw, text):
     return ui, button, label, button.child('_setting_value')
 
 
-@pytest.mark.parametrize('text, title, val', [('Theme: Classic', 'Theme', 'Classic'), ('Classic Blue', 'Accent', 'Classic Blue'),
+@pytest.mark.parametrize('text, title, val', [('主题：经典', 'Theme', 'Classic'), ('Classic Blue', 'Accent', 'Classic Blue'),
                                               ('Wheel: 50%: x', 'Wheel', '50%: x')])
 def test_a_set_text_rows_title_and_value(fw, text, title, val):
     ui, button, label, v = set_text_row(fw, text)
@@ -1915,8 +1915,8 @@ def test_a_rows_label_elsewhere_is_its_text(fw):
     theme(fw, MINIMAL)
     ui = Ui(fw)
     label = ui.add('hscroll_label', ui.add('button', ui.window('display_page')), (72, 0, 260, 70))
-    fw.fn('navigation__row_label', None, C.c_void_p, C.c_char_p)(label.addr, b'Theme: Minimal')
-    assert ui.text(label) == 'Theme: Minimal' and not label.parent.children[1:]
+    fw.fn('navigation__row_label', None, C.c_void_p, C.c_char_p)(label.addr, b'\xe4\xb8\xbb\xe9\xa2\x98\xef\xbc\x9a\xe7\xae\x80\xe7\xba\xa6')
+    assert ui.text(label) == '主题：简约' and not label.parent.children[1:]
 
 
 def test_the_librarys_rows_take_its_constructors_live_words(fw):
@@ -2003,7 +2003,7 @@ class Quick:
 
 def test_quick_settings_names_the_lock_and_arms_three_holds(fw, st):
     quick = Quick(fw, st)
-    assert quick.ui.text(quick.win.child('label_lock')) == 'Off' and quick.icons['img_lock'].props['image'] == 'drop_keylock'
+    assert quick.ui.text(quick.win.child('label_lock')) == '关闭' and quick.icons['img_lock'].props['image'] == 'drop_keylock'
     assert [quick.icons[n].props.get('_quick_hold') for n in Quick.ICONS] == [1, 2, None, None, None, None, 3, None]
     down = quick.fn('quick_down')
     assert [len(quick.ui.handled(quick.icons[n], down)) for n in Quick.ICONS] == [1, 1, 0, 0, 0, 0, 1, 0]
@@ -2122,7 +2122,7 @@ def test_the_sleep_timers_switch_is_its_first_row_reading_the_switch(fw, st):
     button = label.parent
     s = SETS[CLASSIC_SET]
     assert button.box == (0, 0, 375, s.set_row) and button.props['style'] == 's_btn_listitem'
-    assert label.box[0] == s.text_x and ui.text(label) == 'Sleep Timer' and value(ui, button) == 'Off'
+    assert label.box[0] == s.text_x and ui.text(label) == '睡眠定时' and value(ui, button) == '关闭'
 
 
 def test_the_rows_click_is_the_switchs_on_the_next_pass(fw, st):
@@ -2133,7 +2133,7 @@ def test_the_rows_click_is_the_switchs_on_the_next_pass(fw, st):
     assert not fw.calls('stock_dispatch_trampoline')  # a click rebuilds Lock Screen's list: it waits
     C.CFUNCTYPE(C.c_int, C.c_void_p)(timers[-1])(None)
     assert [c[1][0] for c in fw.calls('stock_dispatch_trampoline')] == [sw.addr]
-    assert value(ui, button) == 'On'
+    assert value(ui, button) == '打开'
 
 
 def test_a_set_with_toolbars_keeps_stocks_switch(fw, st):
@@ -2151,7 +2151,7 @@ def test_lock_screens_switch_row_heads_its_list(fw, st):
     ui.add('list_item', view, name='first')
     fw.fn('switch_row', None, C.c_void_p, C.c_void_p)(win.addr, view.addr)
     head = view.children[0]
-    assert head.name != 'first' and ui.text(label_of(head)) == 'Lock Screen' and switch(head) == 'switch_on'
+    assert head.name != 'first' and ui.text(label_of(head)) == '锁定屏幕' and switch(head) == 'switch_on'
 
 
 # The library scan's refresh of a row it already holds.
@@ -2204,7 +2204,7 @@ class Scan:
     FIELDS = {'album': 0, 'songer': 0x100, 'style': 0x200, 'name': 0x280, 'composer': 0x480, 'albumsonger': 0x580}
 
     def __init__(self, fw, readable=1, info=1, exists=1, **tags):
-        self.tags = {'album': b'Record', 'songer': b'Band', 'style': b'Rock', 'name': b'Song', 'composer': b'Writer',
+        self.tags = {'album': b'Record', 'songer': b'\xe9\xa2\x91\xe6\xae\xb5', 'style': b'\xe6\x91\x87\xe6\xbb\x9a', 'name': b'Song', 'composer': b'Writer',
                      'albumsonger': b'The Band'} | tags
         self.numbers = (1999, 7, 2)
         self.sql: list = []
@@ -2380,7 +2380,7 @@ def test_an_oversized_ogg_header_is_read_field_by_field(fw, a):
     info = (C.c_char * 0x698)()
     assert fw.fn('ringnav_music_info', C.c_int, C.c_int, C.c_void_p, C.c_char_p)(a, info, b'/mnt/mmc/a.opus') == 1
     at = lambda o: C.string_at(C.addressof(info) + o)
-    assert [at(o) for o in (0x280, 0x100, 0, 0x480, O['MUSIC_INFO_ALBUM_ARTIST'])] == [b'Song', b'Band', b'Record', b'Writer', b'The Band']
+    assert [at(o) for o in (0x280, 0x100, 0, 0x480, O['MUSIC_INFO_ALBUM_ARTIST'])] == [b'Song', b'\xe9\xa2\x91\xe6\xae\xb5', b'Record', b'Writer', b'The Band']
     assert at(0x200) == b' / '.join(genre.split(b' / ')[:5]) and len(at(0x200)) == 0x7f  # whole entries in 0x7f bytes
     year, disc, track, flags, rate = struct.unpack_from('<5i', info, 0x680)
     assert (year, disc, track) == (1999, 2, 7) and flags & 0x100  # MQA
@@ -2427,7 +2427,7 @@ def playing(fw, mcl, low):
 
 
 def card_info(out):
-    for at, value in ((0x280, b'Song'), (0x100, b'Band'), (O['MUSIC_INFO_ALBUM_ARTIST'], b'The Band')):
+    for at, value in ((0x280, b'Song'), (0x100, b'\xe9\xa2\x91\xe6\xae\xb5'), (O['MUSIC_INFO_ALBUM_ARTIST'], b'The Band')):
         C.memmove(out + at, value + b'\0', len(value) + 1)
     C.memmove(out + 0x684, struct.pack('<ii', 4, 2), 8)
     return 1
@@ -2443,10 +2443,10 @@ def test_a_card_apps_song_takes_its_files_tags_as_it_starts(fw, playing):
     record, path = playing
     id3 = id3_path(fw, C.string_at(path))
     field = lambda o: C.string_at(struct.unpack_from('<Q', record, o)[0])
-    assert [field(O[k]) for k in ('REC_TITLE', 'REC_ARTIST', 'REC_ALBUM_ARTIST')] == [b'Song', b'Band', b'The Band']
+    assert [field(O[k]) for k in ('REC_TITLE', 'REC_ARTIST', 'REC_ALBUM_ARTIST')] == [b'Song', b'\xe9\xa2\x91\xe6\xae\xb5', b'The Band']
     assert struct.unpack_from('<ii', record, O['REC_TRACK']) == (4, 2)
     album = O['ID3_ALBUM']
-    assert [C.string_at(C.addressof(id3) + album + o) for o in (0x280, 0x100, O['MUSIC_INFO_ALBUM_ARTIST'])] == [b'Song', b'Band', b'The Band']
+    assert [C.string_at(C.addressof(id3) + album + o) for o in (0x280, 0x100, O['MUSIC_INFO_ALBUM_ARTIST'])] == [b'Song', b'\xe9\xa2\x91\xe6\xae\xb5', b'The Band']
     assert C.string_at(id3) == C.string_at(path)
 
 

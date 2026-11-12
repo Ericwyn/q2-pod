@@ -729,7 +729,7 @@ def test_a_malformed_reply_says_it_didnt_answer(fw):
     b.menu()
     b.click(0)
     b.answer(raw=b'Q2SPOT/1\nnot a reply\n')
-    assert b.top.state == S_ERROR and b.top.note == b"Spotify didn't answer"
+    assert b.top.state == S_ERROR and b.top.note == b'Spotify \xe6\x9c\xaa\xe5\x93\x8d\xe5\xba\x94'
 
 
 def test_login_goes_back_to_the_pairing_prompt(fw):

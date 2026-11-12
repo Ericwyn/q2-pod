@@ -1562,10 +1562,10 @@ def test_list_files_a_name_of_255_is_taken_and_a_longer_can_t_be(fw):
 
 def test_list_files_says_why_it_is_empty(fw):
     files(fw, [])(b'/d', b'.peq')
-    assert ui(fw).status == b'No presets found'
+    assert ui(fw).status == b'\xe6\x9c\xaa\xe6\x89\xbe\xe5\x88\xb0\xe9\xa2\x84\xe8\xae\xbe'
     fw.mock('fw_opendir', lambda *_: 0)
     fw.fn('peq_ui__list_files', None, C.c_char_p, C.c_char_p)(b'/d', b'.peq')
-    assert ui(fw).status == b'Folder missing or unavailable' and ui(fw).count == 0
+    assert ui(fw).status == b'\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9\xe4\xb8\x8d\xe5\xad\x98\xe5\x9c\xa8\xe6\x88\x96\xe4\xb8\x8d\xe5\x8f\xaf\xe7\x94\xa8' and ui(fw).count == 0
 
 
 SAVED = '/mnt/data/peq-presets'
@@ -1579,7 +1579,7 @@ def typed(fw, text):
     fw.mock('widget_get_text_utf8', lambda w, out, n, *_: (C.memmove(out, text + b'\0', min(len(text) + 1, n)), 0)[1])
 
 
-def renamer(fw, text, old='Rock', others=()):
+def renamer(fw, text, old='摇滚', others=()):
     u = ui(fw)
     u.edit, u.screen = 0x7000, 11
     u.destination = f'{SAVED}/{old}.peq'.encode()
@@ -1591,9 +1591,9 @@ def renamer(fw, text, old='Rock', others=()):
 
 
 def test_a_rename_moves_the_file_and_the_names_that_follow_it(fw):
-    u, card = renamer(fw, b'Jazz')
+    u, card = renamer(fw, b'\xe7\x88\xb5\xe5\xa3\xab')
     assert f'{SAVED}/Jazz.peq' in card.files and f'{SAVED}/Rock.peq' not in card.files
-    assert u.name == b'Jazz' and u.applied == b'Other' and u.status == b'Renamed to Jazz' and u.screen == 2
+    assert u.name == b'\xe7\x88\xb5\xe5\xa3\xab' and u.applied == b'Other' and u.status == b'Renamed to Jazz' and u.screen == 2
 
 
 def test_a_rename_trims_what_fat_drops(fw):
@@ -1609,17 +1609,17 @@ def test_an_empty_edit_goes_back_to_the_list(fw):
 @pytest.mark.parametrize('text', (b'   ', b'...', b'.hidden', b'a/b', b'a\\b', b'a:b', b'a*b', b'a?b', b'a"b', b'a<b', b'a>b', b'a|b'))
 def test_a_name_fat_can_t_hold_keeps_the_preset(fw, text):
     u, card = renamer(fw, text)
-    assert u.status == b'Name not allowed; preset kept' and list(card.files) == [f'{SAVED}/Rock.peq']
+    assert u.status == b'\xe5\x90\x8d\xe7\xa7\xb0\xe6\x97\xa0\xe6\x95\x88\xef\xbc\x8c\xe9\xa2\x84\xe8\xae\xbe\xe5\xb7\xb2\xe4\xbf\x9d\xe7\x95\x99' and list(card.files) == [f'{SAVED}/Rock.peq']
 
 
 def test_a_name_taken_keeps_the_preset(fw):
-    u, card = renamer(fw, b'Jazz', others=('Jazz',))
-    assert u.status == b'Name taken; preset kept' and card.files[f'{SAVED}/Rock.peq'] == b'p'
+    u, card = renamer(fw, b'\xe7\x88\xb5\xe5\xa3\xab', others=('爵士',))
+    assert u.status == b'\xe5\x90\x8d\xe7\xa7\xb0\xe5\xb7\xb2\xe8\xa2\xab\xe4\xbd\xbf\xe7\x94\xa8\xef\xbc\x8c\xe9\xa2\x84\xe8\xae\xbe\xe5\xb7\xb2\xe4\xbf\x9d\xe7\x95\x99' and card.files[f'{SAVED}/Rock.peq'] == b'p'
 
 
 def test_a_case_change_is_a_rename_though_fat_finds_the_name(fw):
     u = ui(fw)
-    u.edit, u.destination, u.name = 0x7000, f'{SAVED}/Rock.peq'.encode(), b'Rock'
+    u.edit, u.destination, u.name = 0x7000, f'{SAVED}/Rock.peq'.encode(), b'\xe6\x91\x87\xe6\xbb\x9a'
     typed(fw, b'ROCK')
     fw.mock('fw_access', lambda *_: 0)  # FAT: ROCK.peq "exists"
     fw.fn('peq_ui__rename_preset', None)()
@@ -1627,7 +1627,7 @@ def test_a_case_change_is_a_rename_though_fat_finds_the_name(fw):
 
 
 def test_the_same_name_does_nothing(fw):
-    u, card = renamer(fw, b'Rock')
+    u, card = renamer(fw, b'\xe6\x91\x87\xe6\xbb\x9a')
     assert u.status == b'' and card.files == {f'{SAVED}/Rock.peq': b'p'}
 
 
@@ -1636,9 +1636,9 @@ def test_a_failed_rename_says_so(fw):
     u.edit, u.destination = 0x7000, f'{SAVED}/Rock.peq'.encode()
     card = Card(fw, {f'{SAVED}/Rock.peq': b'p'})
     card.bad_rename = True
-    typed(fw, b'Jazz')
+    typed(fw, b'\xe7\x88\xb5\xe5\xa3\xab')
     fw.fn('peq_ui__rename_preset', None)()
-    assert u.status == b'Rename failed; preset kept'
+    assert u.status == b'\xe9\x87\x8d\xe5\x91\xbd\xe5\x90\x8d\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x8c\xe9\xa2\x84\xe8\xae\xbe\xe5\xb7\xb2\xe4\xbf\x9d\xe7\x95\x99'
 
 
 def test_rename_hostile_sweep(fw):
@@ -1657,7 +1657,7 @@ def test_load_draft_keeps_the_switch_and_follows_auto(fw):
     p.automatic = 1
     fw.fn('peq_ui__load_draft', None, C.c_void_p, C.c_char_p, C.c_int)(r(p), b'Rock.peq', 4)
     assert u.draft.bypass == 1 and u.draft.preamp == pytest.approx(-6, abs=1e-6)
-    assert u.name == b'Rock' and u.screen == 0 and u.dirty == 1 and b'Apply' in u.status
+    assert u.name == b'\xe6\x91\x87\xe6\xbb\x9a' and u.screen == 0 and u.dirty == 1 and b'Apply' in u.status
 
 
 def test_a_preamp_pick_sticks_to_the_saved_preset(fw):
@@ -1665,7 +1665,7 @@ def test_a_preamp_pick_sticks_to_the_saved_preset(fw):
     p = peak_preset(6)
     p.automatic = 2
     card = Card(fw, {f'{SAVED}/Rock.peq': b'Q2PEQ02\0' + bytes(p)})
-    u.name, u.draft.automatic, u.draft.preamp = b'Rock', 2, -9
+    u.name, u.draft.automatic, u.draft.preamp = b'\xe6\x91\x87\xe6\xbb\x9a', 2, -9
     fw.fn('peq_ui__remember_preamp', None)()
     saved = Preset.from_buffer_copy(card.files[f'{SAVED}/Rock.peq'], 8)
     assert saved.preamp == -9 and saved.automatic == 2 and saved.bands[0].gain == 6
@@ -1674,7 +1674,7 @@ def test_a_preamp_pick_sticks_to_the_saved_preset(fw):
 def test_a_preamp_pick_of_a_stock_preset_writes_nothing(fw):
     u = ui(fw)
     card = Card(fw)
-    u.name = b'Jazz'
+    u.name = b'\xe7\x88\xb5\xe5\xa3\xab'
     fw.fn('peq_ui__remember_preamp', None)()
     assert not card.files
 
@@ -1769,11 +1769,11 @@ def test_apply_makes_the_draft_play_under_its_name(fw):
     card = Card(fw, {ACTIVE: saved_state(fw, 1)})
     u = ui(fw)
     u.draft = peak_preset(6)
-    u.name, u.dirty = b'Rock', 1
+    u.name, u.dirty = b'\xe6\x91\x87\xe6\xbb\x9a', 1
     assert fw.fn('peq_ui__apply', C.c_int, C.c_int)(0) == 1
     s = EqState.from_buffer_copy(card.files[ACTIVE], 8)
     assert s.mode == 2 and s.peq.bands[0].gain == 6 and s.eq3.bands[2].gain == 3  # 3EQ kept for later
-    assert u.dirty == 0 and u.applied == b'Rock' and bytes(u.named) == bytes(u.draft)
+    assert u.dirty == 0 and u.applied == b'\xe6\x91\x87\xe6\xbb\x9a' and bytes(u.named) == bytes(u.draft)
 
 
 def test_apply_bypassed_keeps_the_mode(fw):
@@ -1949,7 +1949,7 @@ def test_back_steps_up_one_screen(fw):
 def test_reset_is_the_default_draft_keeping_the_switch(fw):
     u = ui(fw)
     u.draft = peak_preset(6)
-    u.draft.bypass, u.name = 0, b'Rock'
+    u.draft.bypass, u.name = 0, b'\xe6\x91\x87\xe6\xbb\x9a'
     act(fw, ACT_RESET)
     assert u.draft.count == 10 and u.draft.bands[0].gain == 0 and u.draft.bypass == 0
     assert u.name == b'' and u.dirty == 1 and u.draft.preamp == 0 and u.draft.automatic == 1
@@ -1963,7 +1963,7 @@ def test_a_stock_preset_loads_into_the_editor_and_plays_nothing_yet(fw):
     gains = [u.draft.bands[k].gain for k in range(10)]
     assert gains == [-2, 0, 2, 4, -2, -2, 0, 0, 4, 4]
     assert [u.draft.bands[k].enabled for k in range(10)] == [1, 0, 1, 1, 1, 1, 0, 0, 1, 1]
-    assert u.name == b'Rock' and u.screen == HOME and u.draft.preamp < 0 and not card.files
+    assert u.name == b'\xe6\x91\x87\xe6\xbb\x9a' and u.screen == HOME and u.draft.preamp < 0 and not card.files
 
 
 def test_a_row_past_the_stock_presets_does_nothing(fw):
@@ -2020,7 +2020,7 @@ def test_a_saved_preset_it_can_t_read_changes_nothing(fw):
     u.draft = peak_preset(6)
     u.screen = PRESETS
     act(fw, 0)
-    assert u.draft.bands[0].gain == 6 and u.status == b'Cannot read preset; settings unchanged'
+    assert u.draft.bands[0].gain == 6 and u.status == b'\xe6\x97\xa0\xe6\xb3\x95\xe8\xaf\xbb\xe5\x8f\x96\xe9\xa2\x84\xe8\xae\xbe\xef\xbc\x8c\xe8\xae\xbe\xe7\xbd\xae\xe6\x9c\xaa\xe5\x8f\x98'
 
 
 def test_a_file_row_counts_through_its_page(fw):
@@ -2052,7 +2052,7 @@ def test_a_failed_switch_says_so_and_stays(fw):
     u.draft.bypass = 1
     fw.mock('fw_fopen', lambda path, mode, *_: card.fopen(path, mode) if C.string_at(mode)[:1] == b'r' else 0)
     act(fw, ACT_BYPASS)
-    assert u.draft.bypass == 1 and u.status == b'Switch failed; EQ unchanged'
+    assert u.draft.bypass == 1 and u.status == b'\xe5\x88\x87\xe6\x8d\xa2\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x8c\xe5\x9d\x87\xe8\xa1\xa1\xe5\x99\xa8\xe6\x9c\xaa\xe5\x8f\x98'
 
 
 def test_a_display_only_row_does_nothing(fw):
@@ -2132,7 +2132,7 @@ def test_a_failed_flush_stays_dirty_and_says_so(fw):
     e.gain[0], e.dirty = 3, 1
     fw.mock('fw_fopen', lambda path, mode, *_: card.fopen(path, mode) if C.string_at(mode)[:1] == b'r' else 0)
     assert fw.fn('peq_ui__e3_flush', C.c_int)() == 0
-    assert e.dirty == 1 and e.status == b'Save failed; EQ unchanged'
+    assert e.dirty == 1 and e.status == b'\xe4\xbf\x9d\xe5\xad\x98\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x8c\xe5\x9d\x87\xe8\xa1\xa1\xe5\x99\xa8\xe6\x9c\xaa\xe5\x8f\x98'
 
 
 def test_turning_3eq_off_holds_its_preamp_for_the_comparison(fw):
@@ -2162,7 +2162,7 @@ def test_a_slider_stays_put_over_a_peq_the_switch_could_not_stop(fw):
     u.draft.bypass = 0
     fw.mock('fw_fopen', lambda path, mode, *_: card.fopen(path, mode) if C.string_at(mode)[:1] == b'r' else 0)
     fw.fn('peq_ui__e3_take', None)()
-    assert e.adjusting == 0 and e.status == b'Switch failed; EQ unchanged'
+    assert e.adjusting == 0 and e.status == b'\xe5\x88\x87\xe6\x8d\xa2\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x8c\xe5\x9d\x87\xe8\xa1\xa1\xe5\x99\xa8\xe6\x9c\xaa\xe5\x8f\x98'
 
 
 def test_reset_is_flat_saved_at_once(fw):
