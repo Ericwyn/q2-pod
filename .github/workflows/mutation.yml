@@ -29,8 +29,8 @@ defaults:
 jobs:
   mutmut:
     runs-on: ubuntu-24.04
-    # From scratch took 75 minutes on four desktop workers (docs/building.md#mutation-tests); a runner is slower:
-    # one tested 16,519 of 20,043 mutants in the 4 hours it had, so all of them take about 4 h 50 min.
+    # A runner is slower than a desktop (docs/building.md#mutation-tests): one tested 16,519 of 20,043 mutants in the
+    # 4 hours it had, before art.py drew faster.
     # ponytail: one runner; split the mutants over a matrix before a run nears GitHub's 6 hours.
     timeout-minutes: 330
     env:
@@ -73,7 +73,7 @@ jobs:
           fi
       - name: Report
         run: |
-          # Under a fresh run's 91.7%: the floor catches a collapse, not each survivor.
+          # Under a fresh run's score: the floor catches a collapse, not each survivor.
           if [ -z "$BASE" ]; then
             python3 test/unit/report.py --floor 90 --survivors survivors.txt
           else
