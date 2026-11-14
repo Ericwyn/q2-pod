@@ -18,7 +18,7 @@ PROTOTYPES = {**FUNCTIONS, **LIBC}  # the stock calls the host shims stand in fo
 SHELF_60 = {'cf.x1': 112, 'cf.xs': 48, 'cf.z1': 90, 'cf.zs': 20, 'cf.eye': 300, 'cf.tilt': 60, 'cf.horizon': 50, 'cf.swing': 0}
 # The thumb cases' shelf and follower, 1.8.0's Classic: the door's swing, the eye drawn back mid-turn, no arch
 SHELF_180 = {'cf.eye': 94, 'cf.tilt': 89, 'cf.x1': 116, 'cf.xs': 34, 'cf.z1': 77, 'cf.zs': 1, 'cf.horizon': 63, 'cf.swing': 1,
-             'cf.lift': 20, 'cf.eye_turn': 150, 'cf.art_persp': 13, 'cf.arch_span': 0}
+             'cf.lift': 20, 'cf.eye_turn': 150, 'cf.art_persp': 13, 'cf.arch_span': 0, 'cf.land_ms': 0}
 
 # coverflow.c, coverflow_thumb.c, coverflow_letters.c, coverflow_loader.c and playlist_art.c as one unit, so the shim's
 # stubs are defined once
