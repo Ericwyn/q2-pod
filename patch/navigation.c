@@ -3146,8 +3146,6 @@ int ringnav_quick_settings(void *win, void *ctx) {
  */
 /* Bluetooth's Control Device Volume on: the Q2's volume is the device's own (bt_audio_ready). */
 static int bt_vol_link __attribute__((section(".scratch")));
-#define STR_(x) #x
-#define STR(x) STR_(x)
 static int *const pod_values[] = { &st.charge_limit,
                                    &st.wake_double,
                                    &st.artist_cf,

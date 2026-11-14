@@ -37,8 +37,6 @@ char *tidal_name(char *out, unsigned n, const char *key, const char *artist, con
 
 extern int stock_tidal_trampoline(const char *url);
 
-#define STR_(x) #x
-#define STR(x) STR_(x)
 #define TIDAL_STOP_MS 3000 /* stopped this long, the player was stopped, not between tracks */
 #define TIDAL_FFMPEG "/usr/bin/ffmpeg"
 #define TIDAL_COVER "/tmp/.tidal_cover.jpg" /* the running download's cover, the worker's alone */

@@ -1,6 +1,9 @@
 #ifndef Q2_PEQ_H
 #define Q2_PEQ_H
 
+#define STR_(x) #x
+#define STR(x) STR_(x) /* a macro's value as a string literal */
+
 #ifdef PEQ_HOST
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* mmap64 */
