@@ -2,6 +2,7 @@
 
 - **1.8.5**:
   - About: **CFW. Version** shows just the version number, such as 1.8.5, without "Pod" after it.
+  - Games: under **Theme: Classic**, Vortex's night sky is one flat colour, with no gradient.
 - **1.8.4**:
   - Playback: with **Memory Playback** or **In-Vehicle Mode** on, picking your queue back up at power-on reads only the queue's songs from the library, not the whole library, so it is much quicker and needs far less memory on a big library.
   - Library: **Recent** no longer reads the whole library to find the title of a song played from Folder, only that song, so it opens much faster on a big library.

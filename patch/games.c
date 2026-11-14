@@ -1095,15 +1095,15 @@ static void dot(void *vg, float x, float y, float r, unsigned color) {
 }
 
 #define STARS 32 /* the theme's own Vortex: its sky's */
+#define VORTEX_SKY 0x0c1735 /* its sky, one navy (the old gradient's mean) */
 /* The rings shaded from the tone inwards, a broken brick flashing white as it goes, the paddle
  * round-ended, the ball with a fading trail in the tone, and the lives as balls under Best. The
- * theme's own: a night sky, each ring its own colour with a light along its outer edge, the paddle
+ * theme's own: a flat night sky, each ring its own colour with a light along its outer edge, the paddle
  * and the ball in a glow. ponytail: the light is a second arc a brick, 96 strokes a frame at
  * most; drop it (VORTEX_SHINE 0) if a Q2 can't hold the frame rate. */
 #define VORTEX_SHINE 1
 static void vortex_paint(void *canvas, unsigned tone) {
     static const unsigned ring[RINGS] = { 0xf0a020, 0x36b24a, 0x2f86f0 };
-    static const stops_t sky = { 3, { 0, 50, 100 }, { 0x050a1c, 0x14244f, 0x050a1c } };
     const struct vortex *v = &g->vx;
     void *vg = canvas_get_vgcanvas(canvas);
     float cx = 187.5f, cy = (float)g->h / 2;
@@ -1112,7 +1112,7 @@ static void vortex_paint(void *canvas, unsigned tone) {
     unsigned ink = rgba(0xffffff, 255), dim = own ? rgba(0xa8b4cc, 255) : SPOT_GREY;
     if (own) {
         ui_ink_raw(1);
-        paint_stops(canvas, 0, 0, 375, g->h, &sky);
+        box(canvas, 0, 0, 375, g->h, VORTEX_SKY);
         for (unsigned k = 0; k < STARS; ++k)
             scrub_row(canvas, (0x50u + k % 4 * 0x30) << 24 | 0xffffff, (int)(k * 97 % 375),
                       (int)(k * 61 % (unsigned)g->h), 1);
