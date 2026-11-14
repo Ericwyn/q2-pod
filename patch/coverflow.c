@@ -161,7 +161,8 @@ static int art_name(const char *name, unsigned *key) {
     }
     return !strcmp(name + 8, ".jpg");
 }
-static int key_cmp(const void *a, const void *b) {
+/* qsort's order of unsigned keys (library_lists.c's era keys too) */
+int key_cmp(const void *a, const void *b) {
     unsigned x = *(const unsigned *)a, y = *(const unsigned *)b;
     return x < y ? -1 : x > y;
 }
@@ -172,7 +173,9 @@ static int key_cmp(const void *a, const void *b) {
  * ended, so in another order than the covers were built in (Random, a changed Sort) a lookup
  * scanned about half of it, and one for an album not built yet all of it. ponytail: a readdir
  * makes no dentries, so after a reboot a cover's first art_exists, as it comes on screen, still
- * scans: one lookup a cover shown, not one an album at open. */
+ * scans: one lookup a cover shown, not one an album at open. With Fast Navigation the half-copy
+ * walk (coverflow_halves) still looks up each album's .half, and the file of each marker and of
+ * each cover still waiting for a half, cold, once a boot. */
 static unsigned *art_keys(unsigned *n) {
     unsigned size = 1024, key, *keys = 0;
     void *d = opendir(ART_DIR);
@@ -196,8 +199,8 @@ static unsigned *art_keys(unsigned *n) {
     return keys;
 }
 
-/* Whether key is in keys[0..n), sorted. */
-static int has_key(const unsigned *keys, unsigned n, unsigned key) {
+/* Whether key is in keys[0..n), sorted (library_lists.c's era keys too). */
+int has_key(const unsigned *keys, unsigned n, unsigned key) {
     unsigned lo = 0, hi = n;
     while (lo < hi) /* the first key not below this one */
         if (keys[(lo + hi) / 2] < key)
@@ -3080,6 +3083,7 @@ static void load_albums(unsigned t0) {
     art_strike(BUILDING);
     mkdir(ART_DIR, 0755);
     unsigned have, *keys = art_keys(&have); /* 0: nothing is built this open, the next retries */
+    cf_trace(t0, "keys=", have, 0);
     cf.jobs = calloc(count, sizeof(job_t));
     unsigned char *shared = folders_shared(cf.albums, count);
     for (unsigned i = 0; i < count; ++i) {

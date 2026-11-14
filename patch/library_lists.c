@@ -465,10 +465,6 @@ static int era_key_row(void *ctx, int n, char **v, char **c) {
     era_keys.v[era_keys.n++] = (unsigned)atoi(v[0]);
     return 0;
 }
-static int era_key_cmp(const void *a, const void *b) {
-    unsigned x = *(const unsigned *)a, y = *(const unsigned *)b;
-    return x < y ? -1 : x > y;
-}
 static void *era_shuffle_songs(void) { /* 0 if the query failed */
     char sql[2048];
     int from = era.m ? era.v[0].year / 10 * 10 : 0, n;
@@ -485,17 +481,12 @@ static void *era_shuffle_songs(void) { /* 0 if the query failed */
     void *out = 0;
     if (!era.m || era_sql(sql, era_key_row, 0)) out = _create_deque("stSongInfo"), deque_init(out);
     if (out && era_keys.n) {
-        qsort(era_keys.v, era_keys.n, sizeof *era_keys.v, era_key_cmp);
+        qsort(era_keys.v, era_keys.n, sizeof *era_keys.v, key_cmp);
         void *all = staged(songs_unsorted, (void *)1, &n);
         if (n < 0) deque_destroy(out), out = 0; /* the library load failed */
         for (unsigned i = 0; out && i < deque_size(all); ++i) {
-            unsigned key = (unsigned)I(deque_at(all, i), REC_ID), lo = 0, hi = era_keys.n;
-            while (lo < hi) /* the first key not below this one */
-                if (era_keys.v[(lo + hi) / 2] < key)
-                    lo = (lo + hi) / 2 + 1;
-                else
-                    hi = (lo + hi) / 2;
-            if (lo < era_keys.n && era_keys.v[lo] == key) _deque_push_back(out, deque_at(all, i));
+            if (has_key(era_keys.v, era_keys.n, (unsigned)I(deque_at(all, i), REC_ID)))
+                _deque_push_back(out, deque_at(all, i));
         }
         deque_destroy(all);
     }

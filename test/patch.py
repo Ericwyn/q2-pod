@@ -6420,7 +6420,7 @@ class CoverflowMachine(QueueMachine):
     def __init__(self,albums=3,cached=True,**queue):
         super().__init__(rows=4,**queue)
         self.cached=cached; self.missing=False; self.joins=[]; self.threads=[]; self.checks=[]; self.plays=[]; self.homes=0; self.freed=0; self.live={}
-        self.cover_files=None  # the cover folder's (name, type) entries; None: every album's cover when cached, as access finds
+        self.cover_files=None  # the cover folder's (name, type) entries; None: every album's cover when cached, as access finds; False: no folder
         for n in ('window_create','widget_factory_create_widget','image_base_set_image','getAllAlbum','list_view_create',
                   'scroll_view_create','navigator_back_to_home','navigator_to_with_context','access@GLIBC_2.0',
                   'calloc@GLIBC_2.0','strdup@GLIBC_2.0','mkdir@GLIBC_2.0','statfs@GLIBC_2.0','pthread_create@GLIBC_2.2',
@@ -6436,7 +6436,7 @@ class CoverflowMachine(QueueMachine):
         return [(f'{self.nested(payload_syms["album_key"],r)&0xffffffff:08x}.jpg',8) for r in self.albums] if self.cached else []
     def hook(self,u,address,size,unused):
         name=self.handlers.get(address,'')
-        if name=='opendir@GLIBC_2.0' and self.text(u.reg_read(REGS[0]))=='/mnt/mmc/.coverflow': self.scope_tree['/mnt/mmc/.coverflow']=self.art_names()
+        if name=='opendir@GLIBC_2.0' and self.cover_files is not False and self.text(u.reg_read(REGS[0]))=='/mnt/mmc/.coverflow': self.scope_tree['/mnt/mmc/.coverflow']=self.art_names()
         if not name.startswith('c:'): return super().hook(u,address,size,unused)
         assert u.reg_read(UC_MIPS_REG_T9)==address, name
         name=name[2:].split('@')[0]; a,b,c,d=[u.reg_read(r) for r in REGS]; sp=u.reg_read(UC_MIPS_REG_SP); ret=0
@@ -9436,17 +9436,23 @@ assert m.joins==[77] and not m.timers and m.freed==4; passed()  # three job path
 # An open lists the cover folder once and asks for no album's file: with the dentry cache cold, exFAT
 # scans the folder for each name looked up. An album is built when its "<key>.jpg" (a cover or a
 # "no art" marker) isn't listed: a .tmp, the folder's own files and a gone album's cover don't
-# count, also once the list has grown; with no memory for the list, nothing is built.
+# count, nor does a name spelt in upper case or an album's .half; the folder is made before it is
+# listed, so a fresh one lists empty; the list is freed. Also once the list has grown; with no memory
+# for the list, or no folder to read, nothing is built and the page opens.
 def cover_open(files,**kw):
     m=CoverflowMachine(albums=5,cached=False); m.__dict__.update(kw)
     for i,r in enumerate(m.albums): m.word(r+O['REC_PATH'],m.string(f'/mnt/mmc/a{i}.flac'))
     names=[f'{m.nested(payload_syms["album_key"],r)&0xffffffff:08x}.jpg' for r in m.albums]
-    m.cover_files=[(n,8) for n in files(names)]; m.open()
+    m.cover_files=[(n,8) for n in files(names)] if files else False; m.open()
     return m,[m.text(c[1]) for c in m.calls if c[0]=='strdup' and m.text(c[1]).startswith('/mnt/mmc/a')]
 unbuilt=[f'/mnt/mmc/a{i}.flac' for i in (1,3,4)]
-m,built=cover_open(lambda n:['.','..',n[0],'album',n[2],n[3]+'.tmp','building','0badf00d.jpg'])
+m,built=cover_open(lambda n:['.','..',n[0],'album',n[2],n[3]+'.tmp','building','0badf00d.jpg',n[1]+'.half','0BADF00D.jpg'])
 assert built==unbuilt and len(m.threads)==1 and not [c for c in m.calls if c[0]=='access']
-assert [m.text(c[1]) for c in m.calls if c[0]=='opendir@GLIBC_2.0']==['/mnt/mmc/.coverflow']; passed()
+assert [m.text(c[1]) for c in m.calls if c[0]=='opendir@GLIBC_2.0']==['/mnt/mmc/.coverflow']
+k=[(c[0],m.text(c[1])) for c in m.calls if c[0] in ('mkdir','opendir@GLIBC_2.0')]
+assert k.index(('mkdir','/mnt/mmc/.coverflow'))<k.index(('opendir@GLIBC_2.0','/mnt/mmc/.coverflow'))
+assert ('calloc',1024,4) in [c[:3] for c in m.calls] and 4096 not in m.live.values(); passed()  # the keys, freed
+m,built=cover_open(None); assert not built and not m.threads and m.nodes[m.page]['name']=='coverflow_page'; passed()
 gone=[f'{k:08x}.jpg' for k in range(1,1100)]  # enough that the list grows
 m,built=cover_open(lambda n:gone+[n[0],n[2]],budget=5_000_000); assert built==unbuilt and m.resized; passed()
 m,built=cover_open(lambda n:gone+[n[0],n[2]],budget=5_000_000,fail_realloc=True)
