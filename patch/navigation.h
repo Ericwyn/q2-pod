@@ -438,6 +438,7 @@ void text_inks(void *w);
 unsigned listen_key(void *r) __attribute__((pure));
 void plays_load(void);
 int songs_unsorted(void *music);
+void *songs_by_path(const char *const *paths, unsigned n);
 void drop_input(void);
 int pointer_down(void);
 unsigned qm_album_id(void *r);

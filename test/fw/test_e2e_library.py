@@ -321,6 +321,8 @@ class Q2:
             'stock_scan_all_trampoline': self.scan, 'stock_dbquery_trampoline': self.dbquery,
             'getAllMusic': self.all_music, 'getAllAlbum': self.all_albums, 'getMusicByAlbum': self.by_album,
             'album_row': lambda ctx, n, v, c, *_: self.make_album(ctx, n, C.cast(v, C.POINTER(C.c_char_p)), 0),
+            'db_song_row_callback': lambda ctx, n, v, c, *_: self.make_song(ctx, n, C.cast(v, C.POINTER(C.c_char_p)),
+                                                                            C.cast(c, C.POINTER(C.c_char_p))),
             'stock_localclass_trampoline': self.localclass, 'stock_detail_trampoline': self.album_detail,
             'toolsLoadDirectory': self.load_directory,
             # pages and the rest

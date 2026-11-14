@@ -1470,6 +1470,7 @@ FUNCTIONS = {
  # Coverflow's Sort: another ORDER BY over getAllAlbum's grouping, filled by its own row callback
  'toolsQueryDbTable': ('int', 'const char *, const char *, void *, int'),  # db, sql, row, name sort
  'album_row': ('int', 'void *, int, char **, char **'),
+ 'db_song_row_callback': ('int', 'void *, int, char **, char **'),
  'albumcoverinfo_init': ('int', 'void *'),  # a list's cover tasks, each a copy of its row's name and path
  'class_icon': ('int', 'void *, int'),  # Artists, Composers and Genres rows' img_icon (CLASS_ICON)
  'np_info': ('int', 'void *'),  # Now Playing's info page labels (ringnav_np_info)
@@ -1509,6 +1510,7 @@ PRIVATE_FUNCTIONS = {
     "btmenu_rows": HOOKS['btmenu_rows'][0],  # systemset_bluetooth_page's list: rows, paired, found
     "mcl_shuffle_pick": 0x5ba7d0,
     "album_row": 0x506e94,  # getAllAlbum's sqlite3_exec callback: id, album, songer, fileurl to a record
+    "db_song_row_callback": 0x506428,  # select * rows' sqlite3_exec callback: a song record from each songtable row
     "folder_refresh": 0x531efc,  # folder_page's navbar and table from p_deque_showlist (its init, back)
     # album_page's btn_albumswitch click (its window as ctx): flips album_modetype, saves PLAYSET ALBUMTYPE, forgets the
     # table's kept focus and scroll, rebuilds it at the other row height and clamps the scroll
