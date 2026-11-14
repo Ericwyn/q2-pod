@@ -160,6 +160,16 @@ def test_the_soft_shadows_are_their_boxes_blurred():
     assert abs(at(w // 2, 8 - 2 - 1)[3] - 255 * (1 - (1 - 0x66 / 255) * (1 - under))) <= 1
 
 
+def test_blurred_spreads_a_point_by_its_kernel_and_carries_the_edges_on():
+    k = [math.exp(-i * i / 8) for i in range(-6, 7)]  # sigma 2: thirteen taps
+    k = [v / sum(k) for v in k]
+    point = [0.0] * 35
+    point[2 * 7 + 4] = 1.0  # row 2, column 4 of 7 x 5
+    assert art.blurred(point, 7, 5, 2) == [k[y + 4] * k[x + 2] for y in range(5) for x in range(7)]
+    ends = art.blurred([1.0] + [0.0] * 11 + [1.0], 13, 1, 2)  # each end's value carried on past it, six taps a side
+    assert abs(ends[0] - sum(k[:7])) < 1e-12 and abs(ends[12] - sum(k[6:])) < 1e-12 and abs(ends[6] - 2 * k[0]) < 1e-12
+
+
 def test_the_switch_edges():
     got = classic()
     w, h, at = pixels(got['classic_light_track_inset'])
@@ -331,6 +341,16 @@ def test_path_reads_arcs_and_further_subpaths():
     assert art.coverage([[(0, 0), (2, 0), (2, 2), (0, 2)]], (0, 0, 3, 1)) == [1.0, 1.0, 0.0]
     # a span inside another adds nothing: the union, not a sum
     assert art.coverage([[(0, 0), (3, 0), (3, 1), (0, 1)], [(1, 0), (1.5, 0), (1.5, 1), (1, 1)]], (0, 0, 3, 1)) == [1.0, 1.0, 1.0]
+
+
+def test_coverage_counts_the_sub_rows_each_polygon_crosses():
+    rect = lambda x0, y0, x1, y1: [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+    ring = [*rect(1, 2, 7, 3), (1, 2), *rect(3, 2.25, 5, 2.75), (3, 2.25)]  # one polygon: its hole joined by a seam walked twice
+    polys = [rect(.5, .0625, 5.25, .5625), rect(-1, 1, 4, 2), rect(2.25, 1, 2.75, 2), rect(4.25, 1, 4.75, 2), ring, rect(0, 5, 8, 6)]
+    assert art.coverage(polys, (0, 0, 8, 3)) == [
+        .25, .5, .5, .5, .5, .125, 0, 0,  # half the sub-rows, from the one at the shape's top (y 1/16); the ends in part
+        1, 1, 1, 1, .5, 0, 0, 0,  # cut at the box; a span inside the union adds nothing, one within a pixel after it does
+        0, 1, 1, .5, .5, 1, 1, 0]  # even-odd: the hole clear in its half of the sub-rows; the shape off the box, nothing
 
 
 @pytest.mark.parametrize('rx, ry, sweep', [(1, 1, 1), (1, 2, 1), (2, 1, 0)])
