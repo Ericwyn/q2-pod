@@ -147,6 +147,66 @@ char *art_path(char *out, unsigned key, const char *suffix) {
  * it stays a failure, and the placeholder would stay until a reboot. url is "file://" + the path. */
 static int art_exists(const char *url) { return !access(url + 7, 0); }
 
+/* name's key when it is "<key>.jpg" as art_path spells it: a cover or a "no art" marker. */
+static int art_name(const char *name, unsigned *key) {
+    *key = 0;
+    for (int i = 0; i < 8; ++i) {
+        unsigned c = (unsigned char)name[i];
+        if (c >= '0' && c <= '9')
+            *key = *key << 4 | (c - '0');
+        else if (c >= 'a' && c <= 'f')
+            *key = *key << 4 | (c - 'a' + 10);
+        else
+            return 0;
+    }
+    return !strcmp(name + 8, ".jpg");
+}
+static int key_cmp(const void *a, const void *b) {
+    unsigned x = *(const unsigned *)a, y = *(const unsigned *)b;
+    return x < y ? -1 : x > y;
+}
+
+/* The keys of ART_DIR's covers and markers, sorted, *n of them; 0 when the folder can't be read or
+ * memory runs out. Read once an open rather than asked album by album: exFAT keeps no index, and
+ * with the dentry cache cold (after a reboot) a lookup scans the folder from where the last one
+ * ended, so in another order than the covers were built in (Random, a changed Sort) a lookup
+ * scanned about half of it, and one for an album not built yet all of it. ponytail: a readdir
+ * makes no dentries, so after a reboot a cover's first art_exists, as it comes on screen, still
+ * scans: one lookup a cover shown, not one an album at open. */
+static unsigned *art_keys(unsigned *n) {
+    unsigned size = 1024, key, *keys = 0;
+    void *d = opendir(ART_DIR);
+    *n = 0;
+    if (d) keys = calloc(size, sizeof *keys);
+    for (struct dirent *e; keys && (e = readdir(d));) {
+        if (!art_name(e->d_name, &key)) continue;
+        if (*n == size) {
+            unsigned *more = realloc(keys, 2 * size * sizeof *keys);
+            if (!more) {
+                free(keys);
+                keys = 0;
+                break;
+            }
+            keys = more, size *= 2;
+        }
+        keys[(*n)++] = key;
+    }
+    if (d) closedir(d);
+    if (keys) qsort(keys, *n, sizeof *keys, key_cmp);
+    return keys;
+}
+
+/* Whether key is in keys[0..n), sorted. */
+static int has_key(const unsigned *keys, unsigned n, unsigned key) {
+    unsigned lo = 0, hi = n;
+    while (lo < hi) /* the first key not below this one */
+        if (keys[(lo + hi) / 2] < key)
+            lo = (lo + hi) / 2 + 1;
+        else
+            hi = (lo + hi) / 2;
+    return lo < n && keys[lo] == key;
+}
+
 /* path's size, -1 when it can't be opened */
 long file_size(const char *path) {
     void *f = fopen(path, "rb");
@@ -3008,7 +3068,6 @@ static void load_albums(unsigned t0) {
         covers(0); /* a text list needs no art; playlist_art.c builds a playlist's */
         return;
     }
-    char path[512];
     if (!cf.saved_album) BLOB_IO(LAST_ALBUM, cf.saved_album, 0); /* outlives a reboot */
     /* The covers open on the queue's song's album, playing or not, when the list has it (#350),
      * else on the album they last centred. ponytail: a song with no album tag (a folder play's
@@ -3019,6 +3078,8 @@ static void load_albums(unsigned t0) {
     if (now && !(P(now, REC_ALBUM) && *(const char *)P(now, REC_ALBUM))) now = 0;
     int playing = 0;
     art_strike(BUILDING);
+    mkdir(ART_DIR, 0755);
+    unsigned have, *keys = art_keys(&have); /* 0: nothing is built this open, the next retries */
     cf.jobs = calloc(count, sizeof(job_t));
     unsigned char *shared = folders_shared(cf.albums, count);
     for (unsigned i = 0; i < count; ++i) {
@@ -3030,7 +3091,8 @@ static void load_albums(unsigned t0) {
         else if (key == cf.saved_album && !on_sort && !cf.scoped && !playing)
             cf.album = (int)i;
         job_t *j = cf.jobs ? &cf.jobs[cf.total] : 0;
-        if (j && P(r, REC_PATH) && access(art_path(path, key, ""), 0) && (j->track = strdup(P(r, REC_PATH)))) {
+        if (j && keys && P(r, REC_PATH) && !has_key(keys, have, key) &&
+            (j->track = strdup(P(r, REC_PATH)))) {
             cf_cold(t0);
             j->key = key;
             j->shared = shared ? shared[i] : 1; /* no memory: no cover.jpg that may be another's */
@@ -3038,10 +3100,10 @@ static void load_albums(unsigned t0) {
         }
     }
     free(shared);
+    free(keys);
     cf_trace(t0, "done jobs=", cf.total, count);
     if (playing) tail.at = cf.album;
     if (on_sort) cf.album = (int)count; /* the Sort card, pressed again and again */
-    mkdir(ART_DIR, 0755);
     cf.done = cf.cancel = 0;
     if (cf.total && card_space(ART_DIR) && !pthread_create(&cf.thread, 0, worker, 0)) {
         cf.running = 1;

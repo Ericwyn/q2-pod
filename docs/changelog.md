@@ -15,6 +15,7 @@
   - Internet Radio: a very large `.pls` station list opens at once. One with thousands of title lines could hold the screen still while it was read.
   - Messages name rows as the screen does: **Update Library first** (it read Update Local Music), **Updating Library** on Classic's scan screen, and **Network update** in the notice of a new release.
   - User guide: it names every row as the Q2 shows it (**Update Library**, **Scan music now**, **Genres**, **Lock Screen**, **Rounded Corners**), and now covers **Max Volume**, which limits how loud the Q2 goes (**Volume Guard** doesn't), **Resume Songs**, **Date & Time**, **Wi-Fi File Transfer**, Tidal Downloads and playing to AirPlay speakers.
+  - Cover Flow: on a large library, the first open after the Q2 starts no longer stalls while it checks which albums have artwork, when the covers are in another order than the artwork was prepared in, such as Random or another Sort, or some albums have none yet.
 
 - **1.8.3**:
   - Now Playing: on the lyrics page, Centre's scrub now takes the wheel, as on the other pages. The first turn used to scroll the lyrics instead and end the scrub. The lyrics take the wheel back once the scrub ends.

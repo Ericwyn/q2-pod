@@ -6420,6 +6420,7 @@ class CoverflowMachine(QueueMachine):
     def __init__(self,albums=3,cached=True,**queue):
         super().__init__(rows=4,**queue)
         self.cached=cached; self.missing=False; self.joins=[]; self.threads=[]; self.checks=[]; self.plays=[]; self.homes=0; self.freed=0; self.live={}
+        self.cover_files=None  # the cover folder's (name, type) entries; None: every album's cover when cached, as access finds
         for n in ('window_create','widget_factory_create_widget','image_base_set_image','getAllAlbum','list_view_create',
                   'scroll_view_create','navigator_back_to_home','navigator_to_with_context','access@GLIBC_2.0',
                   'calloc@GLIBC_2.0','strdup@GLIBC_2.0','mkdir@GLIBC_2.0','statfs@GLIBC_2.0','pthread_create@GLIBC_2.2',
@@ -6430,8 +6431,12 @@ class CoverflowMachine(QueueMachine):
         self.albums=[self.song('T0') for _ in range(albums)]
         for i,r in enumerate(self.albums): self.word(r+O['REC_ALBUM'],self.string(f'Album {i}'))
         self.found=[self.song('T1'),self.song('T2')]
+    def art_names(self):
+        if self.cover_files is not None: return list(self.cover_files)
+        return [(f'{self.nested(payload_syms["album_key"],r)&0xffffffff:08x}.jpg',8) for r in self.albums] if self.cached else []
     def hook(self,u,address,size,unused):
         name=self.handlers.get(address,'')
+        if name=='opendir@GLIBC_2.0' and self.text(u.reg_read(REGS[0]))=='/mnt/mmc/.coverflow': self.scope_tree['/mnt/mmc/.coverflow']=self.art_names()
         if not name.startswith('c:'): return super().hook(u,address,size,unused)
         assert u.reg_read(UC_MIPS_REG_T9)==address, name
         name=name[2:].split('@')[0]; a,b,c,d=[u.reg_read(r) for r in REGS]; sp=u.reg_read(UC_MIPS_REG_SP); ret=0
@@ -9428,6 +9433,24 @@ m=CoverflowMachine(cached=False); page=m.open()
 assert len(m.threads)==1 and m.timers and any((t or '').startswith('Preparing artwork') for t in m.texts()) and 'Cancel' in m.texts()
 f,ctx=m.handler(page,O['EVT_DESTROY']); m.freed=0; assert m.call(address=f,args=(ctx,m.event,0,0),gap=0)==0
 assert m.joins==[77] and not m.timers and m.freed==4; passed()  # three job paths and the job array
+# An open lists the cover folder once and asks for no album's file: with the dentry cache cold, exFAT
+# scans the folder for each name looked up. An album is built when its "<key>.jpg" (a cover or a
+# "no art" marker) isn't listed: a .tmp, the folder's own files and a gone album's cover don't
+# count, also once the list has grown; with no memory for the list, nothing is built.
+def cover_open(files,**kw):
+    m=CoverflowMachine(albums=5,cached=False); m.__dict__.update(kw)
+    for i,r in enumerate(m.albums): m.word(r+O['REC_PATH'],m.string(f'/mnt/mmc/a{i}.flac'))
+    names=[f'{m.nested(payload_syms["album_key"],r)&0xffffffff:08x}.jpg' for r in m.albums]
+    m.cover_files=[(n,8) for n in files(names)]; m.open()
+    return m,[m.text(c[1]) for c in m.calls if c[0]=='strdup' and m.text(c[1]).startswith('/mnt/mmc/a')]
+unbuilt=[f'/mnt/mmc/a{i}.flac' for i in (1,3,4)]
+m,built=cover_open(lambda n:['.','..',n[0],'album',n[2],n[3]+'.tmp','building','0badf00d.jpg'])
+assert built==unbuilt and len(m.threads)==1 and not [c for c in m.calls if c[0]=='access']
+assert [m.text(c[1]) for c in m.calls if c[0]=='opendir@GLIBC_2.0']==['/mnt/mmc/.coverflow']; passed()
+gone=[f'{k:08x}.jpg' for k in range(1,1100)]  # enough that the list grows
+m,built=cover_open(lambda n:gone+[n[0],n[2]],budget=5_000_000); assert built==unbuilt and m.resized; passed()
+m,built=cover_open(lambda n:gone+[n[0],n[2]],budget=5_000_000,fail_realloc=True)
+assert not built and not m.threads and m.nodes[m.page]['name']=='coverflow_page'; passed()
 # Tracks list and play in album order (disc, track, then path, then CUE start), named without
 # their file's extension; a CUE title keeps its dot.
 def track(m,name,path,disc=0,no=0,cue=0):
