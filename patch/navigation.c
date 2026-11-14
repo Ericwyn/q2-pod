@@ -190,7 +190,7 @@ extern void coverflow_lost_touch(void), coverflow_wheel_land(void);
 extern int coverflow_wheel_live(void), coverflow_wheel_poll(int usable, int gated),
     coverflow_wheel_on(void *w);
 extern void *coverflow_album(void *page);
-extern int coverflow_turning(void);
+extern int coverflow_turning(void), coverflow_landing(void);
 extern int coverflow_goto_album(void *r), coverflow_shows_album(void *r);
 extern unsigned coverflow_scope(void *page);
 extern void coverflow_home_art(void *top);
@@ -1158,6 +1158,14 @@ void ringnav_select(void *w, int id, int rows) {
     prop(w, COUNT, rows);
     prop(w, SEL, id);
     if (loaded) reveal(&g_menu, id, 1);
+}
+
+/* A row picked as its page goes (coverflow_land.c's landing): lit, though a tap's touch mode hid
+ * the selection. Here, as touch mode is ringnav's. */
+void ringnav_light(void *list, int index) {
+    st.touch_mode = 0;
+    stop_timer(&st.untouch_timer);
+    ringnav_select(list, index, (int)widget_count_children(list));
 }
 
 /* Keep selection during native momentum and recall glides. Once settled, repair an offscreen
@@ -4841,6 +4849,11 @@ static unsigned np_art(const char **file) {
                        written
                  : 0;
 }
+/* The art np_art_poll last loaded is this song's (coverflow_land.c's landing hands over to it). */
+int np_art_ready(void) {
+    const char *file;
+    return st.np_art && st.np_art == np_art(&file);
+}
 static void np_art_poll(void) {
     const char *file;
     if (!st.np_cover || !g_backlight_status) return;
@@ -5873,6 +5886,7 @@ void bar_title_sync(void *win) {
     if (t)
         ;
     else if (win != st.title_win) {
+        if (coverflow_turning()) return; /* Cover Flow's landing: Now Playing's as it lands */
         title_gone(0, 0);
         st.title_win = win;
         widget_on(win, EVT_DESTROY, title_gone, win);
@@ -11043,9 +11057,17 @@ int ringnav(void *ctx, void *event) {
     if (usable() && rate_key(window_manager_get_top_window(window_manager()), key)) return STOP;
     /* A game's keys, before stock's lock filter, media keys and screen-off double Centre */
     if (usable() && games_key(window_manager_get_top_window(window_manager()), key)) return STOP;
-    /* Cover Flow's flip: a Centre during it does nothing. Its Return is the page's (coverflow.c
-     * keyup), the wheel waits at the page's no surface (hold_wheel). */
-    if (key == KEY_CENTER && coverflow_turning() && !g_power_longkey) return STOP;
+    /* Cover Flow's flip and landing: a Centre or Return during them does nothing (a held Return's
+     * release goes on to consume its latch). The flip's wheel waits at the page's no surface
+     * (hold_wheel); the landing's is dropped, not the volume's. */
+    if (coverflow_turning() &&
+        ((key == KEY_CENTER && !g_power_longkey) ||
+         (key == KEY_RETURN && !*(volatile unsigned char *)RETURN_RELEASE_LATCH)))
+        return STOP;
+    if (coverflow_turning() && coverflow_landing() && (key == KEY_PREV || key == KEY_NEXT)) {
+        drop_input();
+        return STOP;
+    }
     /* Return or Centre closes quick settings, as its swipe up does (dialog_quit); stock leaves
      * Return to its Home button and Centre to turning the screen off. A held Return's release
      * goes to the stock filter, which consumes its latch (the hold closed it itself,

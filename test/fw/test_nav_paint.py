@@ -11,6 +11,7 @@ import pytest
 
 import host
 from conftest import O, Files, block, in_fork
+from test_nav_loop import Flip  # coverflow.c's cf_flip_t, fl
 
 W_X, W_Y, W_W, W_H, W_PARENT = O['W_X'], O['W_Y'], O['W_W'], O['W_H'], O['W_PARENT']
 CANVAS_LCD, LCD_FILL_COLOR = O['CANVAS_LCD'], O['LCD_FILL_COLOR']
@@ -1525,6 +1526,20 @@ def test_a_page_known_by_name_titles_the_bar(fw, world, st, name, title):
     assert world[label].text == title
     (fn, _, ms), = world.timers
     assert ms == 0 and world.fire(1) == RET_OK and world.invalid == [(label, None)]  # after the paint
+
+
+def test_cover_flow_s_landing_keeps_the_bar_s_title_until_it_lands(fw, world, st):
+    """Now Playing comes up under Cover Flow's landing (coverflow_turning): the bar names it once the art lands,
+    the next paint after the turn."""
+    label = bar_title(fw, world, st)
+    win = world.window('playing_page')
+    flip = fw.var('fl', Flip)
+    flip.dir = 1
+    sync(fw, win)
+    assert world[label].text in ('', None) and not world.timers
+    flip.dir = 0
+    sync(fw, win)
+    assert world[label].text == 'Now Playing'
 
 
 def test_search_is_titled_though_a_dialog(fw, world, st):

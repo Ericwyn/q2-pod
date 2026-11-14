@@ -3,7 +3,7 @@
 /* What coverflow.c shares with coverflow_thumb.c, coverflow_letters.c, coverflow_loader.c and
  * coverflow_land.c: the page's state, the depth renderer's and the flip's, which the thumb reads,
  * the thumb's follower, which the renderer reads, the poses and columns the letters draw with, the
- * texture pool the loader fills, and the flip's geometry and pixels the landing turns. */
+ * texture pool the loader fills, and the flip's geometry, buffers and pixels the landing turns. */
 #include "offsets.inc"
 #include "peq.h"
 #ifndef PEQ_HOST
@@ -185,6 +185,11 @@ typedef struct {
 extern cf_thumb_t th;
 
 /* coverflow.c */
+void coverflow_play(void *dq, int idx, int cls);
+void *queue_now(unsigned *pos, unsigned *n);
+const char *now_tag(void *r, int field);
+int flip_alloc(void);
+void flip_capture(void);
 void slant_render(unsigned *d, int pitch, int side, int rows, const unsigned *tex, int t,
                   unsigned paper);
 unsigned album_key(void *r);
@@ -245,6 +250,13 @@ void ld_ask(const int *want, int k);
 void ld_take(int s, int i, int a);
 void ld_quit(void);
 void coverflow_halves(void);
+
+/* coverflow_land.c: Classic's landing */
+int coverflow_landing(void);
+int land_turning(void);
+int land_start(void *t, int row, unsigned t0);
+void land_paint(void *w, void *canvas);
+void land_drop(void);
 
 /* Optional browsing position. */
 int coverflow_position_enabled(void);

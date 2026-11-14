@@ -1663,6 +1663,22 @@ def test_the_art_reloads_when_the_players_cover_changes(fw, ui, now, st):
     assert ui.prop(now.cover, b'image') == b'play_defaultcover'  # dark: the next lit pass
 
 
+# Cover Flow's landing hands over to Now Playing's own art once that is this song's (np_art_ready): np_art_poll loaded
+# it, not before.
+def test_the_art_is_ready_once_the_poll_took_this_song_s_cover(fw, ui, now, st):
+    poll, ready = fw.fn('navigation__np_art_poll', None), fw.fn('np_art_ready', C.c_int)
+    poll()
+    assert not ready()  # the player's cover is another song's still
+    fw.var('fw_ctx_g_lastcover_url', C.c_char * 1024).value = now.paths[2].value
+    fw.var('g_playcover_type', C.c_ubyte).value = 1
+    assert not ready()  # this song's written: not loaded yet
+    poll()
+    assert ready()
+    fw.var('g_playcover_type', C.c_ubyte).value = 3
+    poll()
+    assert ready()  # none: stock's placeholder is the answer
+
+
 # A card app's URL queue: every song's REC_PATH is "" and a cover by URL leaves g_lastcover_url "", so the type and the
 # track's path are the same for every song; only the file stock's cover thread wrote (its size and time) tells their
 # art apart. The thread clears its request before it downloads, and a cover asked for mid-download lands after it.
