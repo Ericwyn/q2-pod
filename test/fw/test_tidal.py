@@ -1200,6 +1200,24 @@ def test_a_run_whose_last_song_fills_the_cache_says_downloaded(fw, queue, mcl):
     assert a.toasts == ['Downloaded 2 of 2 songs']
 
 
+def test_a_run_the_cache_fills_passes_the_rest_already_saved_and_says_downloaded(fw, queue, mcl):
+    """Full once 2 is saved, but 3-11 are on the card already: no song needs room, so the run passes them all."""
+    ids = [str(k) for k in range(1, 12)]
+    card = Card(fw, {CACHE_SIZE: b'512', **{cached(f'{i}-0.flac'): b'' for i in ids if i != '2'}})
+    for k, i in enumerate(ids):
+        card.sizes[cached(f'{i}-0.flac')], card.ages[cached(f'{i}-0.flac')] = 50 * MB, 100 if i == '2' else 50 + k
+    Cdn(fw, {URL: b'fLaC'})
+    a = All(fw, queue, mcl, card, ids)
+    a.row(press=1)
+    a.poll()
+    assert a.asked() == '2'
+    a.answer(URL, '2')
+    a.t.run()
+    assert a.t.td.full == 1 and len(card.listing()) == 11
+    a.poll(3)  # 2-9, then 10-11 and the end, then the toast
+    assert a.toasts == ['Downloaded 11 of 11 songs']
+
+
 def test_tidal_poll_passes_at_most_8_saved_songs_a_second(fw, queue, mcl):
     ids = [str(k) for k in range(1, 22)]
     card = Card(fw, {cached(f'{tidal_id}-0.flac'): b'' for tidal_id in ids[:20]})

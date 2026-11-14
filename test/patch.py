@@ -9458,11 +9458,11 @@ def cover_open(files,**kw):
     m=CoverflowMachine(albums=5,cached=False); m.__dict__.update(kw)
     for i,r in enumerate(m.albums): m.word(r+O['REC_PATH'],m.string(f'/mnt/mmc/a{i}.flac'))
     names=[f'{m.nested(payload_syms["album_key"],r)&0xffffffff:08x}.jpg' for r in m.albums]
-    m.names=names; m.cover_files=[(n,8) for n in files(names)] if files else False; m.open()
+    m.cover_names=names; m.cover_files=[(n,8) for n in files(names)] if files else False; m.open()
     return m,[m.text(c[1]) for c in m.calls if c[0]=='strdup' and m.text(c[1]).startswith('/mnt/mmc/a')]
 unbuilt=[f'/mnt/mmc/a{i}.flac' for i in (1,3,4)]
 m,built=cover_open(lambda n:['.','..',n[0],'album',n[2],n[3]+'.tmp','building','0badf00d.jpg',n[1]+'.half',n[4][:8].upper()+'.jpg'])
-assert m.names[4][:8]!=m.names[4][:8].upper()  # a4's key has a hex letter, so its upper-case name differs
+assert m.cover_names[4][:8]!=m.cover_names[4][:8].upper()  # a4's key has a hex letter, so its upper-case name differs
 assert built==unbuilt and len(m.threads)==1 and not [c for c in m.calls if c[0]=='access']
 assert [m.text(c[1]) for c in m.calls if c[0]=='opendir@GLIBC_2.0']==['/mnt/mmc/.coverflow']
 k=[(c[0],m.text(c[1])) for c in m.calls if c[0] in ('mkdir','opendir@GLIBC_2.0')]

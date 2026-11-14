@@ -62,7 +62,8 @@ static struct {
      * was asked for after asked */
     unsigned char tried, misses, fav, starting, dropped;
     char asked[48];
-    /* Download All's first saved song's st_mtime, 0 before; full: trim kept the run's own songs */
+    /* the oldest st_mtime of Download All's songs, saved or passed; 0 before; full: trim kept the
+     * run's own songs */
     unsigned since;
     unsigned char full;
 } td __attribute__((section(".scratch")));
@@ -80,13 +81,21 @@ __asm__("lw $ra, 20($sp)\nbeqz $v0, 1f\naddiu $sp, $sp, 24\n");
 __asm__("lw $gp, 0x20($sp)\nli $ra, " STR(TIDAL_ALL_RET) "\n");
 __asm__("1: jr $ra\nnop\n.set pop\n");
 
+/* path is one of Download All's songs, saved or passed: trim keeps every file as new as the oldest */
+static void run_song(const char *path) {
+    unsigned st[36];
+    if (!__xstat(3, path, st) && (!td.since || st[16] < td.since)) td.since = st[16];
+}
+
 /* Deletes the oldest finished downloads until the rest fit Streaming's Configuration cap (stream_cache,
  * 2 GB unless changed). stat is o32's: st_size word 12, st_mtime word 16. ponytail: a directory pass per
- * deletion, fine for a few hundred files. Download All's own songs, saved or passed (none older than
- * td.since, the oldest of them: a FAT mtime against FAT mtimes), never go: the run ends instead
- * (td.full). ponytail: every file as new as the run's oldest song is kept, the list's or not, so a
- * run can stop full while newer songs played meanwhile could have made room; and each press over a
- * full cache goes one more song over the cap, which the next played song's trim takes back. */
+ * deletion, fine for a few hundred files. Download All's own songs, saved or passed so far (none older
+ * than td.since, the oldest of them: a FAT mtime against FAT mtimes), never go: the run ends instead
+ * (td.full). ponytail: every file saved since the run's oldest song is kept, the list's or not, before
+ * the press or during it, so a run can stop full while other songs could have made room; a song further
+ * down the list already on the card but older than that can go for the run's own downloads, and is saved
+ * again when the run reaches it; and each press over a full cache goes one more song over the cap, which
+ * the next played song's trim takes back. */
 static void trim(void) {
     unsigned long long cap = (unsigned long long)(512u << stream_cache(0)) << 20;
     for (;;) {
@@ -206,8 +215,7 @@ static void *download(void *unused) {
         if (ok && tags[0][6]) tag(tmp, tags, pic); /* a title past "title=": a queue row named it */
         pthread_mutex_lock(td.lock); /* a Clear All since the job began drops it */
         ok = ok && cleared == td.cleared && !rename(tmp, path);
-        unsigned st[36];
-        if (ok && all && td.all && !td.since && !__xstat(3, path, st)) td.since = st[16];
+        if (ok && all && td.all) run_song(path);
         pthread_mutex_unlock(td.lock);
         if (ok)
             trim();
@@ -803,18 +811,16 @@ void tidal_poll(void) {
         }
         id = P(deque_at(td.all, td.at), REC_TIDAL_ID);
         tk_snprintf(key, sizeof key, "%s-%d", id, level > 3 ? 3 : level);
-        if (cached(key, "", path, sizeof path)) {
-            unsigned st[36]; /* passed is the run's own too: trim keeps it (no download runs, no trim) */
-            if (!__xstat(3, path, st) && (!td.since || st[16] < td.since)) td.since = st[16];
-            ++td.saved, td.misses = 0;
-        }
+        /* passed is the run's own too: trim keeps it (trim runs only after a whole transfer) */
+        if (cached(key, "", path, sizeof path))
+            run_song(path), ++td.saved, td.misses = 0;
         else if (tried)
             ++td.misses;
         else
             break;
         ++td.at, td.tried = tried = 0, td.idle = 0;
     }
-    if (td.at >= n || td.misses >= 3 || td.full || ++td.idle > TIDAL_ALL_IDLE || !card_space(TIDAL_DIR))
+    if (td.at >= n || td.misses >= 3 || (td.full && id) || ++td.idle > TIDAL_ALL_IDLE || !card_space(TIDAL_DIR))
         all_end();
     if (!td.all || td.at != was) tidal_all_show();
     if (!td.all || *td.asked || !id) return;

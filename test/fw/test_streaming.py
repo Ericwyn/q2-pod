@@ -55,7 +55,7 @@ class Td(C.Structure):
                 ('all', C.c_void_p), ('at', C.c_uint), ('saved', C.c_uint), ('idle', C.c_uint), ('polled', C.c_uint), ('told', C.c_uint),
                 ('of', C.c_uint), ('job_all', C.c_int), ('tried', C.c_ubyte), ('misses', C.c_ubyte), ('fav', C.c_ubyte),
                 ('starting', C.c_ubyte), ('dropped', C.c_ubyte), ('asked', C.c_char * 48),
-                ('since', C.c_uint), ('full', C.c_ubyte)]  # the run's first saved song's mtime; trim kept its songs
+                ('since', C.c_uint), ('full', C.c_ubyte)]  # the oldest st_mtime of Download All's songs, saved or passed; 0 before; trim kept its songs
 
 
 class Fx(C.Structure):
