@@ -2356,12 +2356,7 @@ static void fx_ring(int c, int n, const unsigned **ring) {
  * fl.back live only while a turn runs (about 776 KB): at rest the panel stands over the shelf's
  * frame, parted, drawn as it is. */
 #define FLIP_MS 270
-#define FLIP_TICK_MS 16
-#define FLIP_H 294     /* the frame's rows, the client area's */
-#define FLIP_EYE 700   /* px; the shelf's eye can be nearer than the panel's half width */
 #define FLIP_EYE_Y 147 /* the row the eye looks along, the frame's middle */
-#define FLIP_PART 24   /* px each way */
-#define BACK_H 285
 #define PANEL_Y 9
 #define PANEL_HEAD 57
 #define PANEL_MUTED 0xffaaaaaau /* stock's second line: the theme's muted, white when selected */

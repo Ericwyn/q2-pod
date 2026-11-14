@@ -1,9 +1,9 @@
 #ifndef Q2_COVERFLOW_H
 #define Q2_COVERFLOW_H
-/* What coverflow.c shares with coverflow_thumb.c, coverflow_letters.c and coverflow_loader.c: the
- * page's state, the depth renderer's and the flip's, which the thumb reads, the thumb's follower,
- * which the renderer reads, the poses and columns the letters draw with, and the texture pool the
- * loader fills. */
+/* What coverflow.c shares with coverflow_thumb.c, coverflow_letters.c, coverflow_loader.c and
+ * coverflow_land.c: the page's state, the depth renderer's and the flip's, which the thumb reads,
+ * the thumb's follower, which the renderer reads, the poses and columns the letters draw with, the
+ * texture pool the loader fills, and the flip's geometry the landing turns on. */
 #include "offsets.inc"
 #include "peq.h"
 #ifndef PEQ_HOST
@@ -129,6 +129,11 @@ typedef struct {
 } cf_depth_t;
 extern cf_depth_t fx;
 /* Classic's flip to the tracks panel (flip_open): its frame, the panel as painted and the turn. */
+#define FLIP_TICK_MS 16
+#define FLIP_H 294   /* the frame's rows, the client area's */
+#define FLIP_EYE 700 /* px; the shelf's eye can be nearer than the panel's half width */
+#define FLIP_PART 24 /* px each way */
+#define BACK_H 285
 typedef struct {
     void *frame;    /* bitmap_t *, CF_VIEW_W x FLIP_H */
     unsigned *back; /* BACK_W x BACK_H, the panel as painted */

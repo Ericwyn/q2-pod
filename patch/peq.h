@@ -262,6 +262,10 @@ void *text(void *parent, int x, int y, int w, int h);
 #define PANEL_X 40 /* the panel's first column: Cover Flow's axis less half of it */
 #define BACK_W 294 /* its width and its rows' */
 void coverflow_panel_paint(void *canvas, int x, int y, int head, int h, int over);
+/* The landing's path (coverflow_land.c): the cubic ease-out, and the face's four corners. */
+float land_ease(float x);
+void land_quad(const int from[4], const int to[3], int ms, int len, int travel, float q[8],
+               float *deg);
 void panel_font(void *label, int px, int bold);
 void *page_open(const char *name, int (*closed)(void *, void *), int (*keyup)(void *, void *));
 void motion_open(void *page,

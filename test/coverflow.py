@@ -20,9 +20,9 @@ SHELF_60 = {'cf.x1': 112, 'cf.xs': 48, 'cf.z1': 90, 'cf.zs': 20, 'cf.eye': 300, 
 SHELF_180 = {'cf.eye': 94, 'cf.tilt': 89, 'cf.x1': 116, 'cf.xs': 34, 'cf.z1': 77, 'cf.zs': 1, 'cf.horizon': 63, 'cf.swing': 1,
              'cf.lift': 20, 'cf.eye_turn': 150, 'cf.art_persp': 13, 'cf.arch_span': 0, 'cf.land_ms': 0}
 
-# coverflow.c, coverflow_thumb.c, coverflow_letters.c, coverflow_loader.c and playlist_art.c as one unit, so the shim's
+# coverflow.c, coverflow_thumb.c, coverflow_letters.c, coverflow_loader.c, coverflow_land.c and playlist_art.c as one unit, so the shim's
 # stubs are defined once
-CF_SOURCES = '#include "coverflow.c"\n#include "coverflow_thumb.c"\n#include "coverflow_letters.c"\n#include "coverflow_loader.c"\n#include "playlist_art.c"\n#include "coverflow_position.c"\n'
+CF_SOURCES = '#include "coverflow.c"\n#include "coverflow_thumb.c"\n#include "coverflow_letters.c"\n#include "coverflow_loader.c"\n#include "coverflow_land.c"\n#include "playlist_art.c"\n#include "coverflow_position.c"\n'
 SHIM_H = r"""
 extern char system_bar[];
 #include <dirent.h>
@@ -1277,6 +1277,40 @@ static void flip_frames(void) {
     classic = 0;
     open_page(); /* Minimal's values again */
     close_page();
+}
+
+/* The landing's path: the panel's back (180 degrees) at the panel's place, on the flip's own way
+   round to Now Playing's keystone at the art's place; the left edge the nearer all the way; the
+   travel done by 55% of the time, the size and turn eased over all of it. */
+static void land_geometry(void) {
+    const int from[4] = { 40, 9, 294, 285 }, to[3] = { 16, 22, 178 };
+    const double lean = asin(700 * (1 - 224 / 256.0) / (1 + 224 / 256.0) / 89) * 180 / M_PI, i = 178 * (256 - 224) / 512.0;
+    const double ks[8] = { 16, 22, 194, 22 + i, 194, 200 - i, 16, 200 };
+    float q[8], deg, was = 0, cx_was = 1e9f;
+    assert(land_ease(0) == 0 && land_ease(1) == 1 && land_ease(.5f) == .875f && land_ease(-1) == 0 && land_ease(2) == 1);
+    land_quad(from, to, 0, 400, 55, q, &deg);
+    assert(deg == 180 && fabsf(q[0] - 334) <= .5f);
+    float lo = 1e9f, hi = -1e9f, top = 1e9f, bot = -1e9f;
+    for (int j = 0; j < 8; j += 2) lo = fminf(lo, q[j]), hi = fmaxf(hi, q[j]), top = fminf(top, q[j + 1]), bot = fmaxf(bot, q[j + 1]);
+    assert(fabsf(lo - 40) <= .5f && fabsf(hi - 334) <= .5f && fabsf(top - 9) <= .5f && fabsf(bot - 294) <= .5f);
+    for (int ms = 0; ms <= 420; ++ms) {
+        land_quad(from, to, ms, 400, 55, q, &deg);
+        float cx = (q[0] + q[2] + q[4] + q[6]) / 4;
+        top = 1e9f, bot = -1e9f;
+        for (int j = 1; j < 8; j += 2) top = fminf(top, q[j]), bot = fmaxf(bot, q[j]);
+        if (ms >= 1 && ms <= 399) assert(q[7] - q[1] >= q[5] - q[3]);
+        if (ms <= 400) assert(deg >= was);
+        if (ms >= 2 && ms <= 390) assert(deg > was);
+        if (ms == 1) assert(deg > 180);
+        if (ms <= 190) assert(cx <= cx_was);
+        if (ms >= 220) assert(fabsf(cx - 105) <= 2.5f);
+        if (ms == 220) assert(bot - top > 178);
+        if (ms >= 400) {
+            assert(fabs(deg - (360 - lean)) <= .001);
+            for (int j = 0; j < 8; ++j) assert(fabs(q[j] - ks[j]) <= .01);
+        }
+        was = deg, cx_was = cx;
+    }
 }
 
 /* Classic's shelf: side covers facing the centre, their edges meeting there, on a horizon 63%
@@ -7470,6 +7504,7 @@ int main(void) {
     enter_frames();
     edge_drawn();
     flip_frames();
+    land_geometry();
     sorting();
     unlettered_sorts();
     by_years(0);
