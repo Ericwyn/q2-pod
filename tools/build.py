@@ -29,7 +29,7 @@ def dev_tag(number):
     for _ in range(3): n, d = divmod(n, 36); digits = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'[d] + digits
     return 'V' + digits + 'i'
 BASE = 0xb00000
-SCRATCH = 0xbc0000  # 768 KB of payload text below it
+SCRATCH = 0xbd0000  # 832 KB of payload text below it
 RING_STEP = 48
 HOOKS = {
     # USB charging is inhibited before insertion and guarded through enumeration/disconnect.
