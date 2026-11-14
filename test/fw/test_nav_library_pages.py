@@ -2279,7 +2279,7 @@ def test_about_shows_stock_s_version_and_the_payload_s_after_it_without_stock_s_
     fw.mock('stock_about_trampoline', lambda *_: 5)
     assert fw.fn('ringnav_about', C.c_int, C.c_void_p, C.c_void_p)(win, None) == 5
     version, beta = host.tools_build.VERSION, host.tools_build.BETA
-    assert about_rows(ui, view) == [ABOUT[0], ('FW. Version', host.tools_build.STOCK_VERSION), ('CFW. Version', f'{version} Pod' + (f' beta {beta}' if beta else '')),
+    assert about_rows(ui, view) == [ABOUT[0], ('FW. Version', host.tools_build.STOCK_VERSION), ('CFW. Version', version + (f' beta {beta}' if beta else '')),
                                     *ABOUT[2:]]
 
 
