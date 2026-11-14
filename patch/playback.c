@@ -24,7 +24,7 @@ extern int stock_load_trampoline(void *, int, int), stock_next_trampoline(int),
     stock_speed_trampoline(int), stock_open_preload_trampoline(void), stock_start_queue_trampoline(int),
     stock_player_start_trampoline(void *, int, int, int);
 extern void *staged(int (*)(void *), void *, int *);
-extern void *songs_by_path(const char *const *, unsigned); /* navigation.c */
+extern void *songs_by_path(const char *const *, unsigned); /* library_lists.c */
 extern int album_before(const void *, const void *), folder_cmp(void *, void *),
     album_only(void *, void *, int);
 extern unsigned queue_hash(void *); /* navigation.c */

@@ -1470,7 +1470,7 @@ FUNCTIONS = {
  # Coverflow's Sort: another ORDER BY over getAllAlbum's grouping, filled by its own row callback
  'toolsQueryDbTable': ('int', 'const char *, const char *, void *, int'),  # db, sql, row, name sort
  'album_row': ('int', 'void *, int, char **, char **'),
- 'db_song_row_callback': ('int', 'void *, int, char **, char **'),
+ 'db_song_row_callback': ('int', 'void *, int, char **, char **'),  # select * rows of songtable: a song record each (songs_by_path)
  'albumcoverinfo_init': ('int', 'void *'),  # a list's cover tasks, each a copy of its row's name and path
  'class_icon': ('int', 'void *, int'),  # Artists, Composers and Genres rows' img_icon (CLASS_ICON)
  'np_info': ('int', 'void *'),  # Now Playing's info page labels (ringnav_np_info)

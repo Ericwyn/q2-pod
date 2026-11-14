@@ -1,10 +1,8 @@
 # Changelog
 
-- **1.8.5**:
-  - Playback: with **Memory Playback** on, picking your queue back up at power-on reads only the queue's songs from the library, not the whole library, so it is much quicker and needs far less memory on a big library.
-  - Library: **Recent** no longer reads the whole library to find the title of a song played from Folder, only that song, so it opens much faster on a big library.
-
 - **1.8.4**:
+  - Playback: with **Memory Playback** or **In-Vehicle Mode** on, picking your queue back up at power-on reads only the queue's songs from the library, not the whole library, so it is much quicker and needs far less memory on a big library.
+  - Library: **Recent** no longer reads the whole library to find the title of a song played from Folder, only that song, so it opens much faster on a big library.
   - Appearance: **Hide Streaming on Home** and **Hide Folder on Home** are now called **Hide Streaming** and **Hide Folder**. The first was too long for its row and was cut off. They do what they did, and stay on or off as you had them.
   - Appearance: **Show Q2 Pod** is now called **Show Wordmark**: it shows or hides the name Q2 Pod in Home's title bar, where an iPod reads iPod. It stays on or off as you had it.
   - System Update: **Remind Daily** is now called **Update Notifications**. It does what it did, and stays on or off as you had it.

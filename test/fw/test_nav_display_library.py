@@ -2784,7 +2784,9 @@ def test_stored_lists_hide_discovery_and_take_the_librarys_titles(fw, records, c
     assert load(cls) == 3 and load.shown() == [b'Kept', b'Track 2', b'Dee']
     # one query for the untitled rows' paths, never the whole library
     assert not fw.calls('getAllMusic') and len(lib.sent) == 1
-    assert [p in lib.sent[0] for p in ("'/mnt/mmc/Music/b.cue'", "'/mnt/mmc/Music/d.flac'", 'a.flac', 'c.flac')] ==         [True, True, False, False]
+    assert lib.sent[0].startswith('select * from songtable not indexed where fileurl in (')
+    assert [p in lib.sent[0] for p in ("'/mnt/mmc/Music/b.cue'", "'/mnt/mmc/Music/d.flac'", 'a.flac', 'c.flac')] == [
+        True, True, False, False]
 
 
 def test_a_cue_track_takes_its_own_title_where_its_siblings_slot_comes_first(fw, records):

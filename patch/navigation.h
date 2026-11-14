@@ -438,7 +438,6 @@ void text_inks(void *w);
 unsigned listen_key(void *r) __attribute__((pure));
 void plays_load(void);
 int songs_unsorted(void *music);
-void *songs_by_path(const char *const *paths, unsigned n);
 void drop_input(void);
 int pointer_down(void);
 unsigned qm_album_id(void *r);
@@ -557,6 +556,7 @@ void album_view_toggle(void);
 int era_menu(void *ctx, void *event);
 int era_sql(const char *sql, int (*row)(void *, int, char **, char **), void *ctx);
 int long_songs(void *ctx, void *event);
+void *songs_by_path(const char *const *paths, unsigned n);
 /* durations.c: UI-thread API (duration_seconds and duration_text in peq.h); the worker alone
  * probes files, the UI publishes after join. */
 int durations_start(void *songs), durations_busy(int *done, int *total);
@@ -566,6 +566,9 @@ int most_played(void *ctx, void *event);
 int shuffle_menu(void *ctx, void *event);
 int shuffle_play(void *all);
 int tidal_downloads(void *ctx, void *event);
+
+/* tags.c */
+int scan_quote(char *sql, unsigned cap, unsigned *n, const char *s);
 
 /* ratings.c */
 const char *hearts_text(char *s, int n);

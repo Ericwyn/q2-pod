@@ -8447,41 +8447,6 @@ int songs_unsorted(void *music) {
     return n;
 }
 
-/* songs_unsorted(0)'s rows whose path is one of paths, in its order, in a deque of their own; 0
- * without memory for the SQL. One IN list: one table scan (songtable has no index) for any n. A
- * snapshot's 999 paths make at most about 2 MB of SQL, which stock's SQLite 3.19.3 runs. Straight
- * to stock's query, as library_query's rewrites fit 2 KB. */
-static int path_query(void *sql) {
-    return stock_dbquery_trampoline("/mnt/data/database.db", sql, (void *)db_song_row_callback, 0);
-}
-void *songs_by_path(const char *const *paths, unsigned n) {
-    static const char head[] = "select * from songtable where fileurl in (";
-    static const char tail[] = ") order by time_create desc"; /* getAllMusic(3)'s order */
-    unsigned size = sizeof head + sizeof tail;
-    for (unsigned i = 0; i < n; ++i) {
-        size += 3; /* the quotes and a comma */
-        for (const char *c = paths[i]; *c; ++c) size += 1 + (*c == '\'');
-    }
-    char *sql = calloc(size, 1), *p = sql;
-    if (!sql) return 0;
-    memcpy(p, head, sizeof head - 1);
-    p += sizeof head - 1;
-    for (unsigned i = 0; i < n; ++i) {
-        if (i) *p++ = ',';
-        *p++ = '\'';
-        for (const char *c = paths[i]; *c; ++c) {
-            if (*c == '\'') *p++ = '\''; /* a quote in an SQL string is two */
-            *p++ = *c;
-        }
-        *p++ = '\'';
-    }
-    memcpy(p, tail, sizeof tail);
-    int count;
-    void *out = staged(path_query, sql, &count);
-    free(sql);
-    return out;
-}
-
 /* Return for the payload's own pages; each passes page_open its own close. */
 int page_keyup(void *ctx, void *event) {
     if (I(event, EVENT_KEY) != KEY_RETURN) return 0;

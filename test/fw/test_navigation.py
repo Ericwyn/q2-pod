@@ -895,7 +895,7 @@ def test_cue_text_gbk_goes_through_stocks_conversion(fw, heap, data):
 # SQL quoting.
 def scan_quote(fw, heap, value, cap, n=0, prefix=b''):
     sql, at = heap.string(prefix, cap), C.c_uint(n)
-    ok = fw.fn('tags__scan_quote', C.c_int, C.c_void_p, C.c_uint, C.POINTER(C.c_uint), C.c_char_p)(sql, cap, C.byref(at), value)
+    ok = fw.fn('scan_quote', C.c_int, C.c_void_p, C.c_uint, C.POINTER(C.c_uint), C.c_char_p)(sql, cap, C.byref(at), value)
     return ok, at.value, sql
 
 

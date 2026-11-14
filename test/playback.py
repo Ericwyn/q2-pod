@@ -105,6 +105,7 @@ class PlaybackMachine(QueueMachine):
             self.deqs[self.get(syms['tools_pdeq_directory'])][1]=[self.copy('stSongInfo',e) for e in self.library_rows]; ret=len(self.library_rows)
         elif name=='dbquery':  # songs_by_path's SQL on stock's toolsQueryDbTable: select * rows (0x506428), unsorted
             assert self.text(a)=='/mnt/data/database.db' and (c,d)==(0x506428,0)
+            assert self.text(b).startswith('select * from songtable not indexed where fileurl in (')
             found=self.songtable(self.text(b),self.library_rows); self.fetched+=len(found)
             self.deqs[self.get(syms['tools_pdeq_directory'])][1]+=[self.copy('stSongInfo',e) for e in found]; ret=len(found)
         elif name=='folder_skip': self.folder_skips+=1
