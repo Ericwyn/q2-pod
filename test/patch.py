@@ -815,9 +815,10 @@ class Machine:
 
 checks=0
 def cost_line(name,n): print(f'COST\t{name}\t{n}')  # an instruction count, for test/score.py's P1
-def passed():
+def passed(tally=[0]):  # tally counts again, out of a scenario's reach: one that names a variable checks is caught
     global checks
-    checks+=1
+    checks+=1; tally[0]+=1
+    assert checks==tally[0],f'a scenario assigned to checks, the count of them: {checks} after {tally[0]} passed'
     trace(f'== {checks}')
 def theme_at(m): return m.call(address=payload_syms['theme'],args=(0,0,0,0),gap=0)&0xffffffff
 def set_motion(m,kind,ms,easing):  # the active theme's motion row for a widget kind (motion_t, THEME_MOTION_OFF)
@@ -18582,18 +18583,18 @@ assert 'fwupdate_tf' not in [c[0] for c in m.calls]; passed()
 # so the boot logo's poll starts no thread of its own.
 m.handlers[HOOKS['main_loop_sleep_default'][0]+12]='stock_sleep'
 TOLD='/mnt/data/q2-update.told'; mounts=m.files['/proc/mounts']; m.files['/proc/mounts']=bytearray()
-m.top=m.node('window','home_page'); m.byte(syms['g_backlight_status'],1); toasts=len(m.toasts); checks=len(m.checks)
+m.top=m.node('window','home_page'); m.byte(syms['g_backlight_status'],1); toasts=len(m.toasts); nc_checks=len(m.checks)
 def loop(): m.call(address=HOOKS['main_loop_sleep_default'][0],args=(0x1234,0,0,0),gap=2000,clear=False)
 m.codes=[302]; m.location=f'{RELEASES}/tag/9.9.9'; loop()
 if manifest['dev']:
-    loop(); assert len(m.checks)==checks and TOLD not in m.files and len(m.toasts)==toasts
+    loop(); assert len(m.checks)==nc_checks and TOLD not in m.files and len(m.toasts)==toasts
 else:
-    assert len(m.checks)==checks+1; worker,arg=m.checks[-1]
+    assert len(m.checks)==nc_checks+1; worker,arg=m.checks[-1]
     assert m.call(address=worker,args=(arg,0,0,0),gap=0,count=5_000_000)==0
     assert m.opts[10002]==f'{RELEASES}/latest' and m.opts[44]==1 and 20011 not in m.opts
     loop(); assert m.toasts[-1][3]=='Q2 Pod 9.9.9 is out: System Update → Network update' and len(m.toasts)==toasts+1
     assert bytes(m.files[TOLD][:6])==b'9.9.9\0'
-    loop(); loop(); assert len(m.toasts)==toasts+1 and len(m.checks)==checks+1  # once; the next check is a day off
+    loop(); loop(); assert len(m.toasts)==toasts+1 and len(m.checks)==nc_checks+1  # once; the next check is a day off
 m.files['/proc/mounts']=mounts; passed()
 
 # Q2 Shelf (netupdate.c, docs/internals.md#q2-shelf): System settings' Apps page, Check for Updates
