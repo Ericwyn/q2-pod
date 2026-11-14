@@ -775,9 +775,13 @@ void tidal_poll(void) {
     if (now - td.polled < 1000) return;
     td.polled = now;
     if (!td.all) {
-        char s[48];
+        char s[64];
         if (!g_backlight_status) return;
-        tk_snprintf(s, sizeof s, td.of == 1 ? "Downloaded %u of %u song" : "Downloaded %u of %u songs", td.told - 1, td.of);
+        if (td.full) /* the run's next song would have deleted one of its own (trim) */
+            tk_snprintf(s, sizeof s, td.of == 1 ? "Tidal Cache full: %u of %u song saved" : "Tidal Cache full: %u of %u songs saved",
+                        td.told - 1, td.of);
+        else
+            tk_snprintf(s, sizeof s, td.of == 1 ? "Downloaded %u of %u song" : "Downloaded %u of %u songs", td.told - 1, td.of);
         td.told = 0;
         toast(s);
         return;
