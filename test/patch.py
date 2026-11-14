@@ -9458,10 +9458,11 @@ def cover_open(files,**kw):
     m=CoverflowMachine(albums=5,cached=False); m.__dict__.update(kw)
     for i,r in enumerate(m.albums): m.word(r+O['REC_PATH'],m.string(f'/mnt/mmc/a{i}.flac'))
     names=[f'{m.nested(payload_syms["album_key"],r)&0xffffffff:08x}.jpg' for r in m.albums]
-    m.cover_files=[(n,8) for n in files(names)] if files else False; m.open()
+    m.names=names; m.cover_files=[(n,8) for n in files(names)] if files else False; m.open()
     return m,[m.text(c[1]) for c in m.calls if c[0]=='strdup' and m.text(c[1]).startswith('/mnt/mmc/a')]
 unbuilt=[f'/mnt/mmc/a{i}.flac' for i in (1,3,4)]
-m,built=cover_open(lambda n:['.','..',n[0],'album',n[2],n[3]+'.tmp','building','0badf00d.jpg',n[1]+'.half','0BADF00D.jpg'])
+m,built=cover_open(lambda n:['.','..',n[0],'album',n[2],n[3]+'.tmp','building','0badf00d.jpg',n[1]+'.half',n[4][:8].upper()+'.jpg'])
+assert m.names[4][:8]!=m.names[4][:8].upper()  # a4's key has a hex letter, so its upper-case name differs
 assert built==unbuilt and len(m.threads)==1 and not [c for c in m.calls if c[0]=='access']
 assert [m.text(c[1]) for c in m.calls if c[0]=='opendir@GLIBC_2.0']==['/mnt/mmc/.coverflow']
 k=[(c[0],m.text(c[1])) for c in m.calls if c[0] in ('mkdir','opendir@GLIBC_2.0')]
@@ -11118,7 +11119,7 @@ cost_line('coverflow arch turn frame',turn_cost); cost_line('coverflow arch row 
 # Going by letters, as MIPS, in Minimal and Classic, both leans: the held row, at rest and part through an album as it slides,
 # the fold half-way and the entry half-way (the facing point running) and 85% in (the row going on) draw byte for byte what
 # the host draws. Each is under its FRAME_BOUND (the renderer's own instructions), set a little over the largest count clang
-# 17, 18 and 23 build it to (FRAME_BOUND's own line gives them), the held row's 11 to 13 covers on the screen no dearer than
+# 17, 18 and 23 build it to (its line gives 1's and 3's), the held row's 11 to 13 covers on the screen no dearer than
 # the rest pose's; the shelf moving (as a direct render is), on a whole album and a quarter turn on, all of its ring: 5.2 to
 # 5.4 (Minimal), 5.4 (Classic). Still, the page's own frame is the seven, 4.8. Each
 # holds the last pass's R and B swap into the screen's BGRA8888, 4 a pixel, which spares stock's blend of the frame, 36 a
