@@ -8700,6 +8700,7 @@ static int sc_click(void *ctx, void *event) {
         spot_stop();
         radio_stop();
         addon_stop();
+        tidal_all_stop();
         if (type != 1 && (type & 0xf000) != 0xf000 && mclGetPlayStatus() != 1) player_stop();
         toast("Streaming stopped");
         return 0;
@@ -10094,6 +10095,7 @@ int ringnav_sleep(void *loop) {
     video_poll();
     spot_poll();
     radio_poll();
+    tidal_poll();
     addon_poll();
     airplay_poll();
     playback_poll();

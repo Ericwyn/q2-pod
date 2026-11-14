@@ -1,6 +1,7 @@
 # Changelog
 
 - **1.8.4**:
+  - Tidal Downloads: **Download Playing Songs**, the first row, saves the Tidal album or playlist that's playing to the card in the background, to play without Wi-Fi. The row counts the songs as they're saved; press it again to stop, and a message says how many were saved. Songs already saved are skipped. Before, a song was only saved by playing it through.
   - Appearance: **Hide Streaming on Home** and **Hide Folder on Home** are now called **Hide Streaming** and **Hide Folder**. The first was too long for its row and was cut off. They do what they did, and stay on or off as you had them.
   - Appearance: **Show Q2 Pod** is now called **Show Wordmark**: it shows or hides the name Q2 Pod in Home's title bar, where an iPod reads iPod. It stays on or off as you had it.
   - System Update: **Remind Daily** is now called **Update Notifications**. It does what it did, and stays on or off as you had it.
