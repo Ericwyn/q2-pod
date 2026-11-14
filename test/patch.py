@@ -8,7 +8,7 @@ from unicorn import Uc, UcError, UC_ARCH_MIPS, UC_MODE_MIPS32, UC_MODE_LITTLE_EN
 from unicorn.unicorn_py3.unicorn import uclib, uccallback, uc_hook_h, HOOK_CODE_CFUNC  # 2.1.4's own: Machine.hooked registers a C hook
 from unicorn.mips_const import *
 sys.path.insert(0, sys.path[0] + '/../tools')  # tools/ first
-from build import jal, j, segments, load_elf, symbols, BASE, SCRATCH, HOOKS, TIDAL_ALL_RET, WM_PAINT_LEAF, FUNCTIONS, GLOBALS, CONTEXT_DATA, ROOT, source_sha256, sha, PRIVATE_FUNCTIONS, TAG, VERSION, BETA, dev_tag
+from build import jal, j, segments, load_elf, symbols, BASE, SCRATCH, HOOKS, WM_PAINT_LEAF, FUNCTIONS, GLOBALS, CONTEXT_DATA, ROOT, source_sha256, sha, PRIVATE_FUNCTIONS, TAG, VERSION, BETA, dev_tag
 B=pathlib.Path(sys.argv[1] if len(sys.argv)>1 else 'build')
 payload_syms=symbols(B/'patch.elf')
 manifest=json.loads((B/'manifest.json').read_text())
@@ -119,7 +119,7 @@ def render(m,code,v):
     if code=='d': return '%08x'%m.get(v)
     if code=='f': return '%g'%struct.unpack('<f',struct.pack('<I',v))[0]
     if code=='n' and v in m.nodes: return 'n%d'%list(m.nodes).index(v)
-    # ponytail: an alpha-0 colour 0x00b00000-0x00b9ffff reads as an address (P); none is drawn today
+    # ponytail: an alpha-0 colour from BASE up to SCRATCH + 0x20000 reads as an address (P); none is drawn today
     if BASE<=v<SCRATCH+0x20000: return PAYLOAD_NAMES.get(v,'P')
     if 0x70000000<=v<0x70010000: return 'S'
     return str(signed(v)) if code=='i' else '%08x'%v
@@ -18189,7 +18189,7 @@ THREAD_GP=0xa3aae0; THREAD_RET=0x487b34; REPLY='/tmp/tidalplayurl_77'
 def thread_answer(url,tid):
     stops=[]
     def stop(u,address,size,_): stops.append(address); u.emu_stop()
-    hooks=[m.u.hook_add(UC_HOOK_CODE,stop,begin=a,end=a) for a in (THREAD_RET,TIDAL_ALL_RET[0])]
+    hooks=[m.u.hook_add(UC_HOOK_CODE,stop,begin=a,end=a) for a in (THREAD_RET,O['TIDAL_ALL_RET'])]
     sp=0x70008000; m.u.mem_write(sp+0x1428,url.encode()+b'\0'); m.word(sp+0x20,THREAD_GP^0x100)  # the frame's, told apart from the live one
     for r,v in ((UC_MIPS_REG_SP,sp),(UC_MIPS_REG_GP,THREAD_GP),(UC_MIPS_REG_S7,sp+0x1428),(UC_MIPS_REG_S2,m.string(tid)),(UC_MIPS_REG_S4,m.string(REPLY))): m.u.reg_write(r,v)
     m.calls=[]; m.threads=[]; m.u.emu_start(0x487b1c,0,count=3_000_000)
@@ -18204,11 +18204,11 @@ assert all_row(0)=='Download Playing Songs' and all_row(1)=='Downloading 1 of 1.
 m.byte(FLAG,0); m.byte(HEART,1); m.now+=1000; m.call(address=payload_syms['tidal_poll'],args=(0,0,0,0),gap=0,count=2_000_000)
 assert m.text(syms['tidalsongid'])=='12345' and m.u.mem_read(FLAG,1)[0]==1 and 'sem_post@GLIBC_2.2' in [c[0] for c in m.calls]
 m.byte(HEART,0)  # the thread's favourites check, of song 12345
-assert thread_answer('https://cdn/play','12345')==(TIDAL_ALL_RET[0],THREAD_GP^0x100,[]) and not m.threads  # not played (nor saved: no extension)
+assert thread_answer('https://cdn/play','12345')==(O['TIDAL_ALL_RET'],THREAD_GP^0x100,[]) and not m.threads  # not played (nor saved: no extension)
 assert m.u.mem_read(FLAG,1)[0]==0 and m.u.mem_read(HEART,1)[0]==1 and REPLY in [m.text(c[1]) for c in m.calls if 'unlink' in c[0]]
 assert all_row(1)=='Download Playing Songs'  # a second press ends it, and the next pass says how far it got
 m.now+=1000; m.call(address=payload_syms['tidal_poll'],args=(0,0,0,0),gap=0,count=2_000_000)
-assert [m.text(c[2]+8) for c in m.calls if 'navigator_to_with_context' in c[0]]==['Downloaded 0 of 1 songs']
+assert [m.text(c[2]+8) for c in m.calls if 'navigator_to_with_context' in c[0]]==['Downloaded 0 of 1 song']
 m.word(O['MCL_TYPE'],was_type); m.byte(HEART,0); passed()
 # A queue replaced since has no URL for the old ids: the player stays stopped.
 m.files[URLS]=bytearray(b'#Q2URLS/1\nhttps://jf/d.flac\tThree\n'); m.call(address=payload_syms['app_urls_play'],args=(m.string(URLS),0,0,0),gap=0)

@@ -3143,6 +3143,7 @@ static char last[64];
 static int mclGetPlayStatus(void) { return status; }
 static unsigned long long now_ms(void) { return clk; }
 static unsigned time_now_ms(void) { return (unsigned)clk; }
+static void sleep_ms(unsigned ms) { usleep(ms * 1000); }
 /* stTidalTracks as on MIPS: total, limit, offset and the deque at byte 12, here rows' address. */
 static unsigned char tracks[24], tidal_albuminfo_thread_run, tidal_collection_thread_run;
 static int rows, runs, fail_at, reopen_at;
@@ -3612,6 +3613,7 @@ static int __xstat(int v, const char *p, unsigned *s) {
     s[12]=1200u<<20; s[16]=1; return 0;
 }
 static int unlink(const char *p) { ++attempts; if (fail) return -1; --left; return 0; }
+static struct { void *all; unsigned since; unsigned char full; } td; /* no Download All here */
 static void trim(void) {''' + trim + r'''
 int main(void) {
     left=3; trim(); assert(left==1 && attempts==2);

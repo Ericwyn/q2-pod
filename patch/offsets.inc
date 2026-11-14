@@ -693,6 +693,7 @@ static inline int arc_out(int r, int y) {
 #define MCL_GAPLESS 0xa5002c    /* byte: stock's Gapless setting (mclGetGaplessMode); mclAutoChange preloads only with it */
 #define MCL_FD 0xa5008c         /* player socket, -1 none */
 #define INITCONFIG_MODE_RET 0x51e0d0 /* player_initconfig's mclSetPlayMode call (jalr 0x51e0c8) returns here */
+#define TIDAL_ALL_RET 0x487b7c /* the Tidal stream thread's id free and loop, past its ending for a song started (tidal.c tidal_start) */
 /* mclUsbAudioSetVol (0x5bec64): the USB DAC's volume control, -1 before the first set, -2 when it
  * has none and hciplayer's soft volume (mcl-softvolflag) applies instead (0x5bab48 opens hw:1). */
 #define USB_MIXER 0xa50044

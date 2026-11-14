@@ -364,9 +364,9 @@ int directory(void *path); /* playback.c: toolsLoadDirectory, for staged */
 void tidal_clear(void);
 /* Download All (tidal.c): Tidal Downloads' first row's caption, a press starting or ending it; its
  * once-a-second step (ringnav_sleep); its end (Stop Streaming Services); the row written again
- * (library_lists.c) */
+ * (library_lists.c); every transfer ended for USB Storage (ringnav_usbmode) */
 void tidal_all(int press, char *out, unsigned size), tidal_poll(void), tidal_all_stop(void),
-    tidal_all_show(void);
+    tidal_all_show(void), tidal_card_away(void);
 #define SPOT_DIR "/mnt/mmc/.spotify" /* librespot and its launcher, spotify.c's */
 /* addon.c: card apps, each a card folder .<id> holding its manifest q2app, its
  * launcher run, its binary q2-<id> and its icons. addon_scan finds them again (how many slots: a

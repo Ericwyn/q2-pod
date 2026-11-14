@@ -588,9 +588,10 @@ TIDAL_PAGE_DONE = ((0x48c31c, 0xa0430000, 0), (0x48c4ac, 0xa0430000, 0), (0x4891
 # The stream-URL thread calls mcl_tidalStartPlayer, so tidal.c's tidal_start, even with no URL (beqz $2 past the
 # call -> nop): Download All's song (tidal.c tidal_poll) has its answer either way. tidal_play starts nothing then.
 TIDAL_NO_URL = (0x487b20, 0x10400006, 0)
-# Where tidal_start sends the thread after a song Download All asked for: its id's free and its loop
-# (lw $t9, free's slot; jalr; move $a0, $s2; b the poll; lw $gp), past the ending for a song started.
-TIDAL_ALL_RET = (0x487b7c, (0x8f99f790, 0x0320f809, 0x02402025, 0x1000fd83, 0x8fbc0020))
+# The words at TIDAL_ALL_RET (patch/offsets.inc), where tidal_start sends the thread after a song Download All asked
+# for: its id's free and its loop (lw $t9, free's slot; jalr; move $a0, $s2; b the poll; lw $gp), past the ending
+# for a song started.
+TIDAL_ALL_RET_WORDS = (0x8f99f790, 0x0320f809, 0x02402025, 0x1000fd83, 0x8fbc0020)
 # An artist's albums scroll end divides yoffset by its 160 px rows, not 256; see docs/internals.md.
 ARTIST_COVER_ROW = ((0x4b0adc, 0x244400ff, 0x240400a0),   # addiu $4,$2,0xff -> li $4,160
                     (0x4b0ae4, 0x28430000, 0x0044001a),   # slti $3,$2,0 -> div $zero,$2,$4
@@ -1902,7 +1903,7 @@ def build(zip_path, out, logo, dev=False, repo=REPO, aic_idle_wait=False, rotato
           'Tidal URL thread: unexpected song id register')
     # tidal_start goes back to TIDAL_ALL_RET with $gp from the thread's frame (0x20($sp), as 0x487b34 reloads it)
     # and passes the first reply's file from $s4 (0x4872fc: addiu $s4, $sp, 0x1ae8).
-    check(struct.unpack_from('<5I', patched, fileoff(patched, TIDAL_ALL_RET[0])) == TIDAL_ALL_RET[1] and
+    check(struct.unpack_from('<5I', patched, fileoff(patched, inc('TIDAL_ALL_RET'))) == TIDAL_ALL_RET_WORDS and
           struct.unpack_from('<I', patched, fileoff(patched, 0x487b34))[0] == 0x8fbc0020 and
           struct.unpack_from('<I', patched, fileoff(patched, 0x4872fc))[0] == 0x27b41ae8,
           'Tidal URL thread: unexpected ending')
