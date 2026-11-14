@@ -51,7 +51,7 @@
   </tr>
   <tr valign="top">
     <td><b>Streaming</b></td>
-    <td>Spotify (Premium): browse your library, search, play and download playlists on the Q2 after a one-time pairing from your phone. AirPlay from your iPhone. Internet Radio with your own stations. Tidal tracks you've played replay from the card.</td>
+    <td>Spotify (Premium): browse your library, search, play and download playlists on the Q2 after a one-time pairing from your phone. AirPlay from your iPhone. Internet Radio with your own stations. Tidal: download the album or playlist that's playing to the card, and replay tracks you've played from it.</td>
   </tr>
   <tr valign="top">
     <td><b>App Store</b></td>

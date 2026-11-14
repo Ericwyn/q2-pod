@@ -29,7 +29,7 @@ def dev_tag(number):
     for _ in range(3): n, d = divmod(n, 36); digits = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'[d] + digits
     return 'V' + digits + 'i'
 BASE = 0xb00000
-SCRATCH = 0xbc0000  # 768 KB of payload text below it
+SCRATCH = 0xbd0000  # 832 KB of payload text below it
 RING_STEP = 48
 HOOKS = {
     # USB charging is inhibited before insertion and guarded through enumeration/disconnect.
@@ -585,6 +585,12 @@ COVER_PAUSE = ((0x4ace50, 0xac430000, 0), (0x4a3930, 0xac430000, 0), (0x4a9c20, 
 # The playlist, album and favourite-tracks threads' done store (sb $3,0($2) -> nop): their hooks
 # (tidal.c tidal_pages) run them once per page and set the page's flag after the last.
 TIDAL_PAGE_DONE = ((0x48c31c, 0xa0430000, 0), (0x48c4ac, 0xa0430000, 0), (0x4891d4, 0xa0430000, 0))
+# The stream-URL thread calls mcl_tidalStartPlayer, so tidal.c's tidal_start, even with no URL (beqz $2 past the
+# call -> nop): Download All's song (tidal.c tidal_poll) has its answer either way. tidal_play starts nothing then.
+TIDAL_NO_URL = (0x487b20, 0x10400006, 0)
+# Where tidal_start sends the thread after a song Download All asked for: its id's free and its loop
+# (lw $t9, free's slot; jalr; move $a0, $s2; b the poll; lw $gp), past the ending for a song started.
+TIDAL_ALL_RET = (0x487b7c, (0x8f99f790, 0x0320f809, 0x02402025, 0x1000fd83, 0x8fbc0020))
 # An artist's albums scroll end divides yoffset by its 160 px rows, not 256; see docs/internals.md.
 ARTIST_COVER_ROW = ((0x4b0adc, 0x244400ff, 0x240400a0),   # addiu $4,$2,0xff -> li $4,160
                     (0x4b0ae4, 0x28430000, 0x0044001a),   # slti $3,$2,0 -> div $zero,$2,$4
@@ -1564,6 +1570,9 @@ CONTEXT_DATA = {'bt_showcoding': 4, 'g_memory_info': 3476, 'g_folder_path': 1024
                 'artist_type': 4, 'g_power_capacity': 4, 'g_power_chargestate': 4,
                 'pdeq_albumcoverlist': 4, 'aclist_mutex': 24,
                 'tidalStreamingLevelNow': 4,  # the quality the Tidal URL thread asked for
+                # Download All (tidal.c tidal_poll) asks the thread for a song as get_tidal_trackurl does: the
+                # Streaming quality it will ask at, the id it copies and the mutex it copies it under
+                'tidalStreamingLevelNext': 4, 'tidalsongid': 1024, 'tidalmutex': 24,
                 'stTidalTracks': 16,  # a Tidal track list: total, limit, offset, its deque
                 'g_pressdown_y': 4,  # the touch's start, the window manager's pointer-down writes it
                 'g_dropdown_menu_state': 4,  # Quick Settings: 1, 2 while it slides or follows a swipe, 3 open
@@ -1891,6 +1900,12 @@ def build(zip_path, out, logo, dev=False, repo=REPO, aic_idle_wait=False, rotato
     check(struct.unpack_from('<I', patched, fileoff(patched, 0x48721c))[0] == 0x00409025 and
           struct.unpack_from('<III', patched, fileoff(patched, 0x487b28)) == (0x8f99ab18, 0x0320f809, 0x02e02025),
           'Tidal URL thread: unexpected song id register')
+    # tidal_start goes back to TIDAL_ALL_RET with $gp from the thread's frame (0x20($sp), as 0x487b34 reloads it)
+    # and passes the first reply's file from $s4 (0x4872fc: addiu $s4, $sp, 0x1ae8).
+    check(struct.unpack_from('<5I', patched, fileoff(patched, TIDAL_ALL_RET[0])) == TIDAL_ALL_RET[1] and
+          struct.unpack_from('<I', patched, fileoff(patched, 0x487b34))[0] == 0x8fbc0020 and
+          struct.unpack_from('<I', patched, fileoff(patched, 0x4872fc))[0] == 0x27b41ae8,
+          'Tidal URL thread: unexpected ending')
     # ringnav_mode leaves advanced play on for player_initconfig's call, which returns to INITCONFIG_MODE_RET.
     ret = inc('INITCONFIG_MODE_RET')
     check(struct.unpack_from('<II', patched, fileoff(patched, ret - 12)) == (0x8f99b80c, 0x0320f809),  # 0x51e0c4: lw $t9, mclSetPlayMode's slot
@@ -2057,6 +2072,7 @@ def build(zip_path, out, logo, dev=False, repo=REPO, aic_idle_wait=False, rotato
         patch_word(patched, *word, 'album grids never pause the cover worker')
     for word in TIDAL_PAGE_DONE:
         patch_word(patched, *word, 'Tidal lists load every page')
+    patch_word(patched, *TIDAL_NO_URL, 'the Tidal URL thread answers without a URL too')
     for word in ARTIST_COVER_ROW:
         patch_word(patched, *word, "an artist's albums request the covers in view")
     # Local art completion: pass the worker's copied key, then validate the row under aclist_mutex.

@@ -8,7 +8,7 @@ from unicorn import Uc, UcError, UC_ARCH_MIPS, UC_MODE_MIPS32, UC_MODE_LITTLE_EN
 from unicorn.unicorn_py3.unicorn import uclib, uccallback, uc_hook_h, HOOK_CODE_CFUNC  # 2.1.4's own: Machine.hooked registers a C hook
 from unicorn.mips_const import *
 sys.path.insert(0, sys.path[0] + '/../tools')  # tools/ first
-from build import jal, j, segments, load_elf, symbols, BASE, SCRATCH, HOOKS, WM_PAINT_LEAF, FUNCTIONS, GLOBALS, CONTEXT_DATA, ROOT, source_sha256, sha, PRIVATE_FUNCTIONS, TAG, VERSION, BETA, dev_tag
+from build import jal, j, segments, load_elf, symbols, BASE, SCRATCH, HOOKS, TIDAL_ALL_RET, WM_PAINT_LEAF, FUNCTIONS, GLOBALS, CONTEXT_DATA, ROOT, source_sha256, sha, PRIVATE_FUNCTIONS, TAG, VERSION, BETA, dev_tag
 B=pathlib.Path(sys.argv[1] if len(sys.argv)>1 else 'build')
 payload_syms=symbols(B/'patch.elf')
 manifest=json.loads((B/'manifest.json').read_text())
@@ -15884,7 +15884,7 @@ def stream_page(m):
     assert m.nodes[icon]['image']=='list_tidal' and m.nodes[label]['text']=='Tidal Downloads'
     top=m.top; f,ctx=m.handler(tidal,O['EVT_CLICK']); m.calls=[]; assert m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=5_000_000)==0
     assert [m.text(c[1]) for c in m.calls if c[0]=='toolsLoadDirectory']==['/mnt/mmc/.tidal']
-    assert m.nodes[m.top]['name']=='tidal_downloads' and 'No downloads yet' in [n.get('text') for n in m.nodes.values()]
+    assert m.nodes[m.top]['name']=='tidal_downloads' and 'Download Playing Songs' in [n.get('text') for n in m.nodes.values()]  # its first row, Download All's
     f,ctx=m.handler(m.top,O['EVT_DESTROY']); m.call(address=f,args=(ctx,m.event,0,0),gap=0); m.top=top
     # AirPlay, last: stock's own receiver, its switch on System settings' Network service page, one press away.
     airplay=m.nodes[m.nodes[view]['children'][4]]['children'][0]; icon,label=m.nodes[airplay]['children'][:2]
@@ -17899,16 +17899,17 @@ for r,n,t in zip(recs,names,(100,200)):
 m.files[T+'/13-2 C.flac.tmp']=bytearray(); m.files[T+'/.cache-size']=bytearray(b'2048M'); m.files['/mnt/mmc/Music/keep.flac']=bytearray()
 m.tree[T]=[(n,8) for n in (*names,'13-2 C.flac.tmp','.cache-size')]; m.found=recs
 assert run(m,'tidal_downloads',0,0)==0; td=m.top; tdrows=lambda: m.nodes[m.find('scroll_view',td)]['children']
-LIST=['Tidal Downloads','B - Two','A - One','Clear All Downloads…']
+LIST=['Tidal Downloads','Download Playing Songs','B - Two','A - One','Clear All Downloads…']  # Download All's row first
 assert m.nodes[td]['name']=='tidal_downloads' and [l for l in m.labels(td) if l]==LIST,m.labels(td)
+m.plays=[]; m.click(tdrows()[2]); assert [p[2:4] for p in m.plays]==[(1,0xf001)]; m.plays=[]  # a song's row plays from it: A - One, the second
 ASK=['Remove Downloads?','2 tracks','Keeps settings','Cancel','Remove']
-m.click(tdrows()[2]); assert [l for l in m.labels(td) if l]==ASK,m.labels(td)
+m.click(tdrows()[3]); assert [l for l in m.labels(td) if l]==ASK,m.labels(td)
 m.click(tdrows()[1]); assert [l for l in m.labels(td) if l]==LIST  # Cancel, back on the Clear row
-assert m.nodes[m.find('scroll_view',td)]['_ringnav_index']==2
-m.click(tdrows()[2]); m.back(td); assert [l for l in m.labels(td) if l]==LIST and m.top==td  # Return is Cancel
-m.click(tdrows()[2]); m.found=[]  # stock's listing of the emptied folder
+assert m.nodes[m.find('scroll_view',td)]['_ringnav_index']==3
+m.click(tdrows()[3]); m.back(td); assert [l for l in m.labels(td) if l]==LIST and m.top==td  # Return is Cancel
+m.click(tdrows()[3]); m.found=[]  # stock's listing of the emptied folder
 m.click(tdrows()[2]); assert [p for p in m.files if p.startswith(T)]==[T+'/.cache-size'] and '/mnt/mmc/Music/keep.flac' in m.files
-assert [l for l in m.labels(td) if l]==['No downloads yet']; m.destroy(td); passed()
+assert [l for l in m.labels(td) if l]==['Tidal Downloads','Download Playing Songs']; m.destroy(td); passed()  # its row stays
 # Stream mode (q2-deezer's stream.go, addon.c stream_poll): its .play file names a session's folder; its
 # first song, once there, plays as a local album does (Now Playing opening); songs that come later join the
 # queue's end, as Add to Queue does, while the queue is still the session's; the song playing is left in
@@ -18178,6 +18179,37 @@ assert 'mclSetPause' not in [c[0] for c in m.calls] and m.u.mem_read(syms['saves
 m.handlers[payload_syms['stock_tidal_trampoline']]='stock_tidal'; m.byte(syms['savestartbt'],0); passed()
 # A Tidal track is stock's, as before.
 assert track(3)==(0,['stock_tidaltrack','sem_post']) and not m.threads; passed()
+# Download All (docs/internals.md#tidal-download-all), on stock's own stream thread from where it has its answer
+# (0x487b1c: the URL at 0x1428($sp) and in $s7, the song's id in $s2, its first reply's file in $s4). The thread now
+# calls mcl_tidalStartPlayer, so tidal_start, with no URL too (TIDAL_NO_URL). A song to play goes back to the thread's
+# own ending (0x487b34), started only if it has a URL. A song Download All asked for (its row's press, then tidal_poll,
+# which hands the id to the thread as get_tidal_trackurl does) starts nothing: the thread goes on at TIDAL_ALL_RET,
+# its id's free, with $gp from its frame, the heart the playing song's again, its flag down and its reply file gone.
+THREAD_GP=0xa3aae0; THREAD_RET=0x487b34; REPLY='/tmp/tidalplayurl_77'
+def thread_answer(url,tid):
+    stops=[]
+    def stop(u,address,size,_): stops.append(address); u.emu_stop()
+    hooks=[m.u.hook_add(UC_HOOK_CODE,stop,begin=a,end=a) for a in (THREAD_RET,TIDAL_ALL_RET[0])]
+    sp=0x70008000; m.u.mem_write(sp+0x1428,url.encode()+b'\0'); m.word(sp+0x20,THREAD_GP^0x100)  # the frame's, told apart from the live one
+    for r,v in ((UC_MIPS_REG_SP,sp),(UC_MIPS_REG_GP,THREAD_GP),(UC_MIPS_REG_S7,sp+0x1428),(UC_MIPS_REG_S2,m.string(tid)),(UC_MIPS_REG_S4,m.string(REPLY))): m.u.reg_write(r,v)
+    m.calls=[]; m.threads=[]; m.u.emu_start(0x487b1c,0,count=3_000_000)
+    for h in hooks: m.u.hook_del(h)
+    assert len(stops)==1 and m.u.reg_read(UC_MIPS_REG_SP)==sp
+    return stops[0],m.u.reg_read(UC_MIPS_REG_GP),[m.text(c[1]) for c in m.calls if c[0]=='stock_tidal']
+assert thread_answer('','12345')==(THREAD_RET,THREAD_GP,[]) and not m.threads  # no URL: nothing starts, as stock
+assert thread_answer('https://cdn/play','12345')[::2]==(THREAD_RET,['https://cdn/play']) and not m.threads; passed()  # no extension: played, not saved
+was_type=m.get(O['MCL_TYPE']); m.word(O['MCL_TYPE'],0xf1); m.handlers[NET]='one:net'; cap=m.alloc(64); FLAG,HEART=syms['tidalfurlstart'],syms['isFav_playing']
+def all_row(press): m.call(address=payload_syms['tidal_all'],args=(press,cap,64,0),gap=0,count=2_000_000); return m.text(cap)
+assert all_row(0)=='Download Playing Songs' and all_row(1)=='Downloading 1 of 1. Press to stop'  # the app's songs aren't Tidal's
+m.byte(FLAG,0); m.byte(HEART,1); m.now+=1000; m.call(address=payload_syms['tidal_poll'],args=(0,0,0,0),gap=0,count=2_000_000)
+assert m.text(syms['tidalsongid'])=='12345' and m.u.mem_read(FLAG,1)[0]==1 and 'sem_post@GLIBC_2.2' in [c[0] for c in m.calls]
+m.byte(HEART,0)  # the thread's favourites check, of song 12345
+assert thread_answer('https://cdn/play','12345')==(TIDAL_ALL_RET[0],THREAD_GP^0x100,[]) and not m.threads  # not played (nor saved: no extension)
+assert m.u.mem_read(FLAG,1)[0]==0 and m.u.mem_read(HEART,1)[0]==1 and REPLY in [m.text(c[1]) for c in m.calls if 'unlink' in c[0]]
+assert all_row(1)=='Download Playing Songs'  # a second press ends it, and the next pass says how far it got
+m.now+=1000; m.call(address=payload_syms['tidal_poll'],args=(0,0,0,0),gap=0,count=2_000_000)
+assert [m.text(c[2]+8) for c in m.calls if 'navigator_to_with_context' in c[0]]==['Downloaded 0 of 1 songs']
+m.word(O['MCL_TYPE'],was_type); m.byte(HEART,0); passed()
 # A queue replaced since has no URL for the old ids: the player stays stopped.
 m.files[URLS]=bytearray(b'#Q2URLS/1\nhttps://jf/d.flac\tThree\n'); m.call(address=payload_syms['app_urls_play'],args=(m.string(URLS),0,0,0),gap=0)
 assert [p[2:4] for p in m.plays][-1]==(0,0xf1) and field(m.play_recs[0],'REC_TIDAL_ID')=='app:2:0'
@@ -21653,7 +21685,7 @@ for count_failed,title in (((0,False),'No embedded chapters'),((0,True),'Could n
 m=classic_light_new(BooksMachine,tree={'/mnt/mmc':[('books',4)],'/mnt/mmc/books':[]},files={}); ebar=page_bar(m); empty_row(m,-2); shows_empty(m,ebar,'No books','Books'); passed()
 m=classic_light_new(PhotosMachine,tree={'/mnt/mmc':[('photos',4)],'/mnt/mmc/photos':[]},data={}); ebar=page_bar(m); empty_row(m,-2); shows_empty(m,ebar,'No photos','Photos'); passed()
 m=classic_light_new(ShuffleMachine); ebar=page_bar(m); empty_row(m,11); shows_empty(m,ebar,'No plays yet','Most Played'); passed()
-m=classic_light_new(SpotMachine,files={}); ebar=page_bar(m); erows=stream_rows(m); f,ctx=m.handler(erows['Tidal Downloads'],O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=5_000_000); shows_empty(m,ebar,'No downloads yet','Tidal Downloads'); passed()
+m=classic_light_new(SpotMachine,files={}); ebar=page_bar(m); erows=stream_rows(m); f,ctx=m.handler(erows['Tidal Downloads'],O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=5_000_000); shows_empty(m,ebar,'Download Playing Songs','Tidal Downloads'); passed()  # no songs: Download All's row alone, the bar the page's name
 m=classic_light_new(CoverflowMachine,page='playing_page',pos=0); ebar=page_bar(m); q=m.deque([m.song('A')]); m.word(syms['mcl_pdeqplaylist'],q); m.word(O['MCL_POOL'],m.deque([0],'int')); assert m.call(address=payload_syms['playback_set'],args=(0,1,0,0),gap=0)==1
 m.press(10); assert m.hold()==11; m.release(); m.pick(m.labels().index('View Queue')); m.advance(0); m.page=m.top; shows_empty(m,ebar,'Nothing to play next','View Queue'); passed()
 m=ChapterMachine(ready=False); m.open_chapters(); m.advance(50)
@@ -21707,7 +21739,8 @@ def stream_calls(name,*args):
 for lit,queue in ((1,0x20),(0,0xf001),(0,0x20)):
     m.byte(syms['g_backlight_status'],lit); m.word(O['MCL_TYPE'],queue)
     assert stream_calls('ringnav_tidal_poll',196608)==['sem_wait']
-assert stream_calls('ringnav_tidal_track')==['stock_tidaltrack','sem_post']
+# under tidal.c's lock first: a song Download All had asked the thread for gives way to the one to play
+assert stream_calls('ringnav_tidal_track')==['pthread_mutex_lock','pthread_mutex_unlock','stock_tidaltrack','sem_post']
 assert stream_calls('ringnav_baidu_poll',10000)==['sem_wait']
 passed()
 

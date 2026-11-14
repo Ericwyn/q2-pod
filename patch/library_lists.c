@@ -3,10 +3,11 @@
 #include "navigation.h"
 
 /* Tidal Downloads' (or a card app's) songs page and its songs, its timer, and whether it shows
- * Clear All Downloads' confirmation; the library generation Most Played's kept tracks are of
- * (~library_gen once stale); the Library Shuffle menu's page, kept across picks. */
+ * Clear All Downloads' confirmation; Tidal Downloads' first row's caption while its list shows;
+ * the library generation Most Played's kept tracks are of (~library_gen once stale); the Library
+ * Shuffle menu's page, kept across picks. */
 static struct {
-    void *td_page, *td_list;
+    void *td_page, *td_list, *td_all;
     unsigned td_timer;
     int td_asking;
     unsigned mp_gen;
@@ -236,11 +237,26 @@ static int td_named(const void *a, const void *b) {
     const char *x = P(((const td_row *)a)->r, REC_NAME), *y = P(((const td_row *)b)->r, REC_NAME);
     return strcmp(x ? x : "", y ? y : "");
 }
+/* A song's row: on Tidal Downloads the songs follow Download All's row. */
 static int td_play(void *ctx, void *event) {
-    void *t = deque_at(ll.td_list, (unsigned)(long)ctx);
-    if (t && !access(P(t, REC_PATH), 0)) play_folder(ll.td_list, (int)(long)ctx, 0xf001);
+    int i = (int)(long)ctx - (ll.td_all != 0);
+    void *t = deque_at(ll.td_list, (unsigned)i);
+    if (t && !access(P(t, REC_PATH), 0)) play_folder(ll.td_list, i, 0xf001);
     return 0;
 }
+/* Tidal Downloads' first row, Download All (docs/internals.md#tidal-download-all): its caption is
+ * tidal.c's, written again after a press, which starts or ends it, and as it moves on
+ * (tidal_poll). The press may toast, and the page close under that. */
+static void td_all_text(int press) {
+    char s[64];
+    tidal_all(press, s, sizeof s);
+    if (ll.td_all) widget_set_text_utf8(ll.td_all, s);
+}
+static int td_all(void *ctx, void *event) {
+    td_all_text(1);
+    return 0;
+}
+void tidal_all_show(void) { td_all_text(0); }
 /* dir's songs, newest first (or, album, by name), a deque the caller destroys. */
 static void *card_songs(const char *dir, int album) {
     int n = 0;
@@ -285,20 +301,24 @@ static int td_clear(void *ctx, void *event) {
     rearm(&ll.td_timer, td_show, 0);
     return 0;
 }
-/* The page's songs, read again; Tidal's end with Clear All Downloads…, as Spotify's Storage
- * Management does. Returns the list. */
+/* The page's songs, read again; Tidal's (tidal 1) start with Download All's row and end with Clear
+ * All Downloads…, as Spotify's Storage Management does. Returns the list. */
 static void *songs_rows(const char *dir, const char *title, int tidal, int album) {
     if (ll.td_list) deque_destroy(ll.td_list);
     ll.td_list = card_songs(dir, album);
     int n = (int)deque_size(ll.td_list);
-    void *view =
-        page_list_or(ll.td_page, ll.td_page, title, "No downloads yet", n + (tidal && n), 48);
+    void *view = page_list_or(ll.td_page, ll.td_page, title, "No downloads yet",
+                              n + tidal + (tidal && n), 48);
     char name[256];
+    if (tidal) {
+        ll.td_all = widget_get_child(page_row_detail(view, 0, "", 0, td_all), 0);
+        tidal_all_show();
+    }
     for (int i = 0; i < n; i++) {
         song_label(P(deque_at(ll.td_list, (unsigned)i), REC_NAME), tidal, name, sizeof name);
-        page_row_detail(view, i, name, 0, td_play);
+        page_row_detail(view, i + tidal, name, 0, td_play);
     }
-    if (tidal && n) page_row_detail(view, n, "Clear All Downloads…", 0, td_clear);
+    if (tidal && n) page_row_detail(view, n + 1, "Clear All Downloads…", 0, td_clear);
     return view;
 }
 /* Clear All Downloads' confirmation in the list's place, as Spotify's Remove Downloads?, on Cancel;
@@ -309,10 +329,11 @@ static int td_show(const void *unused) {
     unsigned n = deque_size(ll.td_list);
     if (!ll.td_asking) {
         void *view = songs_rows(TIDAL_DIR, "Tidal Downloads", 1, 0);
-        if ((n = deque_size(ll.td_list))) ringnav_select(view, (int)n, (int)n + 1);
+        if ((n = deque_size(ll.td_list))) ringnav_select(view, (int)n + 1, (int)n + 2);
         return 0;
     }
     char note[32];
+    ll.td_all = 0; /* its row goes with the list */
     tk_snprintf(note, sizeof note, n == 1 ? "%u track" : "%u tracks", n);
     void *view = page_list(ll.td_page, ll.td_page, 0, "Remove Downloads?", 3, 64);
     page_row_detail(view, 0, note, "Keeps settings", 0);
@@ -323,6 +344,7 @@ static int td_show(const void *unused) {
 }
 static int td_closed(void *ctx, void *event) {
     ll.td_page = 0;
+    ll.td_all = 0;
     ll.td_asking = 0;
     stop_timer(&ll.td_timer);
     if (ll.td_list) deque_destroy(ll.td_list);

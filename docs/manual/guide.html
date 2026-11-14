@@ -194,6 +194,7 @@ p:has(+ ul), p:has(+ ol), p:has(+ table), p:has(+ pre), .task, h2, h3, .lead { b
     <li><a class="t" href="#spinstall">Setting up Spotify</a><span class="n">{{p:spinstall}}</span></li>
     <li><a class="t" href="#spuse">Using Spotify</a><span class="n">{{p:spuse}}</span></li>
     <li><a class="t" href="#spdl">Spotify downloads</a><span class="n">{{p:spdl}}</span></li>
+    <li><a class="t" href="#tidaldl">Tidal downloads</a><span class="n">{{p:tidaldl}}</span></li>
     <li><a class="t" href="#radio">Internet Radio</a><span class="n">{{p:radio}}</span></li>
     <li><a class="t" href="#airplay">AirPlay</a><span class="n">{{p:airplay}}</span></li>
     <li><a class="t" href="#stream-config">Streaming Configuration</a><span class="n">{{p:stream-config}}</span></li>
@@ -464,7 +465,7 @@ p:has(+ ul), p:has(+ ol), p:has(+ table), p:has(+ pre), .task, h2, h3, .lead { b
       <tr><td><code>.photos/</code>, <code>.books/</code></td><td>Photo thumbnails, and EPUBs converted to text</td><td>Q2 Pod</td></tr>
       <tr><td><code>.sldp/</code></td><td>Shanling’s own cover cache</td><td>Stock</td></tr>
       <tr><td><code>.spotify/</code></td><td>The Spotify add-on; <code>cache/</code> holds your login and downloads</td><td>You</td></tr>
-      <tr><td><code>.tidal/</code></td><td>Tidal songs you’ve played, to replay offline</td><td>Q2 Pod</td></tr>
+      <tr><td><code>.tidal/</code></td><td>Tidal songs you’ve downloaded or played, to replay offline</td><td>Q2 Pod</td></tr>
     </tbody>
   </table>
   <p>You can delete <code>.coverflow/</code>, <code>.photos/</code> and <code>.books/</code> to free space; Q2 Pod rebuilds them as needed. Cover Flow and Photos need 16 MB free. Don’t delete <code>.spotify/cache/</code> or <code>.tidal/</code>: that signs you out or removes offline songs. Their size is set in <a href="#stream-config">Streaming Configuration</a>.</p>
@@ -786,7 +787,7 @@ p:has(+ ul), p:has(+ ol), p:has(+ table), p:has(+ pre), .task, h2, h3, .lead { b
   <div class="opener"><h1 id="c6">Streaming</h1><div class="num">6</div></div>
   <p class="lead">Play Spotify, Internet Radio and AirPlay over Wi-Fi, and send your listens to Last.fm.</p>
   <p>All of these are in <b>Streaming</b> on Home. Streams play on the headphone jack, Bluetooth or a USB DAC, whichever is in use when they start, and carry on with the screen off. Until you play local music again, the playback buttons control the stream from any page.</p>
-  <p><b>TIDAL</b> is Shanling’s own. <b>Tidal Downloads</b> replays the Tidal songs you’ve played, without Wi-Fi; <b>Clear All Downloads…</b> at its end removes them.</p>
+  <p><b>TIDAL</b> is Shanling’s own. <b>Tidal Downloads</b> saves the album or playlist that’s playing and replays saved songs without Wi-Fi (<a href="#tidaldl">Tidal downloads</a>); <b>Clear All Downloads…</b> at its end removes them.</p>
 
   <div class="sec">
   <h2 id="spinstall"><img class="hicon" src="../../assets/icons/stream_spotify.png" alt="">Setting up Spotify</h2>
@@ -832,6 +833,12 @@ p:has(+ ul), p:has(+ ol), p:has(+ table), p:has(+ pre), .task, h2, h3, .lead { b
   </div>
 
   <div class="sec">
+  <h2 id="tidaldl">Tidal downloads</h2>
+  <p>Sign in to Tidal and browse it under <b>Streaming → TIDAL</b>. To keep an album or a playlist for when there’s no Wi-Fi, start playing it, then open <b>Streaming → Tidal Downloads</b> and press <b>Download Playing Songs</b>, the first row. The Q2 saves every song in it to the card in the background, at your Tidal streaming quality, while the music plays on. The row counts the songs (<b>Downloading 3 of 12</b>); press it again to stop. A message says how many were saved when it ends.</p>
+  <p>The saved songs are listed under the row, newest first, and play without Wi-Fi. Songs already saved are skipped, so pressing the row again later finishes an album that stopped part way. A song you play from Tidal is saved too, unless you skip it before its copy is finished. The songs share the <b>Tidal Cache</b> size in <a href="#stream-config">Streaming Configuration</a> (2 GB unless you change it): when it’s full, the oldest go first. <b>Clear All Downloads…</b>, the last row, removes them all.</p>
+  </div>
+
+  <div class="sec">
   <h2 id="radio"><img class="hicon" src="../../assets/icons/stream_radio.png" alt="">Internet Radio</h2>
   <p>Play stations from the radio-browser.info directory, or your own.</p>
   <ul>
@@ -874,7 +881,7 @@ http://stream.radioparadise.com/mp3-128</pre>
     <tbody>
       <tr><td>Tidal Cache, Spotify Cache</td><td>How much of the card each service may use: 512 MB to 8 GB, 2 GB by default. Press to step. Tidal deletes its oldest songs after the next download; Spotify’s applies the next time Spotify starts.</td></tr>
       <tr><td>Erase Spotify Data</td><td>Press twice to delete Spotify’s login, cache and logs (they name your account and songs). Spotify Cache goes back to 2 GB.</td></tr>
-      <tr><td>Stop Streaming Services</td><td>Stops Spotify, Internet Radio, Tidal and card apps at once. Use it when your own music misbehaves after streaming. Open Spotify again to restart it.</td></tr>
+      <tr><td>Stop Streaming Services</td><td>Stops Spotify, Internet Radio, Tidal (a download of its songs too) and card apps at once. Use it when your own music misbehaves after streaming. Open Spotify again to restart it.</td></tr>
       <tr><td>The services</td><td>A switch per service: Off hides it from Streaming, On brings it back.</td></tr>
     </tbody>
   </table>
