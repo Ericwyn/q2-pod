@@ -1163,22 +1163,42 @@ def test_download_all_never_evicts_its_own_songs_it_ends_with_the_cache_full(fw,
 
 
 
-def test_a_one_song_run_the_cache_fills_says_song_and_the_next_run_s_end_says_downloaded(fw, queue, mcl):
-    card = Card(fw, {CACHE_SIZE: b'512', cached('11-0.flac'): b''})
-    card.sizes[cached('11-0.flac')], card.ages[cached('11-0.flac')] = 400 * MB, 100
-    card.sizes[cached('22-0.flac')], card.ages[cached('22-0.flac')] = 200 * MB, 101
+def test_download_all_keeps_the_songs_it_passes_as_saved_and_counts_them_true(fw, queue, mcl):
+    """Songs already on the card are the run's own too: an older file goes, then the run ends rather than delete
+    one it passed, and its count is what the card holds."""
+    card = Card(fw, {CACHE_SIZE: b'512', cached('old.flac'): b'', cached('11-0.flac'): b'', cached('22-0.flac'): b''})
+    card.sizes[cached('old.flac')], card.ages[cached('old.flac')] = 100 * MB, 10
+    for tidal_id, age in ('11', 50), ('22', 51), ('33', 100):
+        card.sizes[cached(f'{tidal_id}-0.flac')], card.ages[cached(f'{tidal_id}-0.flac')] = 200 * MB, age
     Cdn(fw, {URL: b'fLaC'})
-    a = All(fw, queue, mcl, card, ['22'])
+    a = All(fw, queue, mcl, card, ['11', '22', '33', '44'])
     a.row(press=1)
-    a.t.td.since = 100  # 11 is this run's too
     a.poll()
-    a.answer(URL, '22')
+    assert a.asked() == '33'  # 11 and 22 passed
+    a.answer(URL, '33')
     a.t.run()
+    assert card.listing() == ['11-0.flac', '22-0.flac', '33-0.flac'] and a.t.td.full == 1
     a.poll(2)
-    assert a.toasts == ['Tidal Cache full: 1 of 1 song saved']
+    assert a.toasts == ['Tidal Cache full: 3 of 4 songs saved']
+
+
+def test_a_run_whose_last_song_fills_the_cache_says_downloaded(fw, queue, mcl):
+    """It reached the end of its list, so it wasn't stopped: no "Tidal Cache full"."""
+    card = Card(fw, {CACHE_SIZE: b'512'})
+    for tidal_id, age in ('11', 100), ('22', 101):
+        card.sizes[cached(f'{tidal_id}-0.flac')], card.ages[cached(f'{tidal_id}-0.flac')] = 300 * MB, age
+    Cdn(fw, {URL: b'fLaC'})
+    a = All(fw, queue, mcl, card, ['11', '22'])
     a.row(press=1)
+    for tidal_id in '11', '22':
+        a.poll()
+        assert a.asked() == tidal_id
+        a.answer(URL, tidal_id)
+        a.t.run()
+    assert card.listing() == ['11-0.flac', '22-0.flac'] and a.t.td.full == 1
     a.poll(2)
-    assert a.toasts[1:] == ['Downloaded 1 of 1 song']  # saved: passed, the cache not full this time
+    assert a.toasts == ['Downloaded 2 of 2 songs']
+
 
 def test_tidal_poll_passes_at_most_8_saved_songs_a_second(fw, queue, mcl):
     ids = [str(k) for k in range(1, 22)]

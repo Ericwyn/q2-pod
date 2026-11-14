@@ -84,9 +84,11 @@ __asm__("1: jr $ra\nnop\n.set pop\n");
 
 /* Deletes the oldest finished downloads until the rest fit Streaming's Configuration cap (stream_cache,
  * 2 GB unless changed). stat is o32's: st_size word 12, st_mtime word 16. ponytail: a directory pass per
- * deletion, fine for a few hundred files. Download All's own songs (saved since td.since, a FAT
- * mtime against a FAT mtime) never go: the run ends instead (td.full). ponytail: the cache can go
- * over its cap by one song then. */
+ * deletion, fine for a few hundred files. Download All's own songs, saved or passed (none older than
+ * td.since, the oldest of them: a FAT mtime against FAT mtimes), never go: the run ends instead
+ * (td.full). ponytail: every file as new as the run's oldest song is kept, the list's or not, so a
+ * run can stop full while newer songs played meanwhile could have made room; and each press over a
+ * full cache goes one more song over the cap, which the next played song's trim takes back. */
 static void trim(void) {
     unsigned long long cap = (unsigned long long)(512u << stream_cache(0)) << 20;
     for (;;) {
@@ -709,6 +711,7 @@ int ringnav_tidal_track(void *a, void *b, void *c, void *d) {
 static void all_end(void) {
     pthread_mutex_lock(td.lock);
     td.told = td.saved + 1, td.of = deque_size(td.all);
+    td.full = td.full && td.at < td.of; /* a run that reached its last song wasn't stopped */
     all_drop();
     pthread_mutex_unlock(td.lock);
 }
@@ -718,15 +721,16 @@ void tidal_all_stop(void) {
     if (td.all) all_end();
 }
 
-/* USB Storage takes the card (navigation.c ringnav_usbmode): every transfer ends, a played song's
- * (gen, progress) and Download All's, its count told later, and its .tmp goes before stock's
- * umount. ponytail: an ffmpeg tag remux still running after 3 s can write as USB takes the card;
- * kill the child if that bites. */
+/* USB Storage takes the card (navigation.c ringnav_usbmode): every transfer ends, Download All's
+ * first (so no answer queues it a job meanwhile), its count told later, then a played song's (gen,
+ * progress), and its .tmp goes before stock's umount. ponytail: a download still in its ffmpeg tag
+ * remux 3 s after USB Storage starts writes as USB takes the card: the remux, then its renames and
+ * trim; kill the child if that bites. */
 void tidal_card_away(void) {
+    tidal_all_stop();
     pthread_mutex_lock(td.lock);
     ++td.gen, td.job = 0;
     pthread_mutex_unlock(td.lock);
-    tidal_all_stop();
     for (unsigned start = time_now_ms(); td.busy && time_now_ms() - start < 3000;) sleep_ms(50);
 }
 
@@ -777,11 +781,9 @@ void tidal_poll(void) {
     if (!td.all) {
         char s[64];
         if (!g_backlight_status) return;
-        if (td.full) /* the run's next song would have deleted one of its own (trim) */
-            tk_snprintf(s, sizeof s, td.of == 1 ? "Tidal Cache full: %u of %u song saved" : "Tidal Cache full: %u of %u songs saved",
-                        td.told - 1, td.of);
-        else
-            tk_snprintf(s, sizeof s, td.of == 1 ? "Downloaded %u of %u song" : "Downloaded %u of %u songs", td.told - 1, td.of);
+        /* td.full: the run's next song would have deleted one of its own (trim) */
+        tk_snprintf(s, sizeof s, td.full ? "Tidal Cache full: %u of %u song%s saved" : "Downloaded %u of %u song%s",
+                    td.told - 1, td.of, td.of == 1 ? "" : "s");
         td.told = 0;
         toast(s);
         return;
@@ -803,8 +805,11 @@ void tidal_poll(void) {
         }
         id = P(deque_at(td.all, td.at), REC_TIDAL_ID);
         tk_snprintf(key, sizeof key, "%s-%d", id, level > 3 ? 3 : level);
-        if (cached(key, "", path, sizeof path))
+        if (cached(key, "", path, sizeof path)) {
+            unsigned st[36]; /* passed is the run's own too: trim keeps it (no download runs, no trim) */
+            if (!__xstat(3, path, st) && (!td.since || st[16] < td.since)) td.since = st[16];
             ++td.saved, td.misses = 0;
+        }
         else if (tried)
             ++td.misses;
         else
