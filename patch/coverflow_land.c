@@ -1,5 +1,5 @@
 /* Classic's landing: a song picked on Cover Flow's flip panel turns the panel over and lands it as
- * Now Playing's art (docs/internals.md, the flip). Its path. */
+ * Now Playing's art (docs/internals.md, the flip). Its path and its frames. */
 #include "coverflow.h"
 
 /* LAND_LEAN is the turn at which the flip's own projection gives slant_render's far edge,
@@ -43,4 +43,102 @@ void land_quad(const int from[4], const int to[3], int ms, int len, int travel, 
     land_face(ax, ay, s, s, -LAND_LEAN_SIN, LAND_LEAN_COS, end);
     for (int j = 0; j < 8; ++j) q[j] += (ks[j] - end[j]) * u;
     *deg = d;
+}
+
+/* The landing's frame at ms into d (CF_VIEW_W x FLIP_H). Before np_at, 1, opaque, all of it: the
+ * paper, the shelf parted as the flip leaves it and faded to the paper from out_at over out_ms, the
+ * face and its reflection. Then 0: in box only the face and its reflection, over alpha 0 (straight
+ * alpha); *veil the paper's alpha over Now Playing as it comes in over np_ms. From len, 2:
+ * slant_render's art at to, box its rect, opaque. The face as coverflow_flip_render draws it, a
+ * column at a time in 1/256 px: its left and right edges are upright, so each column's top and
+ * bottom lie on the lines between them, u by one divide (u h is linear across, h being 1 / depth),
+ * nearest texel, coverage at the ends and edges. The texture's first column is on the screen's
+ * left for either face (the back's left is the front's right). The reflection, the front's only,
+ * mirrors each column about its bottom, as slant_render's, its alpha growing with the turn to
+ * slant_render's at the lean. test/coverflow.py */
+int land_frame(unsigned *d, int pitch, int ms, const land_t *L, int box[4], int *veil) {
+    int np = ms - L->np_at, opaque = np < 0, side = L->to[2];
+    *veil = opaque ? 255 : np >= L->np_ms ? 0 : 255 - 255 * np / L->np_ms;
+    if (ms >= L->len) {
+        box[0] = L->to[0], box[1] = L->to[1], box[2] = side;
+        box[3] = side + (side * SLANT_REFLECT_PCT + 99) / 100;
+        slant_render(d + box[1] * pitch + box[0], pitch, side, box[3], L->front, ART_SIZE,
+                     L->paper & 255);
+        return 2;
+    }
+    float q[8], deg;
+    land_quad(L->from, L->to, ms, L->len, L->travel, q, &deg);
+    float cs = cosf(deg * 3.14159265f / 180);
+    int back = cs < 0, i = back ? 2 : 0, j = 2 - i, tw = back ? BACK_W : ART_SIZE;
+    int th = back ? BACK_H : ART_SIZE,
+        ra = cs <= 0 ? 0 : (int)(SLANT_REFLECT_A * cs / LAND_LEAN_COS);
+    ra = ra > SLANT_REFLECT_A ? SLANT_REFLECT_A : ra;
+    /* the screen's left edge (x0, its top t0, bottom b0) and right (x1, t1, b1), 1/256 px */
+    int x0 = (int)(q[i] * 256 + .5f), t0 = (int)(q[i + 1] * 256 + .5f),
+        b0 = (int)(q[7 - i] * 256 + .5f), x1 = (int)(q[j] * 256 + .5f),
+        t1 = (int)(q[j + 1] * 256 + .5f), b1 = (int)(q[7 - j] * 256 + .5f), w = x1 - x0;
+    const unsigned *t = back ? L->back : L->front;
+    int lo = t0 < t1 ? t0 : t1, hi = b0 + (ra ? (b0 - t0) * SLANT_REFLECT_PCT / 100 : 0),
+        hr = b1 + (ra ? (b1 - t1) * SLANT_REFLECT_PCT / 100 : 0);
+    hi = hi > hr ? hi : hr;
+    box[0] = x0 >> 8, box[1] = lo >> 8, box[2] = (x1 + 255) >> 8, box[3] = (hi + 255) >> 8;
+    box[0] = box[0] < 0 ? 0 : box[0] > CF_VIEW_W ? CF_VIEW_W : box[0];
+    box[1] = box[1] < 0 ? 0 : box[1] > FLIP_H ? FLIP_H : box[1];
+    box[2] = (box[2] > CF_VIEW_W ? CF_VIEW_W : box[2]) - box[0];
+    box[3] = (box[3] > FLIP_H ? FLIP_H : box[3]) - box[1];
+    box[2] = box[2] < 0 ? 0 : box[2], box[3] = box[3] < 0 ? 0 : box[3]; /* off the frame, edge on */
+    if (opaque) {
+        int f = ms <= L->out_at               ? 0
+                : ms >= L->out_at + L->out_ms ? 256
+                                              : 256 * (ms - L->out_at) / L->out_ms;
+        for (int y = 0; y < FLIP_H; ++y) {
+            unsigned *o = d + y * pitch;
+            for (int x = 0; x < CF_VIEW_W; ++x) {
+                int at = x < CF_CX ? x + FLIP_PART : x - FLIP_PART; /* parted */
+                o[x] =
+                    L->shelf && y < cfs.view_h && (x < CF_CX - FLIP_PART || x >= CF_CX + FLIP_PART)
+                        ? tilt_mix(L->shelf[y * CF_VIEW_W + at], L->paper, (unsigned)f) |
+                              0xff000000u
+                        : L->paper;
+            }
+        }
+    } else
+        for (int y = box[1]; y < box[1] + box[3]; ++y)
+            memset(d + y * pitch + box[0], 0, (unsigned)box[2] * 4);
+    if (w < 16 || !t) return opaque; /* edge on */
+    for (int x = box[0]; x < box[0] + box[2]; ++x) {
+        int a = x << 8 > x0 ? x << 8 : x0, b = (x + 1) << 8 < x1 ? (x + 1) << 8 : x1, cx = b - a;
+        int s = (((a + b) >> 1) - x0) * 4096 / w; /* across, 12 bits */
+        int y0 = t0 + ((t1 - t0) * s >> 12), y1 = b0 + ((b1 - b0) * s >> 12), h = y1 - y0;
+        if (cx <= 0 || h < 256) continue;
+        int col = (s * ((b1 - t1) >> 4) / (h >> 4)) * tw >> 12, step = (th << 20) / (h >> 4);
+        int fade = h * SLANT_REFLECT_PCT / 100, end = ra ? y1 + fade : y1;
+        col = col < tw ? col : tw - 1;
+        int y = y0 >> 8 < 0 ? 0 : y0 >> 8, last = (end - 1) >> 8;
+        for (; y <= last && y < FLIP_H; ++y) {
+            int p = y << 8, f0 = p > y0 ? p : y0, f1 = p + 256 < y1 ? p + 256 : y1;
+            int r0 = p > y1 ? p : y1, r1 = p + 256 < end ? p + 256 : end, wf = 0, wr = 0;
+            unsigned cf = 0, cr = 0, *o = d + y * pitch + x;
+            if (f1 > f0) { /* the face's, its rows a step apart */
+                int v = ((p + 128 - y0) >> 4) * step >> 20;
+                cf = t[(v < 0 ? 0 : v < th ? v : th - 1) * tw + col];
+                wf = (f1 - f0) * cx >> 8;
+            }
+            if (r1 > r0) { /* the reflection's, as far under the bottom as the texel is above it */
+                int v = ((p + 128 - y1) >> 4) * step >> 20;
+                cr = t[(th - 1 - (v < 0 ? 0 : v < th ? v : th - 1)) * tw + col];
+                wr = (r1 - r0) * (ra * (fade - ((r0 + r1) >> 1) + y1) / fade) >> 8;
+                wr = wr * cx >> 8;
+            }
+            if (opaque)
+                *o = (shade(*o, (unsigned)(256 - wf - wr)) + shade(cf, (unsigned)wf) +
+                      shade(cr, (unsigned)wr)) |
+                     0xff000000u;
+            else if (wf + wr) /* straight alpha: the colour, its share */
+                *o = ((wr ? wf ? tilt_mix(cf, cr, (unsigned)(wr * 256 / (wf + wr))) : cr : cf) &
+                      0xffffffu) |
+                     (unsigned)(wf + wr > 255 ? 255 : wf + wr) << 24;
+        }
+    }
+    return opaque;
 }

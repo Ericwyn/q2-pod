@@ -1768,17 +1768,6 @@ int unproject(const pose_t *p, int dx, int *u, int *h) {
     return 1;
 }
 
-#define HOT static inline __attribute__((always_inline)) /* -Oz would call these per pixel */
-
-/* p scaled by b (of 256), per 8-bit channel; alpha is left 0. */
-HOT unsigned shade(unsigned p, unsigned b) {
-    return ((p & 0xff00ffu) * b >> 8 & 0xff00ffu) | ((p & 0xff00u) * b >> 8 & 0xff00u);
-}
-/* A texel (RGBA8888, red low) as the screen's BGRA8888, opaque; both ways, but for the alpha. */
-HOT unsigned bgra(unsigned p) { /* R and B from p turned half way round (one rotr) */
-    return 0xff000000u | (p & 0xff00u) | ((p >> 16 | p << 16) & 0xff00ffu);
-}
-
 /* colour (alpha ignored) under what is already at px, covering cov (of 256) of the pixel */
 HOT void put(unsigned *px, unsigned colour, unsigned cov) {
     unsigned a = *px >> 24, have = a + (a >> 7), w = cov * (256 - have) >> 8;
@@ -2098,10 +2087,6 @@ static void *opaque_frame(int w, int h, int format) {
     void *b = bitmap_create_ex(w, h, w * 4, format);
     if (b) *(unsigned short *)((char *)b + 0xc) |= 1; /* BITMAP_FLAG_OPAQUE */
     return b;
-}
-
-HOT unsigned tilt_mix(unsigned a, unsigned b, unsigned w) { /* a to b, w of 256 */
-    return shade(a, 256 - w) + shade(b, w);
 }
 
 /* The frame and every texture at once, or neither: the flat covers then stand in. Under a thumb

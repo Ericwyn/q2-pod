@@ -1313,6 +1313,123 @@ static void land_geometry(void) {
     }
 }
 
+/* The landing's frames: before Now Playing comes in, the whole frame, opaque: the paper, the shelf
+   parted as the flip leaves it and fading out, the panel's back 1:1 at the start; then only the face
+   and its reflection over alpha 0, the veil going; from the end, slant_render's art exactly, on
+   either paper. The back reads as the panel did all the while it shows, the front as the art. */
+void slant_render(unsigned *, int, int, int, const unsigned *, int, unsigned);
+static void land_frames(void) {
+    enum { W = 375, H = 294, S = 178, REFL = (178 * 22 + 99) / 100 };
+    static unsigned f[W * H], shelf[W * H], back[285 * 294], front[160 * 160], sback[285 * 294], sfront[160 * 160], want[S * (S + REFL)];
+    classic = 1;
+    open_page();
+    int vh = shim_themes[1].cf.view_h, box[4], veil;
+    assert(vh < H);
+    for (int i = 0; i < W * H; ++i) shelf[i] = 0xff00ff00u;
+    for (int i = 0; i < 285 * 294; ++i) back[i] = 0xff0000ffu, sback[i] = 0xff000000u | (unsigned)(40 + 60 * (i % 294 * 4 / 294));
+    for (int i = 0; i < 160 * 160; ++i) front[i] = 0xffff0000u, sfront[i] = 0xff000000u | (unsigned)(40 + 60 * (i % 160 / 40));
+    land_t L = { { 40, 9, 294, 285 }, { 16, 22, S }, 400, 55, 0, 110, 90, 100, shelf, back, front, 0xff000000u };
+    float q[8], deg;
+#define A(p) ((p) >> 24)
+#define R(p) ((p) >> 16 & 255)
+#define G(p) ((p) >> 8 & 255)
+#define B(p) ((p) & 255)
+    /* the start: the panel where it stood, the shelf parted, the paper under it */
+    assert(land_frame(f, W, 0, &L, box, &veil) == 1 && veil == 255);
+    assert(f[(9 + 142) * W + 40 + 147] == 0xff0000ffu && f[5 * W + PANEL_X - 24 - 1] == 0xff00ff00u && f[(H - 1) * W + 5] == 0xff000000u);
+    assert(land_frame(f, W, 60, &L, box, &veil) == 1);
+    unsigned p = f[5 * W + PANEL_X - 24 - 1];
+    assert(G(p) > 0 && G(p) < 255 && !R(p) && !B(p) && A(p) == 255);
+    /* Now Playing coming in: the frame no longer opaque, its veil going */
+    assert(land_frame(f, W, 96, &L, box, &veil) == 0 && abs(veil - 240) <= 3);
+    /* mid-way: the front, opaque inside, nothing outside it, the box holding it */
+    assert(land_frame(f, W, 200, &L, box, &veil) == 0 && veil == 0);
+    land_quad(L.from, L.to, 200, 400, 55, q, &deg);
+    float lo = 1e9f, hi = -1e9f, top = 1e9f, bot = -1e9f;
+    for (int j = 0; j < 8; j += 2) lo = fminf(lo, q[j]), hi = fmaxf(hi, q[j]), top = fminf(top, q[j + 1]), bot = fmaxf(bot, q[j + 1]);
+    assert(f[(int)((top + bot) / 2) * W + (int)((lo + hi) / 2)] == 0xffff0000u);
+    assert(A(f[box[1] * W + box[0] + box[2] - 1]) == 0);
+    assert(box[0] <= (int)lo && box[1] <= (top < 0 ? 0 : (int)top) && box[0] + box[2] >= (int)ceilf(hi) && box[1] + box[3] >= (int)ceilf(bot));
+    /* the reflection under the near edge, partly there, red */
+    assert(land_frame(f, W, 300, &L, box, &veil) == 0);
+    land_quad(L.from, L.to, 300, 400, 55, q, &deg);
+    int rx = (int)ceilf(q[6]) + 4, ry = (int)q[7] + 3;
+    p = f[ry * W + rx];
+    assert(A(p) > 0 && A(p) < 255 && R(p) > G(p) && R(p) > B(p));
+    /* column 16 holds only the 3% of the face past x 16.97: its share of the reflection, nothing left of it */
+    assert(box[0] == (int)q[6] && A(f[ry * W + (int)q[6]]) * 8 < A(p));
+    /* the landing: the reflection steady across it; slant_render's art, exactly, at the art's place */
+    assert(land_frame(f, W, 399, &L, box, &veil) == 0);
+    p = f[(22 + S + 4) * W + 17];
+    int before = (int)(R(p) * A(p) / 255);
+    assert(land_frame(f, W, 400, &L, box, &veil) == 2);
+    assert(box[0] == 16 && box[1] == 22 && box[2] == S && box[3] == S + REFL);
+    assert(abs((int)R(f[(22 + S + 4) * W + 17]) - before) <= 3);
+    slant_render(want, S, S, S + REFL, front, 160, 0);
+    for (int y = 0; y < S + REFL; ++y) for (int x = 0; x < S; ++x) assert(f[(22 + y) * W + 16 + x] == want[y * S + x]);
+    /* any panel, any ms: the box inside the frame, never a negative size (a playlist's panel's edge-on turn once
+       cleared a negative width, off the end of the frame) */
+    for (int fx = -60; fx <= 120; fx += 20)
+        for (int fy = -40; fy <= 60; fy += 20)
+            for (int fw = 200; fw <= 300; fw += 47) {
+                land_t any = L;
+                any.from[0] = fx, any.from[1] = fy, any.from[2] = fw, any.from[3] = fw - 9;
+                for (int ms = 0; ms <= 400; ++ms) {
+                    land_frame(f, W, ms, &any, box, &veil);
+                    assert(box[0] >= 0 && box[1] >= 0 && box[2] >= 0 && box[3] >= 0);
+                    assert(box[0] + box[2] <= W && box[1] + box[3] <= H);
+                }
+            }
+    /* Now Playing late: every frame of the motion opaque */
+    land_t late = L;
+    late.np_at = 400;
+    for (int ms = 0; ms < 400; ++ms) assert(land_frame(f, W, ms, &late, box, &veil) == 1);
+    /* stripes: the front left to right as the art; the back as the panel, 1:1 at the start and
+       reading the same way round while it shows */
+    land_t st = L;
+    st.back = sback, st.front = sfront;
+    land_frame(f, W, 0, &st, box, &veil);
+    for (int y = 0; y < 285; ++y) for (int x = 0; x < 294; ++x) assert(f[(9 + y) * W + 40 + x] == sback[y * 294 + x]);
+    for (int ms = 50; ms <= 300; ms += 250) {
+        land_frame(f, W, ms, &st, box, &veil);
+        land_quad(L.from, L.to, ms, 400, 55, q, &deg);
+        int y = (int)((q[1] + q[7] + q[3] + q[5]) / 4), seen = 0, last = -1;
+        for (int x = 0; x < W; ++x) {
+            unsigned c = f[y * W + x];
+            if (A(c) != 255 || R(c) || G(c) || (B(c) - 40) % 60) continue;
+            int k = (int)(B(c) - 40) / 60;
+            if (k != last) assert(k == seen++), last = k;
+        }
+        assert(seen == 4);
+    }
+    /* the reflection's first rows mirror the front's last, never what lies after it in memory */
+    static unsigned guarded[161 * 160];
+    for (int i = 0; i < 161 * 160; ++i) guarded[i] = i < 160 * 160 ? 0xffff0000u : 0xff00ffffu;
+    land_t g = L;
+    g.front = guarded;
+    for (int ms = 250; ms < 400; ms += 50) {
+        assert(land_frame(f, W, ms, &g, box, &veil) == 0);
+        for (int y = box[1]; y < box[1] + box[3]; ++y)
+            for (int x = box[0]; x < box[0] + box[2]; ++x) assert(!G(f[y * W + x]) && !B(f[y * W + x]));
+    }
+    /* Light Mode's paper */
+    land_t light_paper = L;
+    light_paper.paper = 0xfff4f4f4u;
+    land_frame(f, W, 0, &light_paper, box, &veil);
+    assert(f[(H - 1) * W + 5] == 0xfff4f4f4u);
+    assert(land_frame(f, W, 400, &light_paper, box, &veil) == 2);
+    slant_render(want, S, S, S + REFL, front, 160, 0xf4);
+    for (int y = 0; y < S + REFL; ++y) for (int x = 0; x < S; ++x) assert(f[(22 + y) * W + 16 + x] == want[y * S + x]);
+#undef A
+#undef R
+#undef G
+#undef B
+    close_page();
+    classic = 0;
+    open_page();
+    close_page();
+}
+
 /* Classic's shelf: side covers facing the centre, their edges meeting there, on a horizon 63%
    down the cover, each flat colour exact out to the third, reflections under the slanted feet. */
 static void classic_light_shelf(void) {
@@ -7505,6 +7622,7 @@ int main(void) {
     edge_drawn();
     flip_frames();
     land_geometry();
+    land_frames();
     sorting();
     unlettered_sorts();
     by_years(0);
