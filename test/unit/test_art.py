@@ -1,6 +1,7 @@
 """tools/art.py: the theme images it draws, from the shipped theme's values."""
 import functools
 import math
+import os
 import pathlib
 import re
 import struct
@@ -21,6 +22,15 @@ def classic():
     mutant runs these tests, so only the two that read the icons draw them, and the rest share one
     drawing a session (conftest's uncached clears it for each mutant). Read it, don't change it."""
     return art.images({**theme.builtins()[1], 'pane_icon_x': 0})
+
+
+@pytest.fixture(autouse=True)
+def afresh():
+    """mutmut's stats pass gives a test the art.py functions it calls. With the drawing cached by the first test, the
+    rest call none, and no art.py mutant would run them; so there each test draws afresh. Anywhere else, one drawing."""
+    if os.environ.get('MUTANT_UNDER_TEST') == 'stats':
+        for f in [classic, *(f for f in vars(art).values() if hasattr(f, 'cache_clear'))]:
+            f.cache_clear()
 
 
 def pixels(data):
