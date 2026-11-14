@@ -11103,10 +11103,10 @@ assert turn_cost<6_450_000,turn_cost  # a frame a quarter turn on, the covers mo
 cost_line('coverflow arch turn frame',turn_cost); cost_line('coverflow arch row frame',row_cost)
 # Going by letters, as MIPS, in Minimal and Classic, both leans: the held row, at rest and part through an album as it slides,
 # the fold half-way and the entry half-way (the facing point running) and 85% in (the row going on) draw byte for byte what
-# the host draws. Each is under its FRAME_BOUND (the renderer's own instructions), set a little over what it measured: the
-# held row 4.1 million (Minimal) and 4.0 (Classic), its 11 to 13 covers on the screen no dearer than the rest pose's, the
-# fold 4.2 and 4.0, the entry 4.1 and 3.8 to 4.1; the shelf moving (as a direct render is), on a whole album and a quarter
-# turn on, all of its ring: 5.2 to 5.4 (Minimal), 5.4 (Classic). Still, the page's own frame is the seven, 4.8. Each
+# the host draws. Each is under its FRAME_BOUND (the renderer's own instructions), set a little over the largest count clang
+# 17, 18 and 23 build it to (FRAME_BOUND's own line gives them), the held row's 11 to 13 covers on the screen no dearer than
+# the rest pose's; the shelf moving (as a direct render is), on a whole album and a quarter turn on, all of its ring: 5.2 to
+# 5.4 (Minimal), 5.4 (Classic). Still, the page's own frame is the seven, 4.8. Each
 # holds the last pass's R and B swap into the screen's BGRA8888, 4 a pixel, which spares stock's blend of the frame, 36 a
 # pixel that is not counted here (image_blend against image_copy).
 def th_set(m,kind=0,lean=0,a=0,b=0):  # host_render's (kind, lean, a, b)
