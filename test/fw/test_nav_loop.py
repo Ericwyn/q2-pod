@@ -1875,10 +1875,12 @@ def test_no_event_drops_the_pending_press(fw, keys, st):
     assert not ui.due('navigation__confirm_center') and st('center_timer', C.c_uint).value == 0
 
 
+@pytest.mark.parametrize('flip', [0, 1])  # 1: pulled down over Cover Flow's 270 ms flip, which drops Centre and Return
 @pytest.mark.parametrize('key', [KEY_CENTER, KEY_RETURN])
-def test_centre_or_return_closes_quick_settings(fw, keys, key):
+def test_centre_or_return_closes_quick_settings(fw, keys, key, flip):
     ui = Ui(fw)
     top = ui.window('statusbar_dialog', 'dialog')
+    fw.var('fl', Flip).dir = flip
     assert keys(key) == STOP
     assert [c[1][0] for c in fw.calls('dialog_quit')] == [top.p]
 

@@ -11073,14 +11073,8 @@ int ringnav(void *ctx, void *event) {
     if (usable() && rate_key(window_manager_get_top_window(window_manager()), key)) return STOP;
     /* A game's keys, before stock's lock filter, media keys and screen-off double Centre */
     if (usable() && games_key(window_manager_get_top_window(window_manager()), key)) return STOP;
-    /* Cover Flow's flip and landing: a Centre during them does nothing, and a Return during the
-     * flip (a held Return's release goes on to consume its latch); the flip's wheel waits at the
-     * page's no surface (hold_wheel). The landing's wheel and Return end it (land_key). */
+    /* The landing's wheel and Return end it (land_key). */
     if (land_key(key)) return STOP;
-    if (coverflow_turning() &&
-        ((key == KEY_CENTER && !g_power_longkey) ||
-         (key == KEY_RETURN && !*(volatile unsigned char *)RETURN_RELEASE_LATCH)))
-        return STOP;
     /* Return or Centre closes quick settings, as its swipe up does (dialog_quit); stock leaves
      * Return to its Home button and Centre to turning the screen off. A held Return's release
      * goes to the stock filter, which consumes its latch (the hold closed it itself,
@@ -11104,6 +11098,13 @@ int ringnav(void *ctx, void *event) {
             return STOP;
         }
     }
+    /* Cover Flow's flip and landing, after those closes (Quick Settings pulled down over the flip):
+     * a Centre during them does nothing, and a Return during the flip (a held Return's release goes
+     * on to consume its latch); the flip's wheel waits at the page's no surface (hold_wheel). */
+    if (coverflow_turning() &&
+        ((key == KEY_CENTER && !g_power_longkey) ||
+         (key == KEY_RETURN && !*(volatile unsigned char *)RETURN_RELEASE_LATCH)))
+        return STOP;
     if (search_key(key)) return STOP;
     int result = usb_prompt() ? 0 : stock_keyup_trampoline(ctx, event);
     if (key == KEY_PLAY && hold_released()) return STOP;
