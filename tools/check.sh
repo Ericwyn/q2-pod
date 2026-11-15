@@ -18,8 +18,9 @@ tools/format.sh --check
 
 [ "${1:-}" = --full ] || exit 0
 zip=${2:-Q2 Firmware V1.36.zip}
-out=dist/dev-$(git rev-parse --short HEAD)
-# The build of this commit, if one is there already, so the build checked is the one installed.
+out=dist/dev-$(git rev-parse --short HEAD)-$("$PY" -c 'import sys; sys.path.insert(0, "tools"); import build; print(build.source_sha256()[:8])')
+# The build of this commit and these sources (test/patch.py's source_sha256, so an edit not yet committed
+# builds anew), if one is there already, so the build checked is the one installed.
 [ -e "$out/update.tar" ] || "$PY" tools/build.py "$zip" --dev --out "$out"
 "$PY" -c 'import pathlib, sys; sys.path.insert(0, "tools"); import release; release.suites(pathlib.Path(sys.argv[1]).resolve())' "$out"
 for t in library_scope coverflow_position chapters; do "$PY" "test/$t.py"; done
