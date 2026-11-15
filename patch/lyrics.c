@@ -241,7 +241,6 @@ int ringnav_lyric(void) {
     return ret;
 }
 
-
 /* Every line LYRIC_PX, as large as reads well in the page's width, as many rows as it takes up to
  * LYRIC_ROWS (the rest cut; so many still fit the page), LY_PITCH apart; its row on the page is
  * those rows plus LYRIC_GAP, LYRIC_SLOT for one. */
@@ -251,10 +250,10 @@ int ringnav_lyric(void) {
 #define LYRIC_GAP (LYRIC_SLOT - LY_PITCH(LYRIC_PX))
 
 typedef struct {
-    int ms;                       /* its start, LRC_FAR when unsynced */
-    unsigned text, n;             /* its characters, text[text..text + n) */
-    unsigned mark, marks;         /* its word stamps, mark[mark..mark + marks) */
-    unsigned char px, rows;       /* its layout (px 0 until then): rows of ly.w */
+    int ms;                 /* its start, LRC_FAR when unsynced */
+    unsigned text, n;       /* its characters, text[text..text + n) */
+    unsigned mark, marks;   /* its word stamps, mark[mark..mark + marks) */
+    unsigned char px, rows; /* its layout (px 0 until then): rows of ly.w */
     unsigned short start[LYRIC_ROWS], len[LYRIC_ROWS], w[LYRIC_ROWS];
 } ly_line;
 typedef struct {
@@ -585,8 +584,7 @@ int lyrics_line(void *lrc, int ms, int page) {
     unsigned now = (unsigned)time_now_ms();
     int cur = ly_line_at(ms),
         fill = cur >= 0 && ly.tab->line[cur].px ? ly_lit((unsigned)cur, ms) : -1;
-    if (page &&
-        (cur != ly.cur || (fill != ly.fill && now - ly.lit_at >= LYRIC_PAINT_MS))) {
+    if (page && (cur != ly.cur || (fill != ly.fill && now - ly.lit_at >= LYRIC_PAINT_MS))) {
         if (cur != ly.cur) ly_dirty(lrc, ly.cur);
         ly_dirty(lrc, cur);
         ly.fill = fill, ly.lit_at = now;
@@ -636,8 +634,7 @@ void lyrics_paint(void *row, void *canvas) {
         int cut = lit <= 0 ? LYRIC_X : lit >= l->w[r] ? w : LYRIC_X + lit;
         if (cut < w)
             ly_ink(canvas, base, s, l->len[r], y, cut, w, rgba(on ? LYRIC_DIM : LYRIC_REST, alpha));
-        if (cut > LYRIC_X)
-            ly_ink(canvas, base, s, l->len[r], y, 0, cut, rgba(LYRIC_LIT, alpha));
+        if (cut > LYRIC_X) ly_ink(canvas, base, s, l->len[r], y, 0, cut, rgba(LYRIC_LIT, alpha));
     }
     canvas_set_clip_rect(canvas, base);
     stock_canvas_set_text_color(canvas, text);

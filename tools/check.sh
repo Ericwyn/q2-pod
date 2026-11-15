@@ -1,5 +1,6 @@
 #!/bin/sh
-# Before a push: what CI runs that needs no stock ZIP (types.yml, tests.yml, firmware.yml's test/fw and tidy).
+# Before a push: what CI runs that needs no stock ZIP (types.yml, tests.yml and its format check,
+# firmware.yml's test/fw and tidy).
 # --full adds a --dev build and every suite that reads one (tools/release.py suites), the host suites
 # and test/fw under ASan. PY names a Python with test/unit's requirements and mypy (docs/building.md#type-check).
 # Usage: tools/check.sh [--full [stock.zip]]
@@ -13,6 +14,7 @@ PY=${PY:-python3}
 "$PY" -m coverage report >/dev/null || { "$PY" -m coverage report; exit 1; } # under pyproject.toml's floor
 "$PY" -m pytest test/fw -q
 PY="$PY" tools/tidy.sh
+tools/format.sh --check
 
 [ "${1:-}" = --full ] || exit 0
 zip=${2:-Q2 Firmware V1.36.zip}
