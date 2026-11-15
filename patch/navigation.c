@@ -1149,7 +1149,7 @@ void reveal(menu_t *m, int id, int immediate) {
 }
 
 /* A payload page's own row: establish its scope and viewport before paint can recall another. */
-void ringnav_select(void *w, int id, int rows) {
+static void select_row(void *w, int id, int rows, int show) {
     /* A list under another window (a card app's pages still arriving) keeps the props alone: its
      * load would take g_menu and the top list's glide and big letter from under the wheel. */
     void *win = window_of(w);
@@ -1157,15 +1157,19 @@ void ringnav_select(void *w, int id, int rows) {
         (!win || win == window_manager_get_top_window(window_manager())) && load(&g_menu, w, 0);
     prop(w, COUNT, rows);
     prop(w, SEL, id);
-    if (loaded) reveal(&g_menu, id, 1);
+    if (loaded && show) reveal(&g_menu, id, 1);
 }
 
+void ringnav_select(void *w, int id, int rows) { select_row(w, id, rows, 1); }
+
 /* A row picked as its page goes (coverflow_land.c's landing): lit, though a tap's touch mode hid
- * the selection. Here, as touch mode is ringnav's. */
+ * the selection, and left where it is: a tap on the panel's last row, a few pixels of it shown,
+ * would scroll the list under the landing's capture, and the turn would start a row off. Here, as
+ * touch mode is ringnav's. */
 void ringnav_light(void *list, int index) {
     st.touch_mode = 0;
     stop_timer(&st.untouch_timer);
-    ringnav_select(list, index, (int)widget_count_children(list));
+    select_row(list, index, (int)widget_count_children(list), 0);
 }
 
 /* Keep selection during native momentum and recall glides. Once settled, repair an offscreen

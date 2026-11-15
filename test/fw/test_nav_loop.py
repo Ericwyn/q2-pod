@@ -1597,6 +1597,19 @@ def test_cover_flow_s_flip_takes_centre_and_return_but_not_the_wheel(fw, keys):
     latch.value = 0
 
 
+def test_a_row_lit_as_its_page_goes_stays_where_it_is(fw):
+    """ringnav_light: a tap on the panel's last row, 4 px of it shown, lights it with no scroll, or the landing's
+    capture would turn from a row off."""
+    ui = Ui(fw)
+    sv = list_page(ui, rows=8, height=284)  # row 7 at 280: its top 4 px
+    select(fw, sv, 0)
+    scrolls = len(fw.calls('scroll_view_set_offset'))
+    fw.fn('ringnav_light', None, C.c_void_p, C.c_int)(sv.p, 7)
+    assert sv.ints[SEL] == 7 and len(fw.calls('scroll_view_set_offset')) == scrolls
+    fw.fn('ringnav_select', None, C.c_void_p, C.c_int, C.c_int)(sv.p, 7, 8)
+    assert len(fw.calls('scroll_view_set_offset')) == scrolls + 1  # a page's own row is still shown whole
+
+
 def test_a_row_lit_as_its_page_goes_ends_touch_mode(fw, st):
     """coverflow_land.c's landing lights the picked row, though a tap's touch mode hid the selection."""
     ui = Ui(fw)
