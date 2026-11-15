@@ -5,6 +5,7 @@
   - Games: under **Theme: Classic**, Vortex's night sky is one flat colour, with no gradient.
   - Status bar: under **Theme: Classic**, **Battery: Percent** lines up with Bluetooth, Wi-Fi and the play state, with any **Status Bar** look. The number sat 2 pixels lower than the icons.
   - Cover Flow: under **Theme: Classic**, picking a song on a turned cover turns it over onto Now Playing, as an iPod nano does.
+  - Status bar: under **Theme: Classic**, USB mode's screen has Classic's status bar, as every other screen does. It was black, with a plain white battery.
   - Language: a Q2 that an older version left on another language now starts in English. Q2 Pod is English only for now, and those screens were half in that language, with no row to change it back.
 - **1.8.4**:
   - Playback: with **Memory Playback** or **In-Vehicle Mode** on, picking your queue back up at power-on reads only the queue's songs from the library, not the whole library, so it is much quicker and needs far less memory on a big library.

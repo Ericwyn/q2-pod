@@ -3950,11 +3950,8 @@ int bar_repaint(const void *info) {
  * state and relayouts the view for a new one. */
 static int slider_page(void *top);
 static int time_form(void *top);
-/* The pages under Classic's dark bar. */
-static int dark_bar(void *top) {
-    return slider_page(top) || time_form(top) ||
-           (top && !tk_strcmp(widget_get_prop_str(top, "name", ""), "usbmode_page"));
-}
+/* The pages under Classic's dark bar. USB mode's page has Classic's own, as the rest of Classic. */
+static int dark_bar(void *top) { return slider_page(top) || time_form(top); }
 /* The real bar's title's row, set for bar_px, so a dark bar's title sits on the same rows. */
 int dark_title_y(void) { return st.bar_title ? I(st.bar_title, W_Y) : 0; }
 /* Their title at the bar's size, in the face its text has (none: the system's). */

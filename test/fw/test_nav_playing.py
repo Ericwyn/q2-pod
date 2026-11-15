@@ -939,9 +939,9 @@ def dark_level(rects):
     return max((r[2] for r in dark_parts(rects)[1]), default=0)
 
 
-def usb_page(ui):
-    page = ui.widget(ui.wm, 'usbmode_page', 0, 0, 375, 320, kind='window')
-    ui.set_str(page, b'name', b'usbmode_page')
+def dark_page(ui):  # a slider page: under Classic's dark bar
+    page = ui.widget(ui.wm, 'backlight_page', 0, 0, 375, 320, kind='window')
+    ui.set_str(page, b'name', b'backlight_page')
     return page
 
 
@@ -950,7 +950,7 @@ def test_the_dark_bar_moves_the_icons_off_and_paints_its_own_battery(fw, st, ui)
     bar = Bar(fw, ui, title=True)
     bar.sync()  # the bar's first paint finds its widgets
     title = ui.box(bar.title)
-    ui.top = usb_page(ui)
+    ui.top = dark_page(ui)
     bar.sync()
     for w in (bar.bt, bar.wifi):
         x, _, ww, _ = ui.screen(w)

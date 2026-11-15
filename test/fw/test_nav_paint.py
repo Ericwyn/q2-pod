@@ -2954,6 +2954,14 @@ def test_classic_s_usb_page_says_connected_and_to_eject(fw, world, st):
     assert st('usb_win', C.c_void_p).value is None
 
 
+@pytest.mark.parametrize('name, dark', [('usbmode_page', 0), ('manualtime_page', 1)])
+def test_usb_mode_s_page_has_classic_s_own_bar(fw, world, name, dark):
+    """dark_bar: the slider pages and the time form keep Classic's dark bar; USB mode's page has Classic's own, as the
+    rest of Classic."""
+    theme(fw, CLASSIC)
+    assert fw.fn('navigation__dark_bar', C.c_int, C.c_void_p)(world.window(name)) == dark
+
+
 def test_usb_audio_mode_has_nothing_to_eject(fw, world, st):
     win = usb_page(fw, world, st, mode=1)
     assert world[named(world, win, 'msg_line')].text is None and world.timers == []
