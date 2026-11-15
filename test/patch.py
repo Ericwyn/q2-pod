@@ -682,7 +682,8 @@ class Machine:
         for r,v in ((UC_MIPS_REG_SP,self.u.reg_read(UC_MIPS_REG_SP)-0x400),(UC_MIPS_REG_RA,0x1000000),(UC_MIPS_REG_T9,f),*zip(REGS,args)):
             self.u.reg_write(r,v)
         # unicorn's count is one per engine: a nested run's limit stands for the rest of the caller's call too
-        self.u.emu_start(f,0x1000000,count=self.count); ret=signed(self.u.reg_read(UC_MIPS_REG_V0))
+        self.u.emu_start(f,0x1000000,count=self.count); assert self.u.reg_read(UC_MIPS_REG_PC)==0x1000000, 'Instruction limit reached'
+        ret=signed(self.u.reg_read(UC_MIPS_REG_V0))
         for r,v in zip(regs,saved): self.u.reg_write(r,v)
         return ret
     def qsort(self,base,n,size,compare):
@@ -8038,6 +8039,7 @@ assert wbox(fa,fp)==(24,61,327,30) and wbox(fa,rest[0])==(24,91,327,30) and fa.n
 fb,fbd,*_,fbp=cl_confirm(); fb.paint(fbd); assert fb.nodes[fbp]['text']=='Shut Down?' and len(fb.nodes[fbd]['children'])==3; passed()
 # Form B: a row action's confirm, the flag set at its call: the tray at 254, its shadow image, the track in it; the second cell says Delete, Centre on it is stock's OK.
 class TrayMachine(PlaylistLifecycleMachine):
+    budget=200000  # the tray's paint, its rows and corners a pixel at a time: about 105k instructions
     def hook(self,u,address,size,unused):
         if self.handlers.get(address,'')=='c:navigator_to_with_context' and self.text(u.reg_read(REGS[0]))=='dialog/confirminfo_dialog':
             page=self.top; d=self.tray=self.node('dialog','confirminfo_dialog'); self.word(d+O['W_PARENT'],self.wm); place(self,d,0,0,375,320); self.top=d
