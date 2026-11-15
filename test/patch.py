@@ -19359,6 +19359,19 @@ for held in ({},{'WHEELMODE':'0','NAVHIDE':'1'},{'WHEELMODE':'1','NAVHIDE':'0'},
         assert (c.u.mem_read(syms['g_navhide_flag'],1)[0],c.u.mem_read(syms['g_wheelmode'],1)[0])==((0,1) if patched else stock),(held,patched)
         assert c.config==before
 passed()
+# Every unit boots in English (build.py LANGUAGE_EN): config_init's own code, from its LANGUAGE read to its g_language
+# store, gives en_US's index, 2, whatever an older version saved, missing included (stock's 0, Simplified Chinese). The
+# key is not written; a missing one still starts stock's first-boot guide (g_guideflag).
+for held in ({},{'LANGUAGE':'0'},{'LANGUAGE':'2'},{'LANGUAGE':'6'}):
+    for patched in (True,False):
+        c=Machine(patched); c.mock('puts@GLIBC_2.0'); c.config.update(held); before=dict(c.config); c.byte(syms['g_language'],9); c.byte(syms['g_guideflag'],0)  # puts: stock's note of a missing key
+        for r,v in ((UC_MIPS_REG_SP,0x7000f000),(UC_MIPS_REG_S0,c.alloc(0x100)),(UC_MIPS_REG_S1,0x780000),(UC_MIPS_REG_S4,0x780000),(UC_MIPS_REG_S2,c.string('0')),(UC_MIPS_REG_S6,1)):
+            c.u.reg_write(r,v)
+        c.word(0x7000f000+0x18,GP); c.u.emu_start(0x5047dc,0x504854,count=100000)
+        assert c.u.reg_read(UC_MIPS_REG_PC)==0x504854 and [r[:3] for r in c.config_reads]==[('/mnt/data/config.ini','SYSSET','LANGUAGE')]
+        assert c.u.mem_read(syms['g_language'],1)[0]==(2 if patched else int(held.get('LANGUAGE','0'))),(held,patched)
+        assert c.u.mem_read(syms['g_guideflag'],1)[0]==(not held) and c.config==before,(held,patched)
+passed()
 # Home binds no key-up of its own (build.py HOME_KEYUP): stock V1.36's home_page_init gives the page one, whose Return
 # opens Now Playing, where Home's keys are ringnav's. The word that goes is a `jalr $25`, which tens of thousands of
 # stock's calls are, so the build's check can't tell this call from another. home_page_init's own code, from the
