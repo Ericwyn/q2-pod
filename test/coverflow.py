@@ -375,6 +375,7 @@ int canvas_offline_destroy(void *c) { return 0; }
 unsigned unflip(unsigned v) { return v; }
 unsigned mix(unsigned a, unsigned b, int j, int n) { return a; }
 void bar_title_sync(void *win) {}
+void bar_title_name(void *win) {}
 /* navigation.c's: Now Playing's art this song's (np_art_ready), its layout (np_layout), a row lit */
 static int np_ready, np_centred, lit_row = -1;
 static void *lit_list;

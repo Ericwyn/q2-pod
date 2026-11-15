@@ -255,6 +255,7 @@ static int land_tick(const void *unused) {
      * goes to Now Playing; ending it on the pointer's own down event would catch every one */
     if (window_manager_get_top_window(wm) != land.win || !(r = queue_now(&pos, &n)) ||
         fnv(FNV_SEED, P(r, REC_PATH)) != land.path || window_manager_get_pointer_pressed(wm)) {
+        bar_title_name(land.win); /* a dialog on top keeps the bar's title: Now Playing's */
         widget_invalidate_force(land.win, 0);
         land.timer = 0;
         land_end();

@@ -5874,6 +5874,22 @@ static int title_due(const void *info) {
     return 0;
 }
 
+/* The bar's title written as t, when it changes, in the face that has its characters. */
+static void bar_title_write(const char *t) {
+    char now[256]; /* stock writes nothing unless all of it fits */
+    if (widget_get_text_utf8(st.bar_title, now, sizeof now) || tk_strcmp(now, t)) {
+        widget_set_text_utf8(st.bar_title, t);
+        if (st.bar_dark)
+            dark_title(st.bar_title);
+        else
+            theme_font(st.bar_title, ROLE_BAR, FONT_ROW);
+        /* this runs mid-paint, where an invalidate is lost and the bar then redraws only the
+         * clock's rect: a page's new caption under the same window would wait for a window's change
+         */
+        timer_add(title_due, (void *)0, 0);
+    }
+}
+
 /* Classic's bar title (label_title, only its set's bar has one) names the top window win,
  * Home by the list it shows; a dialog keeps the window's title. The title's source is found once
  * per top window; after that a paint compares only that label's text with the title's (none for a
@@ -5883,7 +5899,7 @@ void bar_title_sync(void *win) {
     /* a page under the top window that writes its caption would flip the bar with each paint */
     if (!st.bar_title || !win || win != window_manager_get_top_window(window_manager())) return;
     static const unsigned none = 0;
-    char s[256], now[256]; /* stock writes nothing unless all of it fits */
+    char s[256]; /* stock writes nothing unless all of it fits */
     const char *t = home_menu(win) ? coverflow_home_title() : (const char *)0;
     if (t)
         ;
@@ -5911,17 +5927,15 @@ void bar_title_sync(void *win) {
             : !tk_strcmp(s, "(null)")        ? ""        /* stock's "%s" of a NULL name: no title */
                                              : s;
     }
-    if (widget_get_text_utf8(st.bar_title, now, sizeof now) || tk_strcmp(now, t)) {
-        widget_set_text_utf8(st.bar_title, t);
-        if (st.bar_dark)
-            dark_title(st.bar_title);
-        else
-            theme_font(st.bar_title, ROLE_BAR, FONT_ROW);
-        /* this runs mid-paint, where an invalidate is lost and the bar then redraws only the
-         * clock's rect: a page's new caption under the same window would wait for a window's change
-         */
-        timer_add(title_due, (void *)0, 0);
-    }
+    bar_title_write(t);
+}
+
+/* The bar named for win by its name alone (Now Playing), on top or not: a dialog that ends Cover
+ * Flow's landing keeps the bar's title, which bar_title_sync left to the landing (land_tick). */
+void bar_title_name(void *win) {
+    void *label = 0;
+    const char *t = st.bar_title && win ? bar_title_of(win, &label) : (const char *)0;
+    if (t) bar_title_write(t);
 }
 
 /* A page_title's caption was an empty page's message, and the bar holds captions: the message stays
