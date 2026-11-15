@@ -143,8 +143,9 @@ char *art_path(char *out, unsigned key, const char *suffix) {
     tk_snprintf(out, 512, ART_DIR "/%08x.jpg%s", key, suffix);
     return out;
 }
-/* Asks the image cache for a cover only once its file exists: a load made before the worker wrote
- * it stays a failure, and the placeholder would stay until a reboot. url is "file://" + the path. */
+/* Asks the image cache for a cover only once its file exists, the worker having written it. V1.32's
+ * cache kept a failed load until a reboot; V1.36's keeps none, so this only spares the failed
+ * loads. url is "file://" + the path. */
 static int art_exists(const char *url) { return !access(url + 7, 0); }
 
 /* name's key when it is "<key>.jpg" as art_path spells it: a cover or a "no art" marker. */
