@@ -90,6 +90,7 @@ int lrc_path(char *out, unsigned n, const char *path, const char *ext) {
     dot = strrchr(name, '.');
     unsigned keep = (unsigned)(dot && dot > name ? dot - path : (long)strlen(path)), e = strlen(ext);
     if (keep + e >= n) return 0;
+    /* NOLINTNEXTLINE(bugprone-not-null-terminated-result): the ext memcpy copies its NUL */
     memcpy(out, path, keep);
     memcpy(out + keep, ext, e + 1);
     return 1;

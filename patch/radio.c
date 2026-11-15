@@ -81,6 +81,7 @@ int playlist(char *buf, unsigned *name, unsigned *url, int max) {
     }
     qsort(keys, (unsigned)nk, sizeof *keys, key_order);
     for (char *s = buf; s < end; s += strlen(s) + 1) {
+        /* NOLINTNEXTLINE(clang-analyzer-security.ArrayBound): s < end, and *end is buf's NUL */
         while (*s == ' ' || *s == '\t') ++s;
         char *v = strstr(s, "=");
         if (!v || strncasecmp(s, "Title", 5) || v <= s + 5 || !v[1]) continue;

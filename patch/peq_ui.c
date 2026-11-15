@@ -184,6 +184,7 @@ void eq_output(const char *key) {
     eq_slot(to, sizeof to, key);
     if (!eq_load_from(to, &next)) next = now;
     /* Off to Off is silent, so the filter stays out of the chain (peq_chain may still want it). */
+    /* NOLINTNEXTLINE(bugprone-suspicious-memory-comparison): no padding; any changed bit saves */
     if (memcmp(&next, &now, sizeof next) &&
         !(now.mode == EQ_OFF && next.mode == EQ_OFF ? eq_save(&next) : eq_commit(&next)))
         return;
@@ -282,6 +283,7 @@ static double headroom(const peq_preset *p) {
     static int have_cache;
     static double gain;
     if (!peq_valid(p)) return p->preamp;
+    /* NOLINTNEXTLINE(bugprone-suspicious-memory-comparison): no padding; a cache key by its bits */
     if (have_cache && !memcmp(p, &cached, sizeof(*p))) return gain;
     gain = 0;
     for (unsigned i = 0; i < sizeof(rates) / sizeof(*rates); ++i) {
@@ -302,6 +304,7 @@ static const double *autos(void) {
     static int have;
     peq_preset p = ui.draft;
     p.preamp = p.balance = 0, p.bypass = p.automatic = 0;
+    /* NOLINTNEXTLINE(bugprone-suspicious-memory-comparison): no padding; a cache key by its bits */
     if (!have || memcmp(&p, &key, sizeof(p))) {
         cut[0] = peq_auto(&p, 44100), cut[1] = peq_auto(&p, 48000);
         key = p, have = 1;
@@ -1057,6 +1060,7 @@ static void page_load(void) {
     follow_auto();
     load(&s);
     ui.named.bypass = ui.draft.bypass;
+    /* NOLINTNEXTLINE(bugprone-suspicious-memory-comparison): no padding; named copies the draft */
     if (memcmp(&ui.draft, &ui.named, sizeof(ui.named))) ui.applied[0] = 0; /* replaced since */
     if (ui.dirty) {
         edits.bypass = ui.draft.bypass; /* live state, as load_draft */
@@ -1259,7 +1263,8 @@ static int e3_touch(void *ctx, void *event) {
     }
     if (type == EVT_POINTER_UP_BEFORE) e3_done();
     else {
-        double half = (e3_bottom() - e3_top()) / 2.0, g = ((e3_top() + e3_bottom()) / 2 - xy[1]) * E3_MAX / half;
+        double half = (e3_bottom() - e3_top()) / 2.0,
+               g = ((int)((e3_top() + e3_bottom()) / 2) - xy[1]) * E3_MAX / half;
         e3_set(e3.focus - E3_LOW, (int)(g * 2 + (g < 0 ? -0.5 : 0.5)) / 2.0);
     }
     e3_show();

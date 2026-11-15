@@ -54,6 +54,7 @@ static void scope_add(const char *path, int visible) {
     if (scope.bytes + n * 2 + 96 > SCOPE_MAX) { scope.failed = 1; return; }
     scope_rule *r = calloc(1, sizeof(*r) + n + 2);
     if (!r) { scope.failed = 1; return; }
+    /* NOLINTNEXTLINE(bugprone-not-null-terminated-result): calloc'd: '/' and a NUL follow */
     memcpy(r->path, path, n);
     r->path[n] = '/'; r->length = n + 1; r->visible = visible;
     /* Descendants precede ancestors: CASE's first match gives the closest marker. */
@@ -177,6 +178,7 @@ char *library_scope_query(const char *sql) {
     char *expanded = calloc(1, prefix + n + strlen(tail) + 1);
     if (expanded) {
         memcpy(expanded, sql, prefix);
+        /* NOLINTNEXTLINE(bugprone-not-null-terminated-result): the tail's memcpy copies the NUL */
         memcpy(expanded + prefix, predicate, n);
         memcpy(expanded + prefix + n, tail, strlen(tail) + 1);
     }

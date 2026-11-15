@@ -169,6 +169,7 @@ int netupdate_asset(const char *json, const char *name, unsigned *size, char *sh
         const char *end = strstr(p, "\"browser_download_url\""), *z = json_at(p, "\"size\""),
                    *d = json_at(p, "\"digest\"");
         if (!end || !z || z > end || !d || d > end || !json_string(d, s, sizeof s)) return 0;
+        /* NOLINTNEXTLINE(clang-analyzer-unix.cstring.UninitializedRead): strlen(s) is 71 */
         if (strlen(s) != 71 || memcmp(s, "sha256:", 7)) return 0;
         for (int i = 7; i < 71; ++i)
             if (!((s[i] >= '0' && s[i] <= '9') || (s[i] >= 'a' && s[i] <= 'f'))) return 0;
@@ -465,6 +466,7 @@ static char *get_by(const char *url, long *code, const char *tmp, volatile int *
     err = (f && fclose(f)) || err;
     char *body = err || *code != 200 ? 0 : read_all(tmp, 1u << 20, &n);
     unlink(tmp);
+    /* NOLINTNEXTLINE(clang-analyzer-security.ArrayBound): percent follows cancel in nu and sh */
     xfer[1] = 0;
     return body;
 }
@@ -632,6 +634,7 @@ static int online_click(void *ctx, void *event) {
     if (nu.state == NU_RUNNING) {
         nu.cancel = 1;
         show("Cancelling…");
+        /* NOLINTNEXTLINE(bugprone-branch-clone): empty, as need_link's below: each says why */
     } else if (nu.state != NU_IDLE) {
         /* ended, not yet joined by wait_done */
     } else if (I(g_power_capacity, 0) < NU_BATTERY && !g_usbdet_value) {

@@ -25,6 +25,7 @@ char *tidal_name(char *out, unsigned n, const char *key, const char *artist, con
     for (; label[i] && k + i + e + 1 < n; ++i)
         out[k + i] = (unsigned char)label[i] < 32 || strrchr("/\\:*?\"<>|", label[i]) ? '_' : label[i];
     while (i && ((unsigned char)label[i] & 0xc0) == 0x80) --i; /* cut before a split character */
+    /* NOLINTNEXTLINE(bugprone-not-null-terminated-result): the ext memcpy copies its NUL */
     memcpy(out, key, k);
     memcpy(out + k + i, ext, e + 1);
     return out;
@@ -647,6 +648,7 @@ static int app_track(void *r, const char *id) {
     au.hearts = 1;
     pthread_mutex_unlock(au.lock);
     if (tidalfurlstart) tidalfurlstart = 0, curl_stop_httpget();
+    /* NOLINTNEXTLINE(clang-analyzer-core.NullPointerArithm): only called for an app: id */
     const char *path = P(r, REC_PATH);
     if (path && *path) { /* mclStartPlayer plays it after this */
         tidal_playurl(1);
@@ -661,11 +663,13 @@ static int app_track(void *r, const char *id) {
     tidal_playurl(0);
     mclStop();
     char *c;
+    /* NOLINTNEXTLINE(clang-analyzer-core.NullPointerArithm): only called for an app: id */
     unsigned gen = (unsigned)strtol(id + 4, &c, 10);
     unsigned n = *c == ':' ? (unsigned)strtol(c + 1, 0, 10) : ~0u;
     pthread_mutex_lock(au.lock);
     const char *url = gen == au.gen && n < au.n ? au.urls[n] : 0;
     au_job *j = url ? calloc(1, sizeof *j + strlen(url) + 1) : 0;
+    /* NOLINTNEXTLINE(bugprone-not-null-terminated-result): calloc'd a byte more: a NUL ends it */
     if (j) memcpy(j->url, url, strlen(url)), j->play = play, j->loads = playback_loads;
     pthread_mutex_unlock(au.lock);
     unsigned long t = 0;

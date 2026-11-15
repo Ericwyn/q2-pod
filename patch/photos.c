@@ -108,6 +108,7 @@ static void cache_path(char *out, unsigned key, const char *suffix) {
 static int build(int i) {
     char shot[64], tmp[64], small[64];
     unsigned char head[PH_HEAD];
+    /* NOLINTNEXTLINE(clang-analyzer-security.ArrayBound): next_job's i < ph.n <= PHOTOS_MAX */
     void *f = fopen(ph.path[i], "rb");
     if (!f) return PH_BAD; /* storage gone: no marker, the next open retries */
     unsigned n = fread(head, 1, sizeof head, f);

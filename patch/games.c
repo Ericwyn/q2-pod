@@ -236,6 +236,7 @@ static int vcos(int a) { return vsin(a + 256); }
 static int vangle(int y, int x) {
     int ax = x < 0 ? -x : x, ay = y < 0 ? -y : y;
     if (!ax && !ay) return 0;
+    /* NOLINTNEXTLINE(clang-analyzer-core.DivideZero): ax > 0 when ax >= ay, as both 0 returned */
     int a = ax >= ay ? atans[ay * 256 / ax] : 256 - atans[ax * 256 / ay];
     if (x < 0) a = 512 - a;
     if (y < 0) a = -a;
@@ -832,6 +833,7 @@ int games_key(void *top, unsigned key) {
         vortex_key(key);
     /* a moved cursor is kept on leaving; a key the game ignored paints nothing */
     g->dirty |= (g->sud.cur != was.sud.cur) | (g->sol.cur != was.sol.cur) << 1;
+    /* NOLINTNEXTLINE(bugprone-suspicious-memory-comparison): was copies *g; worst case a repaint */
     if (memcmp(&was, g, sizeof was)) widget_invalidate_force(g->page, 0);
     return 1;
 }

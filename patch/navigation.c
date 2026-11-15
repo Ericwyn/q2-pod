@@ -680,7 +680,7 @@ static void home_step(void *w, int dir, unsigned now, int jump) {
     if (coverflow_bounded(w) && (to < 0 || to >= n)) {
         goal += dir * stride * steps;
         if (a && (goal - live) * dir < 0) return; /* still arriving at the end */
-        I(w, SLIDE_OFFSET) = live = goal - dir * stride / CF_BOUNCE;
+        I(w, SLIDE_OFFSET) = goal - dir * stride / CF_BOUNCE;
     }
     coverflow_letter(w, letter, now);
     const motion_t *glide =
@@ -3756,6 +3756,7 @@ static void keep_selected(void *target) {
 /* The offset that centres row i of lrc in its view. */
 static int lyric_centre(void *lrc, int i) {
     void *row = widget_get_child(lrc, i);
+    /* NOLINTNEXTLINE(clang-analyzer-core.NullPointerArithm): callers pass lrc past lyrics_on */
     return I(row, W_Y) + (I(row, W_H) - I(lrc, W_H)) / 2;
 }
 static void lyric_pad(void *lrc) {
@@ -4437,6 +4438,7 @@ int theme_font(void *w, int role, int was) {
     int answer = face | px << 2, kept = row ? answer | role << 16 : answer;
     if (!w || kept == was) return answer;
     for (unsigned i = 0; i < sizeof names / sizeof *names; ++i) {
+        /* NOLINTNEXTLINE(clang-analyzer-security.ArrayBound): face is a FONT_* (theme.py FONTS) */
         widget_set_prop_str(w, names[i], font_faces[face]);
         if (px) widget_set_prop_int(w, sizes[i], px);
     }
@@ -5196,6 +5198,7 @@ static int geom_with(const theme_t *T, int setting, int v, int chosen) {
         const option_t *o = &T->opts[k];
         if (o->setting < SETTING_OWN || !theme_keys[o->setting - SETTING_OWN].sets) continue;
         int s = o->setting - SETTING_OWN, w = o->setting == setting ? v : st.own[s];
+        /* NOLINTNEXTLINE(bugprone-signed-char-misuse): preset >= 0 is tested; -1 is none */
         if (chosen && o->preset >= 0 && w != o->keep) w = o->preset;
         return theme_keys[s].sets[w];
     }
@@ -5234,6 +5237,7 @@ static const char *ui_redirect(const char *name, char *buf) {
     for (const volatile ui_redirect_t *r = ui_redirects; r->name; ++r)
         if (r->sets >> g & 1 && !tk_strcmp(r->name, name)) {
             const char *slash = strrchr(name, '/'), *base = slash ? slash + 1 : name;
+            /* NOLINTNEXTLINE(clang-analyzer-core.NullPointerArithm): matched r->name: not NULL */
             tk_snprintf(buf, 64, "%.*s%s_%s", (int)(base - name), name, geom_names[g], base);
             return buf;
         }
@@ -8733,6 +8737,7 @@ static void sc_text(int i) {
     char s[40];
     if (i < 2)
         tk_snprintf(s, sizeof s, "%s Cache: %s", i ? "Spotify" : "Tidal", sizes[stream_cache(i)]);
+    /* NOLINTNEXTLINE(clang-analyzer-security.ArrayBound): i < 3: the cache rows and Erase's */
     widget_set_text_utf8(widget_get_child(st.sc_row[i], 0),
                          i < 2            ? s
                          : shelf_erase(0) ? "Erasing…"
@@ -10615,6 +10620,7 @@ static void *field_widget(void *top, int f) {
                                          "tselector_hour", "tselector_min",   "btn_enter" };
     int n = fields(top);
     if (n == 6 && f == 5) return (void *)0; /* AM/PM */
+    /* NOLINTNEXTLINE(clang-analyzer-security.ArrayBound): f is 0..n (field_at, time_rows) */
     return n ? widget_lookup(top, names[f == n ? 5 : n == 2 ? f + 3 : f], 1) : (void *)0;
 }
 

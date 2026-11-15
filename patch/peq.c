@@ -474,6 +474,7 @@ void peq_process(peq_dsp *d, float *audio, unsigned frames) {
             /* Keep float headroom for downstream volume; the output converter owns full-scale clipping. */
             *audio = (float)y;
         }
+        /* NOLINTNEXTLINE(clang-analyzer-unix.cstring.UninitializedRead): only cur[0..nc) is read */
         if (d->ramp && !--d->ramp) d->current = d->next, nc = nn, memcpy(cur, nxt, sizeof(cur));
     }
 }

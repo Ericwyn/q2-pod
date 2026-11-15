@@ -325,6 +325,7 @@ static void scope(void *vg, unsigned tone) {
         const float *w = vz.wave[!k ? 1 : 0];
         vgcanvas_begin_path(vg);
         for (int x = 0; x < PAGE_W; x += 2) {
+            /* NOLINTNEXTLINE(bugprone-integer-division): VIS_H is 186, so VIS_H / 2 is whole */
             float y = VIS_H / 2 + (k ? 0 : 3) - w[x] * (VIS_H / 2 - 16);
             if (x) vgcanvas_line_to(vg, VIS_X + x, y);
             else vgcanvas_move_to(vg, VIS_X, y);

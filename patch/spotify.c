@@ -299,6 +299,7 @@ void spot_poll(void) {
     spot_output();
     char raw[sizeof sp.raw];
     if (spot_read(raw, sizeof raw)) {
+        /* NOLINTNEXTLINE(clang-analyzer-unix.cstring.UninitializedRead): read only to its NUL */
         memcpy(sp.raw, raw, sizeof raw);
         spot_parse();
         sp.dead = 0;

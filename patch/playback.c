@@ -613,6 +613,7 @@ static int rebuild(int keep) {
             s.cursor = k;
             cycle[k++] = (entry){ at, groups[at], 0 };
             for (unsigned i = 0; i < n; ++i)
+                /* NOLINTNEXTLINE(clang-analyzer-security.ArrayBound): order permutes 0..n-1 */
                 if (order[i].index != at && !seen[order[i].index]) cycle[k++] = order[i];
             memcpy(order, cycle, n * sizeof *order);
         } else {
@@ -622,6 +623,7 @@ static int rebuild(int keep) {
                 for (unsigned i = 0; i < n; ++i)
                     if (groups[order[i].index] == groups[at]) cycle[k++] = order[i];
                 for (unsigned i = 0; i < n; ++i)
+                    /* NOLINTNEXTLINE(clang-analyzer-security.ArrayBound): order permutes 0..n-1 */
                     if (groups[order[i].index] != groups[at]) cycle[k++] = order[i];
                 memcpy(order, cycle, n * sizeof *order);
             }

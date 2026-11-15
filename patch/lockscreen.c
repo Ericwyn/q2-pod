@@ -117,6 +117,7 @@ int wall_render(unsigned *dst, int stride, int w, int h, int id) {
             float dither = ((float)bayer[(y & 3) * 4 + (x & 3)] + 0.5f) / 16;
             unsigned px = 0xff000000u;
             for (int k = 0; k < 3; ++k) {
+                /* NOLINTNEXTLINE(clang-analyzer-security.ArrayBound): i + 1 < gw, j + 1 < gh */
                 float top = a[k] + (b[k] - a[k]) * fx, bottom = c[k] + (d[k] - c[k]) * fx;
                 float value = (top + (bottom - top) * fy + grain) * 255 + dither;
                 px |= (unsigned)(value < 0 ? 0 : value > 255 ? 255 : (int)value) << (8 * k);

@@ -507,7 +507,7 @@ void dac_take(void);                          /* books.c */
 /* navigation.c: the theme's font for role on w, or stock's; canvas text's face, 0: the system
  * font */
 int theme_font(void *w, int role, int was);
-#define FONT_ROW -2 /* was: cache the answer in w's own "_font" prop */
+#define FONT_ROW (-2) /* was: cache the answer in w's own "_font" prop */
 /* font_weight.c: w keeps the theme's bold intent where its text fell back to stock's face */
 void font_weight_mark(void *w, int bold);
 void marq_restart(void *row); /* navigation.c: its title changed, its marquee re-armed */

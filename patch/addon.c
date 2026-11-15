@@ -1755,6 +1755,7 @@ static void got(void) {
             keep_sel(), fetch(l); /* a live level stays shown, asked again now: no Loading… page */
         else
             keep_sel(), l->state = K_LOAD, show(); /* the level as the action left it */
+        /* NOLINTNEXTLINE(bugprone-branch-clone): empty as sections' is: a stale reply is dropped */
     } else if (l->id != req.id) {
     } else if (pg.paging) { /* a next page appended, or the list ends at More… (rows kept) */
         int from = l->n;
@@ -1876,6 +1877,7 @@ static int swipe(void *ctx, void *event) {
     if (!pg.sdown) return 0;
     int dx = x - pg.sx, dy = y - pg.sy, ax = dx < 0 ? -dx : dx, ay = dy < 0 ? -dy : dy;
     if (type == EVT_POINTER_UP_BEFORE) {
+        /* NOLINTNEXTLINE(bugprone-signed-char-misuse): sclaim is a 0/1 flag */
         int claimed = pg.sclaim;
         pg.sdown = pg.sclaim = 0;
         if (!claimed) return 0;

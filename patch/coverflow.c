@@ -3471,6 +3471,7 @@ static int to_tracks(const void *unused) {
      * length's line under each title once any track has one, an unknown's left empty */
     int timed = 0;
     for (int i = 0; i < n && !timed; ++i)
+        /* NOLINTNEXTLINE(bugprone-signed-char-misuse): only tested for 0, an empty text */
         timed = *duration_text(name, sizeof name, deque_at(cf.tracks, (unsigned)i));
     const char *title = P(r, cf.scoped == PLAYLISTS ? REC_TITLE : REC_ALBUM);
     void *view = timed ? page_list(cf.page, cf.body, &cf.title, title, n, 64) : list(title, n);
@@ -4075,6 +4076,7 @@ static void box_filter(const unsigned char *data, unsigned stride, const unsigne
                     r += px[o[0]] * k, g += px[o[1]] * k, b += px[o[2]] * k, a += k;
                 }
             unsigned bg = paper * (n - a);
+            /* NOLINTNEXTLINE(clang-analyzer-core.DivideZero): n >= 255: x1 > x0, y1 > y0 */
             *px_out++ = 0xff000000u | (r + bg) / n | (g + bg) / n << 8 | (b + bg) / n << 16;
         }
     }
@@ -4335,6 +4337,8 @@ static int pane_caption(char *t, unsigned size) {
         return home.free_tenths ? tk_snprintf(t, size, "%u.%u GB Free", home.free_tenths / 10,
                                               home.free_tenths % 10)
                                 : 0;
+    default:
+        break;
     }
     return 0;
 }
