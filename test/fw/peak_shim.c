@@ -1,6 +1,8 @@
 /* The firmware's libc allocations, counted: linked into the host fw.so with ld --wrap by peak.py,
  * so only the firmware's own calloc/realloc/free/strdup calls come here (Python's and libc's own do
- * not). Bytes are the bytes asked for, by pointer in a side table: a pointer this never handed out
+ * not).
+ *
+ * Bytes are the bytes asked for, by pointer in a side table: a pointer this never handed out
  * (stock's, the test's) is freed uncounted. Single-threaded, as the host build is. */
 #include <stdlib.h>
 #include <string.h>

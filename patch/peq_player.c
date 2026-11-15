@@ -7,7 +7,9 @@ _Static_assert(__builtin_offsetof(af_instance, mul) == 40, "multiplier ABI");
 /* DSD (the vendor's dsdiff driver: dsf, dff, SACD iso; or FFmpeg's ffdsd*) reaches the chain as
  * integer PCM, possibly DoP, whose bits must arrive unchanged: pass it through. Never detach (2):
  * the insert's af_add (0x44ce18) returns the filter its reinit just freed, and the caller
- * (0x42920c) then calls into it. Codec lookup: docs/internals.md. */
+ * (0x42920c) then calls into it.
+ *
+ * Codec lookup: docs/internals.md. */
 #ifdef PEQ_HOST
 extern char *peq_mpctx;
 #define MPCTX peq_mpctx
@@ -658,39 +660,44 @@ static int ao_playing(void) {
  * (0x4385c4), and on USB closes without draining (0x4385bc), so up to the buffer (500 ms at 44.1
  * kHz, 85 ms at 192) of a track played to its end went unheard. So a change nobody pressed for
  * drains first, then stock's mute, drain (bad state, returning at once in libasound, its answer
- * unread), close and open run. What says nobody pressed: every file's end reaches the uninit slot
- * (0x88fc80), whose immed is 0 only when the loop ended it naturally (eof 1); a skip (set-nexturl,
- * the next flag 0xb11e6c) and a stop (mcl-stop, the stop flag 0xb11e70) make eof 4, immed 1. A next
- * flag up then, or a next or stop flag set by a command before the drain (hci_command, and init's
- * own look), means a press and stock's mute-first order. A stop flag up at the slot closes the PCM
- * there, so init finds nothing to drain. The arm is that way's, so it can't drain across outputs.
- * A press during the drain, which stock's handler only notes, must silence: hci_command mutes the
- * jack (0x43b004: its flag is what stock's unmute reads) and drops USB, whose mute wouldn't reach
- * the DAC. snd_pcm_drain holds no lock (libasound 0x3ff44, hw 0x4f784) and plug forwards it, and a
- * kernel DROP ends a blocked DRAIN. A rise of the play flag is a press here too: set-songurl
- * (demo's not-playing path, whose mute a hardware-type word and its output way decide, 0x5bf8c4)
- * sets no other word, and the flag was cleared on the way to this init (0x42da5c). ao_draining
- * keeps the PCM open while the other thread uses it: 1 draining, 2 being cut. The triple can't say:
- * a cold natural change (Gapless off, stock Shuffle, Repeat One, a track under 3 s) resets it just
- * as a skip does. Same-format gapless changes match stock's compare, so nothing is called. DSD
- * (0xb11e5c, at either end) keeps its mute, which may guard an end pop. Bluetooth drains unmuted in
- * stock's own code. A stop flag with immed 0 (a stop within one loop of the natural end) stays
- * stock's. The drain runs on the player's main thread, as stock's muted one did, for the same time;
- * on USB it adds what was lost, the buffer's rest. ponytail: a press from demo's not-playing state
- * before the drain starts (within a UI pass of the end) can't be told from the cold route's own
- * set-songurl and hears the tail play out, up to the buffer's rest; demo's press word would close
- * that. Demo's mute on the cold route (0x5bf8c4, 100 ms before set-songurl) is skipped by
- * start_mute for a natural start from a local queue, and marks PRESS_FILE even: then a same format
- * with Gapless on matches stock's compare, so the PCM never closes and nothing mutes, and any real
- * reopen is drain, stock's mute, close, open, unmute, wait, frames (dac_ioctl). No mark means demo
- * may have muted: stock's timing, no wait. Only the jacks have that mute, so Bluetooth and USB keep
- * a same format with no mark. ponytail: so any not-playing press on them, any time before the
- * buffer runs dry, is taken for the cold route's own set-songurl and hears the buffer's rest first;
- * the word's odd stamp would close that. mcl-orderstop's close on the command thread during the
- * drain races it as it races stock's own drain. ponytail: a USB stream hung during this drain runs
- * to the kernel's 10 s, past the heartbeat's 6 ticks (0x42d9bc), and hciplayer exits; stock's
- * 0x438028 has the same exposure. A close always stays under stock's mute, and the PCM only stops
- * unmuted once drained. */
+ * unread), close and open run.
+ *
+ * What says nobody pressed: every file's end reaches the uninit slot (0x88fc80), whose immed is 0
+ * only when the loop ended it naturally (eof 1); a skip (set-nexturl, the next flag 0xb11e6c) and a
+ * stop (mcl-stop, the stop flag 0xb11e70) make eof 4, immed 1. A next flag up then, or a next or
+ * stop flag set by a command before the drain (hci_command, and init's own look), means a press and
+ * stock's mute-first order. A stop flag up at the slot closes the PCM there, so init finds nothing
+ * to drain. The arm is that way's, so it can't drain across outputs. A press during the drain,
+ * which stock's handler only notes, must silence: hci_command mutes the jack (0x43b004: its flag is
+ * what stock's unmute reads) and drops USB, whose mute wouldn't reach the DAC. snd_pcm_drain holds
+ * no lock (libasound 0x3ff44, hw 0x4f784) and plug forwards it, and a kernel DROP ends a blocked
+ * DRAIN. A rise of the play flag is a press here too: set-songurl (demo's not-playing path, whose
+ * mute a hardware-type word and its output way decide, 0x5bf8c4) sets no other word, and the flag
+ * was cleared on the way to this init (0x42da5c). ao_draining keeps the PCM open while the other
+ * thread uses it: 1 draining, 2 being cut. The triple can't say: a cold natural change (Gapless
+ * off, stock Shuffle, Repeat One, a track under 3 s) resets it just as a skip does. Same-format
+ * gapless changes match stock's compare, so nothing is called. DSD (0xb11e5c, at either end) keeps
+ * its mute, which may guard an end pop. Bluetooth drains unmuted in stock's own code. A stop flag
+ * with immed 0 (a stop within one loop of the natural end) stays stock's.
+ *
+ * The drain runs on the player's main thread, as stock's muted one did, for the same time; on USB
+ * it adds what was lost, the buffer's rest.
+ *
+ * ponytail: a press from demo's not-playing state before the drain starts (within a UI pass of the
+ * end) can't be told from the cold route's own set-songurl and hears the tail play out, up to the
+ * buffer's rest; demo's press word would close that. Demo's mute on the cold route (0x5bf8c4, 100
+ * ms before set-songurl) is skipped by start_mute for a natural start from a local queue, and marks
+ * PRESS_FILE even: then a same format with Gapless on matches stock's compare, so the PCM never
+ * closes and nothing mutes, and any real reopen is drain, stock's mute, close, open, unmute, wait,
+ * frames (dac_ioctl). No mark means demo may have muted: stock's timing, no wait. Only the jacks
+ * have that mute, so Bluetooth and USB keep a same format with no mark. ponytail: so any
+ * not-playing press on them, any time before the buffer runs dry, is taken for the cold route's own
+ * set-songurl and hears the buffer's rest first; the word's odd stamp would close that.
+ *
+ * mcl-orderstop's close on the command thread during the drain races it as it races stock's own
+ * drain. ponytail: a USB stream hung during this drain runs to the kernel's 10 s, past the
+ * heartbeat's 6 ticks (0x42d9bc), and hciplayer exits; stock's 0x438028 has the same exposure. A
+ * close always stays under stock's mute, and the PCM only stops unmuted once drained. */
 #define NEXT_FLAG (*(volatile int *)0xb11e6cu)
 #define STOP_FLAG (*(volatile int *)0xb11e70u)
 #define DSD_FILE (*(volatile int *)0xb11e5cu)
@@ -728,10 +735,11 @@ void ao_uninit(int immed) {
 /* Bluetooth's cold route keeps the PCM only with this much of the ring still to play. A kept PCM
  * gets no Drain, so bluealsa's silence fill (tools/bt_silence.S) doesn't start: a first write later
  * than the ring sends no packet for the whole stall and the headset's buffer can run dry. With less
- * left, stock's reopen and its Drain run. ponytail: a stall starting after ao_init has no fill, as
- * a late preload already hasn't. A failed status reads as a full ring, leaving it to the ioplug's
- * state. MQA's get_space counts 6 bytes a frame (0x437b94), not the ring's, so it isn't comparable
- * and MQA reopens. */
+ * left, stock's reopen and its Drain run.
+ *
+ * ponytail: a stall starting after ao_init has no fill, as a late preload already hasn't. A failed
+ * status reads as a full ring, leaving it to the ioplug's state. MQA's get_space counts 6 bytes a
+ * frame (0x437b94), not the ring's, so it isn't comparable and MQA reopens. */
 #define BT_STAY_MS                                                                                 \
     200 /* derived, not measured: the fill's 100 ms poll twice over, under the ~440 ms a natural   \
            end leaves */
@@ -806,14 +814,17 @@ static void ao_cut(void) { /* a press during ao_init's drain, on the command thr
  * output way 0 with the DAC open now releases, waits, then lets audio flow: the PCM is prepared or
  * paused, so nothing runs out and the clock stands still, and no frame is written, so DSD stays
  * bit-exact. Stock unmutes once per mute: the flag (0xb12514, 1 after hciplayer's mute) gates every
- * site and each clears it, so one action waits once. Init and seek wait only when demo's PRESS_FILE
- * holds a fresh stamp, so a track change nobody pressed for has no sleep, Crossfade's and Gapless's
- * above all; a resume always waits, only ever a press or a phone's. ponytail: a wired manual start
- * comes about 130 ms later. A stamp left unspent under 5 s (a refused Next, a press that opened
- * paused, a seek while paused, a press and a track under 5 s) gives a natural reopen one 130 ms
- * gap, at most one per word; a per-file stamp would close that. A rapid double Next can spend its
- * word on the first init, so the last track keeps the old cut. A-B Repeat, Resume Songs' jump, a
- * phone's seek, Spotify's aplay and q2video keep the cut. */
+ * site and each clears it, so one action waits once.
+ *
+ * Init and seek wait only when demo's PRESS_FILE holds a fresh stamp, so a track change nobody
+ * pressed for has no sleep, Crossfade's and Gapless's above all; a resume always waits, only ever a
+ * press or a phone's.
+ *
+ * ponytail: a wired manual start comes about 130 ms later. A stamp left unspent under 5 s (a
+ * refused Next, a press that opened paused, a seek while paused, a press and a track under 5 s)
+ * gives a natural reopen one 130 ms gap, at most one per word; a per-file stamp would close that. A
+ * rapid double Next can spend its word on the first init, so the last track keeps the old cut. A-B
+ * Repeat, Resume Songs' jump, a phone's seek, Spotify's aplay and q2video keep the cut. */
 /* clang-format off */
 #define DAC_RELEASE_MS 130 /* derived, not measured: the mute line's 90-100 ms and the ramp at top volume */
 #define DAC_PRESS_MS 5000  /* demo's mute, its sleep and a slow card's open, from the press to init's end */
@@ -848,7 +859,9 @@ static int dac_told(void) { return dac_word(1); }
  * them. dac_word answers each word once, so a mark ao_init read can't wait here too. Every natural
  * end out of DSD waits, mark or not, through ao_uninit's ao_wait; ao_init's line after stock's init
  * clears it. DSD_FILE also reads 1 at a PCM track's end into a preloaded DSD one, so that waits
- * too. ponytail: a start offset passes this site and dac_unmute reads only a press's, so a natural
+ * too.
+ *
+ * ponytail: a start offset passes this site and dac_unmute reads only a press's, so a natural
  * start with an offset that reopens keeps the cut, as it has since start_mute. */
 int dac_ioctl(int fd, unsigned request, void *arg) {
     int r = ioctl(fd, request, arg);
@@ -906,19 +919,21 @@ static struct {
  * past hw_ptr first: a short gap, not a cut. The kernel limits the forward to avail, which is more
  * than asked for here. hciplayer doesn't import snd_pcm_forward. The frames kept below lead up to
  * that gap, not across it, so they go: a resume goes back no further than the new track, and with
- * the gap itself still to play it holds too little and is stock's. After stock's write, what the
- * DAC took is kept, and a write anywhere else forgets it, so a PCM paused on Bluetooth or USB when
- * the way turns to 0 finds nothing to take for its own. (Not by the PCM's handle: a reopen's
- * snd_pcm_t can land on the old one's address.) A write is at most the ring (get_space), and the
- * cap is never less. */
+ * the gap itself still to play it holds too little and is stock's.
+ *
+ * After stock's write, what the DAC took is kept, and a write anywhere else forgets it, so a PCM
+ * paused on Bluetooth or USB when the way turns to 0 finds nothing to take for its own. (Not by the
+ * PCM's handle: a reopen's snd_pcm_t can land on the old one's address.) A write is at most the
+ * ring (get_space), and the cap is never less. */
 long ao_write(void *pcm, const char *data, unsigned long frames) {
     /* Every write on the jacks and USB looks, not only a kept PCM's first: a stream that stalls
      * mid-song (Wi-Fi gone for 20 s) runs the PCM dry the same way, and the music that comes back
      * was written behind hw_ptr and lost until appl_ptr caught up, heard as jumps ahead. Forwarded,
      * it carries on where it stopped, after the gap. Bluetooth's plugin stops at its own underrun
-     * and stock's play prepares it. One status read a write. ponytail: no threshold, so any
-     * underrun on the jacks or USB takes the forward: a short one costs one period of silence (1378
-     * frames, about 31 ms at 44.1 kHz) and skips nothing. */
+     * and stock's play prepares it. One status read a write.
+     *
+     * ponytail: no threshold, so any underrun on the jacks or USB takes the forward: a short one
+     * costs one period of silence (1378 frames, about 31 ms at 44.1 kHz) and skips nothing. */
     if (ao_stayed || OUTPUT_WAY != 1) {
         unsigned avail = ao_avail(pcm), ring = AO_BUFFERSIZE / AO_BYTES;
         ao_stayed = 0;
@@ -986,9 +1001,11 @@ static void ps_scale(unsigned char *p, unsigned w, int format, double gain) {
 
 /* The held frames from n before the newest to the newest, into a prepared PCM: its start threshold
  * starts it, and what doesn't fit the ring waits for room, at most the back's length, on a thread
- * that has nothing else to do. The first PS_FADE_MS rise from silence, whatever the format; only
- * DSD is left bit-exact. In place: a second pause could only reach them again by going back as far,
- * and then they fade again. */
+ * that has nothing else to do.
+ *
+ * The first PS_FADE_MS rise from silence, whatever the format; only DSD is left bit-exact. In
+ * place: a second pause could only reach them again by going back as far, and then they fade again.
+ */
 static void ps_write(void *pcm, unsigned n) {
     unsigned left = n * ps.frame, at = ps.at >= left ? ps.at - left : ps.at + ps.cap - left;
     if (!dsd()) {
@@ -1182,18 +1199,23 @@ void mp3_seek(void *demuxer, float rel, float delay, int flags) {
 }
 
 /* The eof stock forces once the whole-second position passes the header's length by more than a
- * second (0x42331c). Only an MP3's Xing or Info frame count is trusted: past it, libmad finding
- * false syncs in whatever follows the audio (a big APE tag's cover, junk) is noise, up to full
- * scale, about 0.6 s per MB. But a stale count, or files joined with cat, has real audio there, so
- * it stores only if frames_follow finds no chain of frames. Every other length (WMA's preroll, a
- * VBR MP3 with no header, a FLAC's understated STREAMINFO) is only an estimate and cut real audio.
- * Whole seconds and no doubles: the main loop's registers are live here (forced_eof saves them),
- * and it's only past the length, so one read per pass of a track that's over.
- * docs/internals.md#forced-eof. ponytail: the real ceiling is noise. A no-header MP3 followed by
- * junk still plays it, to full scale, as stock: only a header says where the audio ends. Elapsed
- * runs ahead of the total meanwhile. A count over 27 hours isn't trusted. A joined file's own big
- * tag, or a sample rate change, past the count + 1 s ends it there, as stock. Junk after a joined
- * file can end it a little early: the chain is read ahead of what's playing. */
+ * second (0x42331c).
+ *
+ * Only an MP3's Xing or Info frame count is trusted: past it, libmad finding false syncs in
+ * whatever follows the audio (a big APE tag's cover, junk) is noise, up to full scale, about 0.6 s
+ * per MB. But a stale count, or files joined with cat, has real audio there, so it stores only if
+ * frames_follow finds no chain of frames. Every other length (WMA's preroll, a VBR MP3 with no
+ * header, a FLAC's understated STREAMINFO) is only an estimate and cut real audio. Whole seconds
+ * and no doubles: the main loop's registers are live here (forced_eof saves them), and it's only
+ * past the length, so one read per pass of a track that's over. docs/internals.md#forced-eof.
+ *
+ * ponytail: the real ceiling is noise. A no-header MP3 followed by junk still plays it, to full
+ * scale, as stock: only a header says where the audio ends. Elapsed runs ahead of the total
+ * meanwhile. A count over 27 hours isn't trusted.
+ *
+ * A joined file's own big tag, or a sample rate change, past the count + 1 s ends it there, as
+ * stock. Junk after a joined file can end it a little early: the chain is read ahead of what's
+ * playing. */
 #define AUDIO_DEMUXER 0x8a0360u
 /* Two frames in a row at the cursor, the second's header where the first's length says and both of
  * the first frame's kind: an MP3's longest frame is 1441 bytes, so one starts in the first 1441.
@@ -1345,9 +1367,10 @@ void hci_command(void *buf) {
  * probe_stop points at a word of our own (its epilogue restores $18). Called by the forced path, a
  * check returns to more probing, which reaches the loop. Saving and restoring the flag around the
  * thread's open would lose a real stop landing in it, and the main thread and the FLAC check
- * (flac_sync.c) could read it between. docs/internals.md#a-bad-file-next. ponytail: stores deep in
- * the decoders (0x4eeb3c, 0x508890, 0x52faa4, 0x5b6780) aren't covered; a preload thread's decode
- * of a next file reaching one still stops the song. */
+ * (flac_sync.c) could read it between. docs/internals.md#a-bad-file-next.
+ *
+ * ponytail: stores deep in the decoders (0x4eeb3c, 0x508890, 0x52faa4, 0x5b6780) aren't covered; a
+ * preload thread's decode of a next file reaching one still stops the song. */
 #define PROBE_LOOP_RA                                                                              \
     0x485724u /* after the unsafe pass's jalr; the forced path comes back elsewhere */
 extern int hci_id(int number);
@@ -1374,9 +1397,11 @@ __asm__(".set push\n.set noreorder\n"
  * scan that found no frame (0x47ff0c) and an ASF with no streams (0x48243c, in its open, after its
  * check took the file) each store the stop and return. stop_base gives a store's base: stock's on
  * the main thread, on any other a word of our own, with the saved $18 of the frame the probe loop's
- * call made pointed at probe_stopped so the loop still gives up. The ISO's fill (0x46bf04, no track
- * data after its retries) has no loop to stop if the thread's first read of the image lands there.
- * 0x42a4dc is exit_sighandler, the process's own crash: left. */
+ * call made pointed at probe_stopped so the loop still gives up.
+ *
+ * The ISO's fill (0x46bf04, no track data after its retries) has no loop to stop if the thread's
+ * first read of the image lands there. 0x42a4dc is exit_sighandler, the process's own crash: left.
+ */
 #define PROBE_OPEN_RA 0x485770u
 static int stop_sink[2];
 char *stop_base(unsigned ra, void **saved18) {
@@ -1407,8 +1432,10 @@ __asm__(".set push\n.set noreorder\n"
  * asking, and with no length to pass the queue sits on that file until a key. exit_hold sends an
  * exit no sooner than EXIT_HOLD_MS after the last: requests are answered on the command thread, so
  * nothing queues behind this one. A UI pass runs up to 222 ms with the screen dark, so a track of
- * EXIT_HOLD_MS or more never waits. docs/internals.md#a-bad-file-next. ponytail: a shorter track's
- * end is late by the rest of EXIT_HOLD_MS, with the ring still playing out. */
+ * EXIT_HOLD_MS or more never waits. docs/internals.md#a-bad-file-next.
+ *
+ * ponytail: a shorter track's end is late by the rest of EXIT_HOLD_MS, with the ring still playing
+ * out. */
 #define EXIT_HOLD_MS 300
 extern int hci_call(int number, long a, void *b);
 /* clang-format off */
@@ -1490,30 +1517,38 @@ __asm__(".set push\n.set noreorder\n.set noat\n"
 
 /* A FLAC seek (demux_audio 0x48cf2c) ends with a gate in the decoder (0x5b6fcc): a frame whose time
  * is before the target (0xb26250, until the file closes) failed, unplayed. Two things went wrong
- * with that. The time is frame number x this frame's own block size, so a short last frame's is far
- * too early: for a target past last frame x its size / rate (a 40 s track's 3497-sample last
- * frame: 34.1 s; a 20 s file's 2137: 10.4 s) it failed, and the file's end was lost with a step at
- * the seam. flac_last lets a frame through when it's shorter than STREAMINFO's maximum, frame
- * number x maximum + its size, over rate, isn't before the target, and, with a total in STREAMINFO,
- * the total less this frame divides evenly into frames at least as long as it: that's a last frame,
- * not a stream of blocks below the maximum, whose every frame is short. Variable block sizes have a
- * sample number, so stay gated. And a failure is a failure: ad_ffmpeg stops (0x4ad5e0) and, if the
- * demuxer has already read to EOF, the main loop ends the track with the rest of the frames still
- * queued: one block, or nothing, then silence until the next track. Now a gated frame is consumed
- * with no samples (its whole size returned, got_frame still 0), and decoding goes on. Comes only
- * from a gated frame, so a track not sought runs no new instruction. Near the end the seek went
- * forward blind: within 64 KB of the end its probe loop (0x48d198) left at the unprobed next
- * position, and a probe past the target (0x48d58c) stepped on instead of back. A 40 s track at this
- * bitrate lost 2 s (37 landed at 39), or everything, when that next position held the last frame or
- * nothing: no audio, the demuxer ended, then the next song cold-started. tools/peq.py now keeps the
- * probed position, and the gate plays from the target. The scan (0x48d338) still starts from a seek
- * with no probe, an estimate within 64 KB of the end; with no sync in what's left of the file, it
- * landed on the last bytes. seek_nosync steps that back 64 KB instead.
- * docs/internals.md#a-flac-seek-near-the-end.
- * ponytail: that estimate isn't checked against the target, so on a file of very uneven bitrate a
- * seek into the last 64 KB can start after it, by however far the estimate is off; a total of zero
- * leaves only the maximum's test, so a stream of blocks below its maximum can land early. Nothing
- * past the landing is lost. */
+ * with that.
+ *
+ * The time is frame number x this frame's own block size, so a short last frame's is far too early:
+ * for a target past last frame x its size / rate (a 40 s track's 3497-sample last frame: 34.1 s; a
+ * 20 s file's 2137: 10.4 s) it failed, and the file's end was lost with a step at the seam.
+ * flac_last lets a frame through when it's shorter than STREAMINFO's maximum, frame number x
+ * maximum + its size, over rate, isn't before the target, and, with a total in STREAMINFO, the
+ * total less this frame divides evenly into frames at least as long as it: that's a last frame, not
+ * a stream of blocks below the maximum, whose every frame is short. Variable block sizes have a
+ * sample number, so stay gated.
+ *
+ * And a failure is a failure: ad_ffmpeg stops (0x4ad5e0) and, if the demuxer has already read to
+ * EOF, the main loop ends the track with the rest of the frames still queued: one block, or
+ * nothing, then silence until the next track.
+ *
+ * Now a gated frame is consumed with no samples (its whole size returned, got_frame still 0), and
+ * decoding goes on.
+ *
+ * Comes only from a gated frame, so a track not sought runs no new instruction.
+ *
+ * Near the end the seek went forward blind: within 64 KB of the end its probe loop (0x48d198) left
+ * at the unprobed next position, and a probe past the target (0x48d58c) stepped on instead of back.
+ * A 40 s track at this bitrate lost 2 s (37 landed at 39), or everything, when that next position
+ * held the last frame or nothing: no audio, the demuxer ended, then the next song cold-started.
+ * tools/peq.py now keeps the probed position, and the gate plays from the target.
+ *
+ * The scan (0x48d338) still starts from a seek with no probe, an estimate within 64 KB of the end;
+ * with no sync in what's left of the file, it landed on the last bytes. seek_nosync steps that back
+ * 64 KB instead. docs/internals.md#a-flac-seek-near-the-end. ponytail: that estimate isn't checked
+ * against the target, so on a file of very uneven bitrate a seek into the last 64 KB can start
+ * after it, by however far the estimate is off; a total of zero leaves only the maximum's test, so
+ * a stream of blocks below its maximum can land early. Nothing past the landing is lost. */
 int flac_last(const char *c, const char *st) {
     int own = AT(st, 0xac, int), max = AT(c, 0x14, int), rate = AT(st, 0xa0, int);
     long long frame = AT(st, 0xb8, long long), total = AT(c, 0x20, long long);

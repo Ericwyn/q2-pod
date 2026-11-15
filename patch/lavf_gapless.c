@@ -9,8 +9,10 @@
  * ponytail: an end early by less than what's left of a real last packet, from a tag or a granule
  * wrong by that little, can't be told from padding and loses that much. A chained Vorbis keeps
  * every link's padding but the last. HE-AAC plays as stock does, gap and all: its numbers can't be
- * told from LC's before a packet decodes. Matroska and WebM's Vorbis and Opus aren't read. ADTS
- * .aac has no numbers to read and native ASF's WMA none. */
+ * told from LC's before a packet decodes.
+ *
+ * Matroska and WebM's Vorbis and Opus aren't read. ADTS .aac has no numbers to read and native
+ * ASF's WMA none. */
 #define AT(p, o, type) (*(type *)((char *)(p) + (o)))
 /* clang-format off */
 #define LAVF_PREF_DESC 0x8a508cu  /* demuxer_desc_lavf_preferred */

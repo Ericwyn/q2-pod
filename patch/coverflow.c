@@ -45,12 +45,15 @@ static int library_write(int (*stock)(void *, void *), void *a, void *b) {
  * so songs of one second (a CUE image's tracks) keep their order newest first (Recently Added,
  * getAllMusic(3)); oldest first (getAllMusic(4)) library_query adds id for it. ponytail: the album
  * groupings (getAllAlbum, ALBUM_SQL, an artist's albums) walk songtable_album too, a row lookup
- * each in album order: over twice a scan's page reads (docs/internals.md). A full scan (drops):
- * toolsInitDatabase drops songtable and creates it again on the connection the tools* functions
- * share, which waits only 500 ms for a reader (stock_db_open). A count still reading songtable on
- * its own connection made the drop fail, then the create, and stock skipped the update without a
- * word. So the scan's thread waits for the counts first (library_counting), outside SQLite; Back
- * ends the wait and the scan. */
+ * each in album order: over twice a scan's page reads (docs/internals.md).
+ *
+ * A full scan (drops): toolsInitDatabase drops songtable and creates it again on the connection
+ * the tools* functions share, which waits only 500 ms for a reader (stock_db_open). A count
+ * still reading songtable on its own connection made the drop fail, then the create, and stock
+ * skipped the update without a word.
+ *
+ * So the scan's thread waits for the counts first (library_counting), outside SQLite; Back ends
+ * the wait and the scan. */
 static int library_scan(int (*stock)(void *, void *), void *a, void *b, int drops) {
     if (drops) {
         while (library_counting() && !toolsGetUserStop()) usleep(100000);
@@ -4430,8 +4433,9 @@ static unsigned sharp(unsigned f, unsigned px, unsigned n) {
 
 /* bitmap, the icon named name, sharp bilinear at the theme's px (sharp()), once for a name, so the
  * paints after it only draw it: alpha-weighted, as its edge's transparent pixels hold no colour.
- * bitmap itself when that can't be done. ponytail: one icon's frame, kept once made; the row's next
- * app scales again. */
+ * bitmap itself when that can't be done.
+ *
+ * ponytail: one icon's frame, kept once made; the row's next app scales again. */
 static void *pane_scaled(void *bitmap, const char *name, unsigned px) {
     static const unsigned char at[4][4] = BITMAP_RGBA_AT;
     unsigned *b = bitmap, w = b[0], h = b[1], format = ((unsigned short *)bitmap)[7] - 1u;

@@ -5,8 +5,9 @@
  * song's tags) and keeps the PEQ filter, which feeds the app from hciplayer, in the chain. While a
  * speaker plays the volume is the speaker's (the app's spk), never the earphones', whose level
  * comes back from RAM when it stops; the lyrics follow the speaker, which plays the song the app's
- * delay behind the Q2. Ported from group-a-study's fork (8f2aedf0, 4cc10246) without its Now
- * Playing button. */
+ * delay behind the Q2.
+ *
+ * Ported from group-a-study's fork (8f2aedf0, 4cc10246) without its Now Playing button. */
 #include "offsets.inc"
 #include "peq.h"
 #include "playback.h"

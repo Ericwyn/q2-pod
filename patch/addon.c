@@ -1840,8 +1840,10 @@ static int clicked(void *ctx, void *event) {
 /* The box's text: one that doesn't fit pg.term whole is let go, cleared, and nothing is sent. Done
  * sends this twice (EVT_IM_ACTION, EVT_VALUE_CHANGED), so pg.field stays set here (field_sent and
  * search_box clear it) and the toast waits for no pending go: the second call must not toast again
- * or send the cut text. ponytail: stock's widget_get_text_utf8 writes nothing for a text over 255
- * bytes, which closes silently. */
+ * or send the cut text.
+ *
+ * ponytail: stock's widget_get_text_utf8 writes nothing for a text over 255 bytes, which closes
+ * silently. */
 static int searched(void *ctx, void *event) {
     char t[256] = "";
     (void)ctx, (void)event;

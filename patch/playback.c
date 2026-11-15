@@ -258,14 +258,18 @@ static void wl_note_tick(unsigned now, unsigned before) {
  * while it holds no finger down, which the loop hands the window manager as EVT_NONE. Twenty of
  * them would evict a queued release, and the wheel and Centre were dead until a tap (inferred;
  * q2-wheel.log showed thread=0, last=move). They mean nothing, so they are not queued; everything
- * else goes to stock's poster. Return's stop. A first Return only does its normal job: a thumb can
- * slide from the ring to Return and back with no lift, and a turn begun on Back carries on. One
- * past WHEEL_ARM_MS after it is a new first. A second one with WHEEL_STOP_TICKS ticks since the
- * first, and ticks and frames still arriving, stops the ticks until a real lift or a WHEEL_FRESH_MS
- * gap in frames (wheel_sample), and tick_gate refuses those queued. So under a ghost the first
- * Return closes the volume bar or goes up, and the second ends it. Here, at the press, so a stalled
- * UI doesn't move it. ponytail: a real turn with two rim presses within WHEEL_ARM_MS in one touch
- * stops until its lift; nothing else ever limits a turn. */
+ * else goes to stock's poster.
+ *
+ * Return's stop. A first Return only does its normal job: a thumb can slide from the ring to Return
+ * and back with no lift, and a turn begun on Back carries on. One past WHEEL_ARM_MS after it is a
+ * new first.
+ *
+ * A second one with WHEEL_STOP_TICKS ticks since the first, and ticks and frames still arriving,
+ * stops the ticks until a real lift or a WHEEL_FRESH_MS gap in frames (wheel_sample), and tick_gate
+ * refuses those queued. So under a ghost the first Return closes the volume bar or goes up, and the
+ * second ends it. Here, at the press, so a stalled UI doesn't move it. ponytail: a real turn with
+ * two rim presses within WHEEL_ARM_MS in one touch stops until its lift; nothing else ever limits a
+ * turn. */
 int ringnav_queue_event(void *loop, const unsigned *r) {
     int (*post)(void *, const void *) =
         loop ? *(int (**)(void *, const void *))((char *)loop + LOOP_POST) : 0;
@@ -1690,8 +1694,9 @@ int playback_resumed(void *r) {
  * takes the current index out of the pool and sets the position to a random one left there, which
  * stays until it is current: so ringnav_shuffle overrides the position with this draw, a uniform
  * one of the same set. Neither touches the pool. The two records say the queue under it hasn't
- * changed. ponytail: with under 2 in the pool the pick refills it (or Folder Skip jumps): -2,
- * unknown. */
+ * changed.
+ *
+ * ponytail: with under 2 in the pool the pick refills it (or Folder Skip jumps): -2, unknown. */
 static struct {
     unsigned at, index;
     void *now, *next;
