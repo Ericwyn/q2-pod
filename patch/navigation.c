@@ -1157,7 +1157,10 @@ static void select_row(void *w, int id, int rows, int show) {
         (!win || win == window_manager_get_top_window(window_manager())) && load(&g_menu, w, 0);
     prop(w, COUNT, rows);
     prop(w, SEL, id);
-    if (loaded && show) reveal(&g_menu, id, 1);
+    if (loaded && show)
+        reveal(&g_menu, id, 1);
+    else if (loaded)
+        stop_scroll(&g_menu); /* where it is: a glide still running would move it on */
 }
 
 void ringnav_select(void *w, int id, int rows) { select_row(w, id, rows, 1); }

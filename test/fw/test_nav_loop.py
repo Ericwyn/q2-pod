@@ -1604,8 +1604,11 @@ def test_a_row_lit_as_its_page_goes_stays_where_it_is(fw):
     sv = list_page(ui, rows=8, height=284)  # row 7 at 280: its top 4 px
     select(fw, sv, 0)
     scrolls = len(fw.calls('scroll_view_set_offset'))
+    glide = C.c_void_p.from_address(sv.p + O['VIEW_ANIMATOR'])
+    glide.value = 0x1234  # a glide still running: stopped where it is
     fw.fn('ringnav_light', None, C.c_void_p, C.c_int)(sv.p, 7)
     assert sv.ints[SEL] == 7 and len(fw.calls('scroll_view_set_offset')) == scrolls
+    assert fw.calls('widget_animator_destroy')[-1][1][0] == 0x1234 and not glide.value
     fw.fn('ringnav_select', None, C.c_void_p, C.c_int, C.c_int)(sv.p, 7, 8)
     assert len(fw.calls('scroll_view_set_offset')) == scrolls + 1  # a page's own row is still shown whole
 
