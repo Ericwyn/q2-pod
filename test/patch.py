@@ -1278,16 +1278,13 @@ def battery_checks():
                 assert shown(b,w)==['view_battery']
                 assert b.get(w['view_battery']+O['W_W'])==(O['BATT_PCT_W'] if mode==1 else (O['BATT_INSIDE_W'] if mode==3 else O['BATT_BODY_W'])+O['BATT_NUB_W']+(O['BATT_GAP']+O['BATT_PCT_W'] if mode==2 else 0))
     passed()
-    # The slot takes the bar's height in the set theme_boot wrote (geom_vals[st.geom][V_BAR], 30 under SET0): 26 poked into SET0's row sizes it 26, then 30 again.
-    b,bar,w,paint=battery_bar(1); assert b.u.mem_read(payload_syms['geom_vals'],2)==struct.pack('<h',30)
-    for bar_h in (26,30):
-        b.u.mem_write(payload_syms['geom_vals'],struct.pack('<h',bar_h)); b.word(w['view_battery']+O['W_H'],0); paint()
-        assert b.get(w['view_battery']+O['W_H'])==bar_h
+    # The slot takes its row's height, which the icons centre on (Classic's 22 px row under its 26 px bar), not the
+    # bar's: 22, then 30 again.
+    b,bar,w,paint=battery_bar(1); row=b.get(w['view_battery']+O['W_PARENT'])
+    for row_h in (22,30):
+        b.word(row+O['W_H'],row_h); b.word(w['view_battery']+O['W_H'],0); paint()
+        assert b.get(w['view_battery']+O['W_H'])==row_h
     passed()
-    # Classic before its set is written (no boot here, or a failed one, or a switch pending its restart) keeps
-    # SET0's 30 px slot: the slot follows the written set, never theme().
-    b,bar,w,paint=battery_bar(1); classic_light(b); b.word(w['view_battery']+O['W_H'],0); paint()
-    assert b.get(w['view_battery']+O['W_H'])==30; passed()
 battery_checks()
 assert m.confirm()==11 and m.dispatched()[0][1]==entries[0]; passed()
 assert m.call()==11 and m.selected(w)==1 and m.get(w+O['SCROLL_Y'])==12
@@ -12394,7 +12391,7 @@ EMBOSS=[(1,19,25,1,a_(0xffffff,179)),(27,14,2,2,a_(0xffffff,153))]
 ROWS=(0x90b27d,0xc9eeb1,0xd5f5bd,0xb8e896,0xa7e27d,0x92ce68,0x61a43a,0x4e972c,0x539c32,0x57a336,0x539933)
 outline=SOFT+body_bands(LINE); LEVEL=len(outline)
 bm,bw_,bands=classic_light_battery_bar(0)
-assert bm.get(bw_['view_battery']+O['W_W'])==29 and bm.get(bw_['view_battery']+O['W_H'])==26
+assert bm.get(bw_['view_battery']+O['W_W'])==29 and bm.get(bw_['view_battery']+O['W_H'])==22  # the row's height, not the bar's 26
 assert bm.get(bw_['img_bt']+O['W_Y'])==1 and bm.get(bw_['img_wifi']+O['W_Y'])&0xffffffff==0xffffffff  # a row down, a row up
 assert bands[:LEVEL]==outline
 SHADE=[(25,y+1,1,11,a_(0,64))]
