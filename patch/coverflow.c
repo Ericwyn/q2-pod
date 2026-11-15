@@ -3601,7 +3601,9 @@ static void *page_under(void) {
  * covers or the message -> Home, or back out of a scoped page (one album's tracks too). A page
  * opened over this one (Now Playing from a pick) takes keys only from its open event, after the
  * pass's input: a Return before then is dropped, not this page's. Under a dialog or a toast, it
- * is this page's, as before. */
+ * is this page's, as before. ponytail: so is one under a dialog over such a page (a volume pop-up
+ * a landing's wheel tick opens, then a Return, in one pass); the topmost page under the dialogs
+ * would cover it. */
 static int keyup(void *ctx, void *event) {
     if (I(event, EVENT_KEY) != KEY_RETURN) return 0;
     void *top = window_manager_get_top_window(window_manager());
