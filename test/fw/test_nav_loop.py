@@ -1546,29 +1546,30 @@ class Land(C.Structure):  # coverflow_land.c's land, the landing's state
                 ('ms', C.c_int), ('got', C.c_int), ('veil', C.c_int), ('box', C.c_int * 4)]
 
 
+LIBC = C.CDLL(None)
+LIBC.calloc.restype, LIBC.calloc.argtypes = C.c_void_p, [C.c_size_t, C.c_size_t]
+
+
 class Flip(C.Structure):  # coverflow.c's cf_flip_t, fl
     _fields_ = [('frame', C.c_void_p), ('back', C.c_void_p), ('front', C.c_void_p), ('panel', C.c_void_p),
                 ('sheet', C.c_void_p), ('title', C.c_void_p), ('artist', C.c_void_p), ('timer', C.c_uint),
                 ('t0', C.c_uint), ('dir', C.c_int), ('drawn', C.c_int), ('light', C.c_int)]
 
 
-def test_cover_flow_s_landing_takes_centre_return_and_the_wheel(fw, keys, st):
-    """From the click until its motion ends (coverflow_turning, coverflow_landing): Centre and Return do nothing, the
-    wheel is dropped, not held for the page under it or replayed as Now Playing's volume. A held Return's release
-    still reaches stock's filter, its latch's."""
+def test_cover_flow_s_landing_takes_centre_and_ends_on_the_wheel_or_return(fw, keys):
+    """From the click until its motion ends (coverflow_turning, coverflow_landing): Centre does nothing; a turn of
+    the wheel or Return ends the landing (land_drop) and goes on as with no landing."""
     ui = Ui(fw)
     sv = list_page(ui)
     select(fw, sv, 1)
     land = fw.var('coverflow_land__land', Land)
-    land.front, land.ms = 1, -1  # clicked, not painted yet
-    assert keys(KEY_CENTER) == STOP and keys(KEY_RETURN, 200) == STOP
-    assert keys(KEY_NEXT, 200) == STOP and keys(KEY_PREV, 200) == STOP
-    assert sv.ints[SEL] == 1 and st('held').value == 0 and not ui.due('navigation__replay_wheel')
-    assert not fw.calls('stock_keyup_trampoline')
-    C.c_ubyte.from_address(O['RETURN_RELEASE_LATCH']).value = 1
-    keys(KEY_RETURN, 200)
-    assert len(fw.calls('stock_keyup_trampoline')) == 1
-    land.front = 0
+    for key in (KEY_NEXT, KEY_RETURN):
+        land.front, land.ms = LIBC.calloc(4, 1), -1  # clicked, not painted yet
+        stock = len(fw.calls('stock_keyup_trampoline'))
+        assert keys(KEY_CENTER) == STOP and land.front and len(fw.calls('stock_keyup_trampoline')) == stock
+        keys(key, 400)
+        assert not land.front and len(fw.calls('stock_keyup_trampoline')) == stock + 1  # on, as with no landing
+    assert sv.ints[SEL] == 2  # the wheel's tick moved the row
 
 
 def test_cover_flow_s_flip_takes_centre_and_return_but_not_the_wheel(fw, keys):

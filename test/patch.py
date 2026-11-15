@@ -11397,8 +11397,8 @@ for armed,gap in ((1,0),(0,0),(0,100)):
 m=flip_open(); m.advance(300); view=m.find('scroll_view'); r=m.nodes[view]['children'][1]; f,ctx=m.handler(r,O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0)
 assert not m.plays; m.advance(1)  # Classic's landing: the row lit, it plays at the next loop (cf.land_press 0)
 assert m.plays[-1][0]=='playing_page' and m.plays[-1][2]==1 and m.plays[-1][3]==0xff10 and m.play_names==['T1','T2'] and m.nodes[m.panel()]['visible']; passed()
-# The landing: the press opens Now Playing (here a window with Classic's leaning art), and until its motion ends Return and the
-# wheel, through ringnav, are dropped: Now Playing stays, no volume dialog opens, no tick waits to be replayed.
+# The landing: the press opens Now Playing (here a window with Classic's leaning art), and until its motion ends Centre, through
+# ringnav, does nothing; a turn of the wheel or Return ends it and goes on, the song played at once if the press has not run.
 class LandMachine(FlipMachine):
     def hook(self,u,address,size,unused):
         opening=self.handlers.get(address,'')=='c:navigator_to_with_context' and self.text(u.reg_read(REGS[0]))=='playing_page'
@@ -11408,14 +11408,21 @@ class LandMachine(FlipMachine):
             for off,v in (('W_X',O['SPOT_ART_X']),('W_Y',O['NP_IPOD_ART_Y']),('W_W',O['NP_IPOD_ART']),('W_H',O['NP_IPOD_ART']+40)): self.word(art+O[off],v)
             self.top=self.np; self.stack.append(self.np); self.np_art=art
         return ret
-m=classic_light_new(LandMachine); m.stock_load=1; m.open(); flip_click(m); m.advance(300); view=m.find('scroll_view'); r=m.nodes[view]['children'][1]
-f,ctx=m.handler(r,O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0); assert not m.plays
-for k in (O['KEY_RETURN'],O['KEY_NEXT']): assert m.call(k,gap=0)==11 and m.top==m.page and not m.plays and m.nodes[m.panel()]['visible']
-m.advance(1); assert m.plays and m.top==m.np
-m.draws=[]; m.call(address=payload_syms['coverflow_paint'],args=(m.np,m.canvas,0,0),gap=0); assert len(m.draws)==1 and m.draws[0][3]==(0,0,375,294)  # its first paint: ms 0, opaque
-for k in (O['KEY_RETURN'],O['KEY_NEXT'],O['KEY_PREV']): assert m.call(k,gap=0)==11 and m.top==m.np
-assert not [o for o in m.opened if 'volume' in o[0]] and not [c for c in m.calls if c[0] in ('navigator_back','vol_step')]
-m.advance(400); assert m.top==m.np and len(m.plays)==1 and m.call(address=payload_syms['coverflow_landing'],args=(0,0,0,0),gap=0)==1; passed()  # held over the art
+def land_click():
+    m=classic_light_new(LandMachine); m.stock_load=1; m.open(); flip_click(m); m.advance(300); view=m.find('scroll_view'); r=m.nodes[view]['children'][1]
+    f,ctx=m.handler(r,O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0); assert not m.plays
+    return m
+def landing(m): return m.call(address=payload_syms['coverflow_landing'],args=(0,0,0,0),gap=0)
+def land_paint(m):
+    m.draws=[]; m.call(address=payload_syms['coverflow_paint'],args=(m.np,m.canvas,0,0),gap=0); assert len(m.draws)==1 and m.draws[0][3]==(0,0,375,294)  # its first paint: ms 0, opaque
+m=land_click(); assert m.call(O['KEY_CENTER'],gap=0)==11 and m.top==m.page and not m.plays and m.nodes[m.panel()]['visible']
+m.advance(1); assert m.plays and m.top==m.np; land_paint(m)
+assert m.call(O['KEY_CENTER'],gap=0)==11 and m.top==m.np and landing(m)==1
+m.advance(400); assert m.top==m.np and len(m.plays)==1 and landing(m)==1; passed()  # held over the art
+for k in (O['KEY_NEXT'],O['KEY_RETURN']):
+    m=land_click(); m.advance(1); land_paint(m); m.advance(100); m.call(k,gap=0)
+    assert not landing(m) and len(m.plays)==1; passed()  # cut short
+m=land_click(); m.call(O['KEY_NEXT'],gap=0); assert m.plays and not landing(m) and m.top==m.np; m.advance(400); assert len(m.plays)==1; passed()  # the press: plays now
 m=flip_open(); m.advance(300); m.missing=True; r=m.nodes[m.find('scroll_view')]['children'][0]; f,ctx=m.handler(r,O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0)
 assert not m.plays and m.nodes[[w for w in m.nodes[m.panel()]['children'] if m.nodes[w]['type']=='hscroll_label'][0]]['text']=='Storage unavailable'; passed()
 # The list scrolls by the wheel inside the panel, the header its sibling, so it stays; Go to Album's tracks alone have no covers to turn.

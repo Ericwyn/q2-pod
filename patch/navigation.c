@@ -191,6 +191,7 @@ extern int coverflow_wheel_live(void), coverflow_wheel_poll(int usable, int gate
     coverflow_wheel_on(void *w);
 extern void *coverflow_album(void *page);
 extern int coverflow_turning(void), coverflow_landing(void);
+extern void land_drop(void);
 extern int coverflow_goto_album(void *r), coverflow_shows_album(void *r);
 extern unsigned coverflow_scope(void *page);
 extern void coverflow_home_art(void *top);
@@ -11059,17 +11060,17 @@ int ringnav(void *ctx, void *event) {
     if (usable() && rate_key(window_manager_get_top_window(window_manager()), key)) return STOP;
     /* A game's keys, before stock's lock filter, media keys and screen-off double Centre */
     if (usable() && games_key(window_manager_get_top_window(window_manager()), key)) return STOP;
-    /* Cover Flow's flip and landing: a Centre or Return during them does nothing (a held Return's
-     * release goes on to consume its latch). The flip's wheel waits at the page's no surface
-     * (hold_wheel); the landing's is dropped, not the volume's. */
+    /* Cover Flow's flip and landing: a Centre during them does nothing, and a Return during the
+     * flip (a held Return's release goes on to consume its latch); the flip's wheel waits at the
+     * page's no surface (hold_wheel). The landing's wheel and Return end it and go on to Now
+     * Playing, as with no landing. */
+    if (coverflow_turning() && coverflow_landing() &&
+        (key == KEY_PREV || key == KEY_NEXT || key == KEY_RETURN))
+        land_drop();
     if (coverflow_turning() &&
         ((key == KEY_CENTER && !g_power_longkey) ||
          (key == KEY_RETURN && !*(volatile unsigned char *)RETURN_RELEASE_LATCH)))
         return STOP;
-    if (coverflow_turning() && coverflow_landing() && (key == KEY_PREV || key == KEY_NEXT)) {
-        drop_input();
-        return STOP;
-    }
     /* Return or Centre closes quick settings, as its swipe up does (dialog_quit); stock leaves
      * Return to its Home button and Centre to turning the screen off. A held Return's release
      * goes to the stock filter, which consumes its latch (the hold closed it itself,

@@ -170,7 +170,7 @@ int land_turning(void) {
  * run for land_ms; then the landed art stays over Now Playing's own until that is this song's
  * (np_art_ready), or for land_hold ms at most. Anything else ends it at once, Now Playing then
  * shown as it is: no first paint within LAND_FIRST_PAINT_MS of the open, another window on top,
- * another song, a touch on it. */
+ * another song, a touch on it, the wheel or Return (ringnav, land_drop). */
 extern int np_layout(void), np_art_ready(void);
 extern void ringnav_light(void *list, int index);
 #define LAND_HOLD_TICK_MS 50
@@ -262,8 +262,8 @@ static int land_tick(const void *unused) {
     }
     int len = land.L.len, hold = theme()->cf.land_hold, ms = (int)(now - land.t0);
     if (land.ms < 0) {
-        /* ponytail: Centre, Return and the wheel are dropped for up to LAND_FIRST_PAINT_MS + ms if
-         * Now Playing never paints; a Now Playing that shows dark sooner would need its own end */
+        /* ponytail: Centre is dropped for up to LAND_FIRST_PAINT_MS + ms if Now Playing never
+         * paints; a Now Playing that shows dark sooner would need its own end */
         if (now - land.at < LAND_FIRST_PAINT_MS) return 8; /* RET_REPEAT: no first paint yet */
     } else if (land.ms < len) {
         /* late: one tick on from the last frame, never a skip */
@@ -338,8 +338,9 @@ static int land_open(const void *unused) {
     return 0;
 }
 
-/* Cover Flow closing or loading again under the landing: a press not over yet plays its song now,
- * as with no landing; a frame drawn over Now Playing goes with it. */
+/* Cover Flow closing or loading again under the landing, or its wheel or Return (ringnav): a press
+ * not over yet plays its song now, as with no landing; a frame drawn over Now Playing goes with it.
+ */
 void land_drop(void) {
     if (land.timer && !land.win) coverflow_play(land.row);
     if (land.win) widget_invalidate_force(land.win, 0);
