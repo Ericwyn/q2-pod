@@ -1,4 +1,47 @@
-/* Logical menu selection is independent of native touch focus. Stock code owns gestures. */
+/* Logical menu selection is independent of native touch focus. Stock code owns gestures.
+ *
+ * Contents, in file order; each section starts at its "== name ==" banner:
+ * - Time zone rows
+ * - Shims, library SQL and globals
+ * - Contexts, panes and timers
+ * - Home carousel and motion
+ * - Surfaces, row identity and load
+ * - Scrolling, Centre confirm and pull to search
+ * - Paint primitives
+ * - Chevrons, letters and marquees
+ * - Classic's dialogs and toast
+ * - Row paint and ringnav_paint
+ * - Settings rows, key lock and Quick Settings
+ * - Q2 Pod settings and settings pages
+ * - Tap select and lyric scroll
+ * - Status bar and battery
+ * - Fonts and faces
+ * - Now Playing: scrub and lyrics
+ * - Now Playing: keys, page and art
+ * - Geometry sets
+ * - Sliders, dark bar and UI load
+ * - Album tiles and Quick Settings paint
+ * - Pressed rows and the bar's title
+ * - Background paint hook
+ * - Accent colours and theme images
+ * - Display, themes and System
+ * - Touch and click dispatch
+ * - Row layouts
+ * - Boot resume and the Return hold
+ * - Queue menu: rows and queries
+ * - Album art keys and artist pages
+ * - Library lists
+ * - Queue menu: tracks and insert
+ * - Play counts, Chapters and Streaming
+ * - Folders, USB mode and About
+ * - Queue menu: open and run
+ * - Long keys, stale touch and shuffle
+ * - Resume, play counts and scrobbling
+ * - Volume, Bluetooth and the UI loop
+ * - Input gates and key tone
+ * - Setting editors, Set Date and Set Time
+ * - Wheel input: ringnav
+ */
 #include "navigation.h"
 #include "playlist_art.h"
 extern int stock_sorted_query_trampoline(const char *, const char *, void *, int);
@@ -9,6 +52,7 @@ extern int stock_quicksettings_trampoline(void *, void *);
 extern int stock_timezone_trampoline(void);
 extern void stock_timezone_row_trampoline(void *, int);
 
+/* == Time zone rows == */
 static const char *const tz_names[] = TIMEZONE_NAMES;
 #define TZ_COUNT (sizeof tz_names / sizeof *tz_names)
 
@@ -92,6 +136,7 @@ void ringnav_timezone_row(void *item, int i) {
         widget_set_text_utf8(label, s);
     }
 }
+/* == Shims, library SQL and globals == */
 static int library_music __attribute__((section(".scratch")));
 static int library_first __attribute__((section(".scratch")));
 
@@ -247,6 +292,7 @@ scratch_t st __attribute__((section(".scratch")));
 /* Single shared view: no entry point keeps a menu live across a nested load(). */
 menu_t g_menu __attribute__((section(".scratch")));
 
+/* == Contexts, panes and timers == */
 /* Audited top windows, each tagged with its content-identity class and whether its row list is
  * one of the audited local row lists that carry over at the ends. The index is remembered
  * instead of the name pointer: AWTK owns and frees the window's name string. */
@@ -453,6 +499,7 @@ void drop_input(void) {
     drop_spin();
 }
 
+/* == Home carousel and motion == */
 /* Home and Coverflow step their slide_menu with one retargeted animator (home_step): stock
  * scroll_to (0x606290) starts a new animator per call and orphans the running one, so fast
  * ticks leave several fighting over the offset and committing the index twice. */
@@ -647,6 +694,7 @@ static void home_step(void *w, int dir, unsigned now, int jump) {
     st.home_dir = dir;
 }
 
+/* == Surfaces, row identity and load == */
 int usable(void) {
     if (!g_backlight_status || g_lockscreen_pageflag || g_testmode_flag || g_guideflag ||
         g_poweroff_state > 1)
@@ -1020,6 +1068,7 @@ static int load(menu_t *m, void *w, int recall) {
     return 1;
 }
 
+/* == Scrolling, Centre confirm and pull to search == */
 /* Live viewport offset. reveal glides are relative, so every delta is computed against the
  * position the widget is actually at, never an intended one. */
 static int view_top(menu_t *m) {
@@ -1414,6 +1463,7 @@ static void pull_begin(void *event) {
     context_now(&st.pull_scope);
 }
 
+/* == Paint primitives == */
 /* A pill's end radius on a list row (h tall, its card inset px from the row's left): h / 2, less
  * where the round end would cut across a leading cover's square corner (search results' art, which
  * sits closer to the edge than the Library's), so the cover stays inside the card.
@@ -1649,6 +1699,7 @@ static void frame_box(void *canvas, const rect_t *r, unsigned color, unsigned ra
     canvas_stroke_rect(canvas, in.x, in.y, in.w, in.h);
 }
 
+/* == Chevrons, letters and marquees == */
 /* Stock names a playlist row's trailing More dots "img_more%d". */
 static void *more_image(void *w) {
     for (unsigned i = 0, n = w ? widget_count_children(w) : 0; i < n; ++i) {
@@ -2080,6 +2131,7 @@ unsigned ringnav_hscroll_lull(void *w, int (*lulled)(const void *), unsigned ms)
                             B(w, HSCROLL_YOYO) && B(w, HSCROLL_LOOP) ? 0 : MARQUEE_HOLD_MS);
 }
 
+/* == Classic's dialogs and toast == */
 /* Classic's dialogs (CONFIRM_CLASSIC_LIGHT), in screen pixels and final colours. A dialog
  * is full-screen (0, 0, 375, 320) and its background clear, so the bar and the page show through.
  */
@@ -2383,6 +2435,7 @@ static void toast_paint(void *w, void *canvas) {
     stock_canvas_set_fill_color(canvas, fill);
 }
 
+/* == Row paint and ringnav_paint == */
 /* Load and settle the painted surface's selection, then draw it behind the rows: Minimal's card
  * (a dot on Home), Modern's full-width accent bar (SEL_BAR) or Classic's stops band (SEL_STOPS). */
 static void paint_selection(void *w, void *canvas) {
@@ -2801,6 +2854,7 @@ int ringnav_paint(void *w, void *canvas) {
     return result;
 }
 
+/* == Settings rows, key lock and Quick Settings == */
 /* A s_listitem_black list_item in view with a 335x70 s_btn_listitem button; returns the button. */
 static void *list_button(void *view) {
     void *item = list_item_create(view, 0, 0, 0, 0);
@@ -3144,6 +3198,7 @@ int ringnav_quick_settings(void *win, void *ctx) {
     return result;
 }
 
+/* == Q2 Pod settings and settings pages == */
 /* Power's Charge limit and Wake (docs/internals.md#charge-limit, #wake), Q2POD CHARGELIMIT and
  * WAKEDOUBLE in config.ini, Display's Artist albums
  * (ARTISTCF), Playback's Year order (YEAROLD, coverflow.c's year ranks) and Artists, which
@@ -3655,6 +3710,7 @@ int ringnav_audioset(void *win, void *ctx) {
     return result;
 }
 
+/* == Tap select and lyric scroll == */
 /* Nearest collected ancestor of a tap: a clickable child selects the row that owns it. */
 static int selects(menu_t *m, void *target) {
     for (int depth = 0; target && depth < 32; ++depth) {
@@ -3810,6 +3866,7 @@ static int seek_position(int to) {
     return 0;
 }
 
+/* == Status bar and battery == */
 /* The status bar's centred label follows stock's 24-hour setting (18:14 or 6:14 PM), without
  * seconds, or --:-- when the time cannot be read. clock_show reads the time once a minute, from a
  * timer due at the next minute, writes the label when the minute shown changes and applies Auto
@@ -4307,6 +4364,7 @@ static void paint_battery(void *w, void *canvas) {
     stock_canvas_set_fill_color(canvas, fill);
 }
 
+/* == Fonts and faces == */
 /* Seconds as stock writes label_playtime, after a minus when negative is 1. */
 void clock_text(void *label, int negative, int t) {
     char s[16] = "-";
@@ -4414,6 +4472,7 @@ const char *theme_face(const unsigned *s, int n, int *px) {
     return face_has(FONT_BOLD, s, n) ? "bold" : (const char *)0;
 }
 
+/* == Now Playing: scrub and lyrics == */
 /* Paused, the seek waits for Play (scrub_end) and the player's second stands still until then,
  * and the page's timer would put the bar back on it. The bar keeps the
  * target until the player reports it, the track changes or stops, or SETTLE_PLAY_MS of playing
@@ -4724,6 +4783,7 @@ static void np_cancel(void) {
     if (st.np_win) playing_timer_start(st.np_win);
 }
 
+/* == Now Playing: keys, page and art == */
 /* A single centre press, DOUBLE_CLICK_MS on, never while scrubbing (with Single Press Scrub, a
  * double press): it replays the release to stock on_wm_keyup_fun, which turns the screen off (it
  * reads only the event's key). */
@@ -5110,6 +5170,7 @@ static void bc_fit(void *win) {
     }
 }
 
+/* == Geometry sets == */
 /* Geometry sets: tools/ipod.py bakes SET0 into the stock row immediates (ipod.json). Another set
  * rewrites, once, only the low halfwords that differ. Stock text is R-X, so every page holding one
  * goes RWX first, lowest first; only if all did are they written, flushed and put back to R-X. A
@@ -5202,6 +5263,7 @@ const char *style_key(char *key, const char *state, const char *name) {
     tk_snprintf(key, STYLE_KEY, "style:%s:%s", state, name);
     return key;
 }
+/* == Sliders, dark bar and UI load == */
 /* The slider's value as a part of w px. */
 int slider_part(void *s, int w) {
     int min = widget_get_prop_int(s, "min", 0), max = widget_get_prop_int(s, "max", 100);
@@ -5536,6 +5598,7 @@ int ringnav_bigcover(void *win, void *ctx) {
     return result;
 }
 
+/* == Album tiles and Quick Settings paint == */
 /* Both native album constructors use 110px square covers, with playing overlays either
  * beside the cover or nested inside it. Keep their local origins together when padding the tile.
  * Every theme insets the cover, so the selection card frames it rather than hiding under it. */
@@ -5743,6 +5806,7 @@ static void confirm_prompt(void *w, void *canvas) {
         widget_set_prop_str(c, "style:normal:text_align_v", "middle");
     }
 }
+/* == Pressed rows and the bar's title == */
 /* A list row's touch target: its own (page rows), else a button over its top (the Library's,
  * Settings', the More menu's); pressed with its grey (ipod.json's pressed #333333) or none. */
 static int pressed_row(void *b) {
@@ -5969,6 +6033,7 @@ int bar_title_fits(void *label) {
     return canvas_measure_text(canvas, s, n) <= I(st.bar_title, W_W) - 4;
 }
 
+/* == Background paint hook == */
 /* Stock paints a widget's background before its children, so the bar sits behind the rows.
  * The selection work for the surface happens here, once per frame, instead of in the border hook;
  * a BUTTONS dialog is itself top-level. Home's art is clipped to its panel until the border hook.
@@ -6087,6 +6152,7 @@ int ringnav_paint_bg(void *w, void *canvas) {
     return result;
 }
 
+/* == Accent colours and theme images == */
 /* Live accent (docs/internals.md#accent). Colors are mapped as style_get_color returns them: text
  * (text_color, highlight_text_color) to the red tone, fills and borders to the light tone. The name
  * is only compared for a color that maps. */
@@ -6559,6 +6625,7 @@ int ringnav_image_add(void *manager, const char *name, void *bitmap) {
     return stock_image_trampoline(manager, name, bitmap);
 }
 
+/* == Display, themes and System == */
 static void setting_text(int i) {
     static const char *const home[] = { "Home: Split", "Home: Full", "Home: Carousel" },
                              *const battery[] = { "Battery: Icon", "Battery: Percent",
@@ -7061,6 +7128,7 @@ int ringnav_systemset(void *win, void *ctx) {
     return result;
 }
 
+/* == Touch and click dispatch == */
 static int untouch(const void *info) {
     st.untouch_timer = 0;
     st.touch_mode = 0;
@@ -7239,6 +7307,7 @@ int ringnav_dispatch(void *target, void *event) {
     return stock_dispatch_trampoline(target, event);
 }
 
+/* == Row layouts == */
 /* Songs' bind found no artist on the record (SONG_UNKNOWN_CALL, tools/build.py). Stock's "Unknown
  * Artist" shows only where a set keeps stock's row; under a set without text-row artwork the
  * two-line row says only what the record says, so the second line stays empty. */
@@ -7640,6 +7709,7 @@ int ipod_list_layout(void *layout, void *view) {
     return ret;
 }
 
+/* == Boot resume and the Return hold == */
 /* Replaces home_page_init's boot resume, navigator_to_with_context("playing_page", ctx) with ctx
  * {queue, index, class, mode}. Car mode (mode 2, plays) keeps that call; otherwise this is the
  * paused start playing_page_init would make, without the page. Headphones Required no longer skips
@@ -7715,6 +7785,7 @@ int compact_now_playing(void) {
     return 0;
 }
 
+/* == Queue menu: rows and queries == */
 /* Play/Pause hold queue menu (docs/internals.md). Stock long press fires once per press, so a hold
  * on a local song, album, artist/composer/genre, folder or playlist row opens the stock sortselect
  * dialog rebuilt as that row's menu. */
@@ -7916,6 +7987,7 @@ static void *album_opened(void) {
     return same && !strcmp(info + 0x10d, artist) ? a : 0;
 }
 
+/* == Album art keys and artist pages == */
 /* Stock's album art cache, /mnt/mmc/.sldp/<md5 of the name>0.jpg (1.jpg big), keys by name, so
  * split Albums rows of a name shared a cover: theirs adds the album artist, else the album's
  * folder. A name of one album keeps its key and cached art. buf holds 256 bytes, as stock's. */
@@ -8188,6 +8260,7 @@ int ringnav_art_header(char *buf, unsigned size, const char *fmt, const char *al
                     key && !strncasecmp(key, album, n) && key[n] == 0x1f ? key : album);
 }
 
+/* == Library lists == */
 /* An empty Library list (Albums, Artists, Composers, Genres): once stock marks its page opened
  * (the "stage" property the window manager sets after the open animation), the page is closed
  * again and the toast says so over the list it came from. Stock opened a black page, and an empty
@@ -8365,6 +8438,7 @@ int ringnav_localclass(int cls) {
     return n;
 }
 
+/* == Queue menu: tracks and insert == */
 static int dir_query(void *path) { return toolsLoadDirectory((const char *)path); }
 /* A folder's songs and, in stock's listing order, its subfolders' (dot folders such as .tidal
  * left out), so a folder of albums queues them all.
@@ -8501,6 +8575,7 @@ static int page_closed(void *ctx, void *event) {
     return 0;
 }
 
+/* == Play counts, Chapters and Streaming == */
 #define RESUME_FILE "/mnt/data/ringnav-resume" /* coverflow.c's blob_io */
 #define PLAYS_FILE "/mnt/data/ringnav-plays"
 
@@ -8776,6 +8851,7 @@ int stream_config(void *ctx, void *event) {
     return 0;
 }
 
+/* == Folders, USB mode and About == */
 /* 1 + the MEDIA folder s names (up to its end or a '/'), 0 for none. MEDIA is letters only. */
 static int media_kind(const char *s) {
     for (int k = 0; k < VIDEOS; k++) {
@@ -9009,6 +9085,7 @@ int ringnav_about(void *win, void *ctx) {
     return result;
 }
 
+/* == Queue menu: open and run == */
 /* Go to album/artist reuse g_local_classinfo_save, which the pages underneath reload from when
  * they come back, so it is put back as the page opened here closes. */
 static int qm_restore(void *page, void *event) {
@@ -9514,6 +9591,7 @@ static int qm_hold(void) {
     return 1;
 }
 
+/* == Long keys, stale touch and shuffle == */
 /* Quick Settings' wheel: 0 its brightness slider, 1 stock's volume (Q2POD QSVOLUME). A held
  * Play/Pause there switches it (ringnav_keylong) and says so in the theme's own toast, over the
  * pull-down as stock's own messages are.
@@ -9698,6 +9776,7 @@ void ringnav_sort_key(char *s) {
         for (char *d = s; (*d = d[n]); ++d) {}
 }
 
+/* == Resume, play counts and scrobbling == */
 /* Moves key's place to the front of the ring at sec, or forgets it near either end. */
 static void spot_keep(unsigned key, int sec, int total) {
     int i = 0, keep = sec >= RESUME_EDGE_S && sec < total - RESUME_EDGE_S;
@@ -9927,6 +10006,7 @@ int rockbox_open(void *ctx, void *event) {
     return 0;
 }
 
+/* == Volume, Bluetooth and the UI loop == */
 /* Now Playing on top. */
 static int now_playing(void) {
     void *top = window_manager_get_top_window(window_manager());
@@ -10175,6 +10255,7 @@ int ringnav_sleep(void *loop) {
     return stock_sleep_trampoline(loop);
 }
 
+/* == Input gates and key tone == */
 /* With the screen off Return never reaches the UI, so a bump of Back leaves the page alone.
  * Wake: Double press. With the screen off, a lone centre press (the power key, which wakes it)
  * never reaches the UI, so a pocket bump stays dark; one within WAKE_MS after it passes, press and
@@ -10503,6 +10584,7 @@ int ringnav_keydown(void *ctx, void *event) {
     return result;
 }
 
+/* == Setting editors, Set Date and Set Time == */
 /* Stock's setting editors, which have no list. Brightness, maximum and startup volume and balance
  * step with the wheel through their own +/- (limits and saving stay stock's), and Centre goes back.
  * Quick Settings' brightness slider has no +/-: its value is set, firing stock's change callback.
@@ -10989,6 +11071,7 @@ static void edit_paint(void *w, void *canvas) {
     stock_canvas_set_stroke_color(canvas, old);
 }
 
+/* == Wheel input: ringnav == */
 static int replay_wheel(const void *info);
 int ringnav(void *ctx, void *event);
 /* A wheel tick the page cannot take yet: counted, its event kept for replay. Replay's own tick,
