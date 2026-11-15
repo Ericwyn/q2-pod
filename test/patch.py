@@ -11399,6 +11399,7 @@ assert not m.plays; m.advance(1)  # Classic's landing: the row lit, it plays at 
 assert m.plays[-1][0]=='playing_page' and m.plays[-1][2]==1 and m.plays[-1][3]==0xff10 and m.play_names==['T1','T2'] and m.nodes[m.panel()]['visible']; passed()
 # The landing: the press opens Now Playing (here a window with Classic's leaning art), and until its motion ends Centre, through
 # ringnav, does nothing; a turn of the wheel or Return ends it and goes on, the song played at once if the press has not run.
+# A Return before Now Playing is the key target (its open event) only ends it: Cover Flow's page under it would take it.
 class LandMachine(FlipMachine):
     def hook(self,u,address,size,unused):
         opening=self.handlers.get(address,'')=='c:navigator_to_with_context' and self.text(u.reg_read(REGS[0]))=='playing_page'
@@ -11420,9 +11421,13 @@ m.advance(1); assert m.plays and m.top==m.np; land_paint(m)
 assert m.call(O['KEY_CENTER'],gap=0)==11 and m.top==m.np and landing(m)==1
 m.advance(400); assert m.top==m.np and len(m.plays)==1 and landing(m)==1; passed()  # held over the art
 for k in (O['KEY_NEXT'],O['KEY_RETURN']):
-    m=land_click(); m.advance(1); land_paint(m); m.advance(100); m.call(k,gap=0)
-    assert not landing(m) and len(m.plays)==1; passed()  # cut short
-m=land_click(); m.call(O['KEY_NEXT'],gap=0); assert m.plays and not landing(m) and m.top==m.np; m.advance(400); assert len(m.plays)==1; passed()  # the press: plays now
+    m=land_click(); m.advance(1); land_paint(m); m.word(m.wm+O['W_KEY_TARGET'],m.np); m.advance(100)
+    assert m.call(k,gap=0)!=11 and not landing(m) and len(m.plays)==1; passed()  # cut short, the key on to Now Playing
+for k,stop in ((O['KEY_NEXT'],0),(O['KEY_RETURN'],1)):
+    m=land_click(); m.word(m.wm+O['W_KEY_TARGET'],m.page); ret=m.call(k,gap=0)  # Cover Flow's page has the keys
+    assert (ret==11)==stop, ret
+    assert m.plays and not landing(m) and m.top==m.np
+    m.advance(400); assert len(m.plays)==1; passed()  # the press: plays now, the early Return kept from Cover Flow's page
 m=flip_open(); m.advance(300); m.missing=True; r=m.nodes[m.find('scroll_view')]['children'][0]; f,ctx=m.handler(r,O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0)
 assert not m.plays and m.nodes[[w for w in m.nodes[m.panel()]['children'] if m.nodes[w]['type']=='hscroll_label'][0]]['text']=='Storage unavailable'; passed()
 # The list scrolls by the wheel inside the panel, the header its sibling, so it stays; Go to Album's tracks alone have no covers to turn.

@@ -338,13 +338,28 @@ static int land_open(const void *unused) {
     return 0;
 }
 
-/* Cover Flow closing or loading again under the landing, or its wheel or Return (ringnav): a press
+/* Cover Flow closing or loading again under the landing, or its wheel or Return (land_key): a press
  * not over yet plays its song now, as with no landing; a frame drawn over Now Playing goes with it.
  */
 void land_drop(void) {
     if (land.timer && !land.win) coverflow_play(land.row);
     if (land.win) widget_invalidate_force(land.win, 0);
     land_end();
+}
+
+/* ringnav's key before the motion ends: the wheel or Return ends the landing, the bar then naming
+ * Now Playing (a volume pop-up the tick opens would keep it on Cover Flow's). 1 for a Return Now
+ * Playing doesn't take yet (its open event comes after the pass's input), which would reach Cover
+ * Flow's page under it and turn the panel back unseen. ponytail: that Return is dropped, not
+ * replayed after the open event; a second Return in that moment reaches the page, as one does
+ * with no landing */
+int land_key(unsigned key) {
+    if (!land_turning() || (key != KEY_PREV && key != KEY_NEXT && key != KEY_RETURN)) return 0;
+    land_drop();
+    void *wm = window_manager(), *top = window_manager_get_top_window(wm);
+    bar_title_sync(top);
+    return key == KEY_RETURN && !*(volatile unsigned char *)RETURN_RELEASE_LATCH &&
+           P(wm, W_KEY_TARGET) != top;
 }
 
 /* The click on row (t) at t0, or 0: Now Playing then opens at once, as under Minimal. Classic's

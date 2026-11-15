@@ -11,7 +11,7 @@ import pytest
 
 import host
 from conftest import O, Files, block, in_fork
-from test_nav_loop import Flip  # coverflow.c's cf_flip_t, fl
+from test_nav_loop import LIBC, Flip, Land  # coverflow.c's cf_flip_t, fl; coverflow_land.c's land
 
 W_X, W_Y, W_W, W_H, W_PARENT = O['W_X'], O['W_Y'], O['W_W'], O['W_H'], O['W_PARENT']
 CANVAS_LCD, LCD_FILL_COLOR = O['CANVAS_LCD'], O['LCD_FILL_COLOR']
@@ -1540,6 +1540,20 @@ def test_cover_flow_s_landing_keeps_the_bar_s_title_until_it_lands(fw, world, st
     flip.dir = 0
     sync(fw, win)
     assert world[label].text == 'Now Playing'
+
+
+@pytest.mark.parametrize('key, taken, stop', [('KEY_NEXT', 0, 0), ('KEY_RETURN', 1, 0), ('KEY_RETURN', 0, 1)])
+def test_the_wheel_or_return_ends_cover_flow_s_landing_and_the_bar_names_now_playing(fw, world, st, key, taken, stop):
+    """land_key: the bar names Now Playing at once, not after a volume pop-up the tick opens; a Return before Now
+    Playing is the window manager's key target (its open event) is dropped, as Cover Flow's page under it would
+    take it."""
+    label = bar_title(fw, world, st)
+    win = world.window('playing_page')
+    C.c_void_p.from_address(world.wm + O['W_KEY_TARGET']).value = win if taken else world.window('coverflow_page', top=False)
+    land = fw.var('coverflow_land__land', Land)
+    land.front, land.ms = LIBC.calloc(4, 1), -1  # clicked, not painted yet
+    assert fw.fn('land_key', C.c_int, C.c_uint)(O[key]) == stop
+    assert not land.front and world[label].text == 'Now Playing'
 
 
 def test_search_is_titled_though_a_dialog(fw, world, st):

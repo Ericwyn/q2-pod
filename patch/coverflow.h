@@ -257,6 +257,7 @@ int land_start(void *t, int row, unsigned t0);
 void land_paint(void *w, void *canvas);
 void land_art(void *w, void *canvas);
 void land_drop(void);
+int land_key(unsigned key);
 
 /* Optional browsing position. */
 int coverflow_position_enabled(void);

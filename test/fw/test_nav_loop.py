@@ -1557,11 +1557,12 @@ class Flip(C.Structure):  # coverflow.c's cf_flip_t, fl
 
 
 def test_cover_flow_s_landing_takes_centre_and_ends_on_the_wheel_or_return(fw, keys):
-    """From the click until its motion ends (coverflow_turning, coverflow_landing): Centre does nothing; a turn of
-    the wheel or Return ends the landing (land_drop) and goes on as with no landing."""
+    """From the click until its motion ends (coverflow_turning, land_key): Centre does nothing; a turn of the wheel
+    or Return ends the landing and goes on as with no landing, once Now Playing takes keys."""
     ui = Ui(fw)
     sv = list_page(ui)
     select(fw, sv, 1)
+    C.c_void_p.from_address(ui.wm.p + O['W_KEY_TARGET']).value = ui.top.p  # opened: its keys' target
     land = fw.var('coverflow_land__land', Land)
     for key in (KEY_NEXT, KEY_RETURN):
         land.front, land.ms = LIBC.calloc(4, 1), -1  # clicked, not painted yet
@@ -1580,6 +1581,11 @@ def test_cover_flow_s_flip_takes_centre_and_return_but_not_the_wheel(fw, keys):
     assert keys(KEY_CENTER) == STOP and keys(KEY_RETURN, 200) == STOP and not fw.calls('stock_keyup_trampoline')
     keys(KEY_NEXT, 200)
     assert sv.ints[SEL] == 2  # the wheel goes on as it did
+    latch = C.c_ubyte.from_address(O['RETURN_RELEASE_LATCH'])
+    latch.value, stock = 1, len(fw.calls('stock_keyup_trampoline'))
+    keys(KEY_RETURN, 200)
+    assert len(fw.calls('stock_keyup_trampoline')) == stock + 1  # a held Return's release: stock's filter consumes its latch
+    latch.value = 0
 
 
 def test_a_row_lit_as_its_page_goes_ends_touch_mode(fw, st):
