@@ -1733,6 +1733,25 @@ def test_a_tick_while_a_page_slides_is_held_and_replayed(fw, keys):
     assert ui.fire(timer=timers[0]) == 0 and sv.ints[SEL] == 2 and not ui.due('navigation__replay_wheel')
 
 
+def test_a_landing_drops_the_held_ticks(fw, keys, st):
+    """drop_held, from land_start: ticks held before a tap's pick on Cover Flow's panel are not replayed into the
+    landing, where land_key would read one as a fresh turn and end it."""
+    ui = Ui(fw)
+    sv = list_page(ui)
+    select(fw, sv, 0)
+    ui.animating = 1
+    keys(KEY_NEXT, 5)
+    keys(KEY_NEXT, 5)
+    land = fw.var('coverflow_land__land', Land)
+    land.front, land.ms, land.len = LIBC.calloc(4, 1), -1, 400  # the pick: its press under way
+    fw.fn('drop_held', None)()
+    ui.animating = 0
+    keys.clock.now += 50
+    assert ui.fire('navigation__replay_wheel') == 0 and not ui.due('navigation__replay_wheel')
+    assert land.front and sv.ints[SEL] == 0  # the landing stays; the list didn't move
+    fw.fn('coverflow_land__land_end', None)()
+
+
 def test_a_reversal_drops_the_held_ticks(fw, keys, st):
     ui = Ui(fw)
     sv = list_page(ui, rows=40)

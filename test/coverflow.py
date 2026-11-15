@@ -382,6 +382,8 @@ static void *lit_list;
 int np_art_ready(void) { return np_ready; }
 int np_layout(void) { return np_centred; }
 void ringnav_light(void *list, int index) { lit_list = list, lit_row = index; }
+static int held_drops;
+void drop_held(void) { ++held_drops; }
 int bar_title_fits(void *label) { return 1; }
 void list_value(void *l, const char *t, const char *v) { (void)l, (void)t, (void)v; }
 /* CF_STYLE0: main() passes Minimal's .cf from tools/theme.py ROLE_MACROS, thumb off: the tick cases' (Modern inherits it);
@@ -7585,13 +7587,14 @@ static void land_lifecycle(void) {
     land_setup(1);
     widget *panel = land_panel("Folder"), *row = row_under(panel, 0), *view = &w[row->parent];
     unsigned base = mem_asks;
-    navs = 0, clock_ms = 1000, lit_row = -1;
+    navs = 0, clock_ms = 1000, lit_row = -1, held_drops = 0;
     /* The click: the row lit (a tap's too), the panel kept standing with its back captured and the art made, nothing
-       played yet; the press's timer for land_press (0: the next loop's, 1 ms). */
+       played yet; the press's timer for land_press (0: the next loop's, 1 ms). Wheel ticks held go (drop_held). */
     row->click(row->ctx, 0);
     int (*press)(const void *) = timer_fn;
     void *tex = land_tex, *back = land_back;
     assert(!navs && coverflow_landing() && coverflow_turning() && press && timer_ms == 1 && mem_asks == base + 1);
+    assert(held_drops == 1);
     assert(lit_row == 0 && lit_list == view && panel->visible && frames == 2 && tex && back);
     /* A second click during the press: nothing. (A Return then is ringnav's, land_key's: test/fw.) */
     row->click(row->ctx, 0);

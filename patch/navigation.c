@@ -11019,6 +11019,10 @@ static int replay_wheel(const void *info) {
     return 0;
 }
 
+/* A pick that lands (coverflow_land.c land_start) ends a held turn, as Centre does: a tick
+ * replayed after it would end the landing (land_key). Here, where the held count lives. */
+void drop_held(void) { st.held = 0; }
+
 /* The keyboard is its own top window: take the edit from the input method's owner. Close it
  * before stock's Return or the page's own can destroy the edit under it, which crashes demo; the
  * next Return goes back. Stock's search dialogs and the playlist editor's search (search_edit)

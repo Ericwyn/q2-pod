@@ -172,7 +172,7 @@ int land_turning(void) {
  * shown as it is: no first paint within LAND_FIRST_PAINT_MS of the open, another window on top,
  * another song, a touch on it, the wheel or Return (ringnav, land_key). */
 extern int np_layout(void), np_art_ready(void);
-extern void ringnav_light(void *list, int index);
+extern void ringnav_light(void *list, int index), drop_held(void);
 #define LAND_HOLD_TICK_MS 50
 #define LAND_FIRST_PAINT_MS 2000 /* open to Now Playing's first paint; about 700 ms on the Q2 */
 
@@ -404,5 +404,6 @@ int land_start(void *t, int row, unsigned t0) {
         land_end();
         return 0;
     }
+    drop_held(); /* wheel ticks held before a tap's pick */
     return 1;
 }
