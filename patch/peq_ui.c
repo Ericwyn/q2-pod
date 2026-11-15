@@ -808,7 +808,10 @@ static int render(const void *unused) {
         list_files(ui.screen == IMPORTS ? PEQ_IMPORT : PEQ_SAVED, ui.screen == IMPORTS ? ".txt" : ".peq");
         int last = ui.count ? (ui.count - 1) / FILE_PAGE : 0;
         if (ui.file_page < 0) ui.file_page = 0;
-        if (ui.file_page > last) { ui.file_page = last; selection = offset = 0; }
+        if (ui.file_page > last) { /* the card lost the page's files: its last page, from the top */
+            ui.file_page = last, offset = 0;
+            widget_set_prop_int(view, "_ringnav_index", 0); /* set above, from the page that went */
+        }
         if (ui.file_page) row(view, n++, "Previous page", FILE_PREV);
         if (ui.file_page < last) row(view, n++, "Next page", FILE_NEXT);
         for (int i = 0, start = ui.file_page * FILE_PAGE; i < FILE_PAGE && start + i < ui.count; ++i)
