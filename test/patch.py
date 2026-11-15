@@ -6829,6 +6829,12 @@ ple_search(m,'zzz'); assert m.showlabels()==['Search: zzz','No songs match']
 # Return from the box applies its text, and a filtered pick can close the page cleanly.
 m.choose(0); m.nodes[m.find('edit')]['text']='t1'; assert m.key()==11
 assert m.showlabels()==['Search: t1','T1']; m.close(); passed()
+# Add Songs lists the first 500 songs, under ringnav's MAX_ENTRIES (512), then a row that opens the Search box.
+m=PlaylistEditMachine(); m.found=[m.song(f'S{i:03}') for i in range(600)]; m.budget=1500000; m.open_editor()
+cost=[0]; hook=m.u.hook_add(UC_HOOK_CODE,lambda *a: cost.__setitem__(0,cost[0]+1),begin=BASE,end=SCRATCH-1)
+m.choose(0); m.u.hook_del(hook); cost_line('add songs 600',cost[0])
+labels=m.showlabels(); assert labels==['Search',*(f'S{i:03}' for i in range(500)),'Search for more songs'],(len(labels),labels[-2:])
+m.choose(501); edit=m.find('edit'); assert edit and m.nodes[edit]['name']=='search_edit' and m.order()==['A','B','C']; passed()
 # Header creation uses the database IDs even when the displayed list is alphabetized.
 class PlaylistLifecycleMachine(PlaylistEditMachine):
     def __init__(self):
