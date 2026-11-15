@@ -395,11 +395,11 @@ def slot_width(ui, bar):
 
 @pytest.mark.parametrize('mode, width', [(0, BODY_W + NUB_W), (1, PCT_W), (2, BODY_W + NUB_W + GAP + PCT_W),
                                          (3, INSIDE_W + NUB_W)])
-def test_the_slot_is_its_modes_ink_wide_and_the_bars_height(fw, st, ui, mode, width):
+def test_the_slot_is_its_modes_ink_wide_and_its_rows_height(fw, st, ui, mode, width):
     theme(fw, st, BATTERY=mode)
     bar = Bar(fw, ui)
     bar.sync()
-    assert ui.box(bar.slot)[2:] == (width, SETS[0].bar)
+    assert ui.box(bar.slot)[2:] == (width, ui.box(bar.row)[3])
     assert (ui.shown[bar.icon], ui.shown[bar.pct], ui.shown[bar.slot]) == (0, 0, 1)  # the slot paints it all
 
 
@@ -666,6 +666,18 @@ def test_classics_percent_shows_beside_bluetooth_wifi_and_the_play_state(fw, st,
     canvas = Paint(fw, ui, bar)()
     assert ui.shown[bar.state] and st.batt_mode == 1 and [x[0] for x in canvas.texts] == ['88%']
     assert slot_width(ui, bar) == 2 * 8 + 13
+
+
+@pytest.mark.parametrize('look', [0, 1])  # Classic's own bar, and a flat one on Classic's row
+def test_classics_percent_is_centred_on_the_icons_row_not_the_bar(fw, st, ui, look):
+    """Classic's icon row is 22 px of its 26 px bar: digits centred on the bar's height sat 2 px under the icons."""
+    theme(fw, st, CLASSIC, BATTERY=1, STATUSBAR=look)
+    bar = Bar(fw, ui)
+    ui.place(bar.row, 240, 0, 135, row_h(CLASSIC))
+    st.pct_digit, st.pct_sign = 8, 13
+    (text, rect, *_), = Paint(fw, ui, bar)().texts
+    assert row_h(CLASSIC) < SETS[GEOM['Classic']].bar
+    assert text == '88%' and rect == (0, 0, slot_width(ui, bar), row_h(CLASSIC))
 
 
 def test_the_first_measure_asks_for_the_bar_again_and_percent_takes_its_room(fw, st, ui):

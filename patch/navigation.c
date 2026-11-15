@@ -4093,7 +4093,9 @@ static void bar_sync(void *bar) {
                     ? pct
                     : (mode == 3 ? inside : body) + BATT_NUB_W + (mode == 2 ? BATT_GAP + pct : 0);
     int resized = I(st.bar_slot, W_W) != width;
-    widget_resize(st.bar_slot, width, geom_val(V_BAR));
+    /* the row's height, which the icons centre on: Classic's row is 4 px shorter than its bar, and
+     * the digits, centred on the bar's, sat 2 px below the icons */
+    widget_resize(st.bar_slot, width, I(P(st.bar_slot, W_PARENT), W_H));
     /* Resize only relayouts the slot's own children; the right-aligned row must
      * position it again even when Icon + Percent -> Icon keeps it visible. */
     if (resized) widget_layout_children(P(st.bar_slot, W_PARENT));
@@ -4206,11 +4208,11 @@ static void dark_battery(void *canvas, int x, int y, unsigned key) {
     bar_rect(canvas, RGBA(0xf5f5f5), x + 35, y + 10, 2, 5);
     paint_stops(canvas, x + 11, y + 8, 22 * (int)(key & 2 ? 100 : key >> 3) / 100, 9, &level);
 }
-/* A battery body bh rows high, either look's: its top in the slot w. Centred on the row's height,
- * as the icons beside it are, not on w's, which is the bar's (Classic's row is shorter than its
- * bar). Beside the percentage it rises BATT_PCT_DY, to the digits' ink. */
+/* A battery body bh rows high, either look's: its top in the slot w, which is its row's height
+ * (bar_sync), centred on it as the icons beside it are. Beside the percentage it rises
+ * BATT_PCT_DY, to the digits' ink. */
 static int batt_top(void *w, int bh) {
-    return (I(P(w, W_PARENT), W_H) + 1 - bh) / 2 - BATT_PCT_DY * (st.batt_mode == 2);
+    return (I(w, W_H) + 1 - bh) / 2 - BATT_PCT_DY * (st.batt_mode == 2);
 }
 /* Mode 1 is the percentage alone; mode 3 uses a compact solid battery with dark digits; mode 2
  * puts the percentage beside the charge-level icon. Under Classic the battery is
