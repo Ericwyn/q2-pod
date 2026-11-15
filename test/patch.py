@@ -11428,6 +11428,13 @@ for k,stop in ((O['KEY_NEXT'],0),(O['KEY_RETURN'],1)):
     assert (ret==11)==stop, ret
     assert m.plays and not landing(m) and m.top==m.np
     m.advance(400); assert len(m.plays)==1; passed()  # the press: plays now, the early Return kept from Cover Flow's page
+# Cover Flow's page keeps the keys until a page opened over it has its open event (Now Playing from a pick, a landing's second
+# Return): its keyup drops a Return then, not turning the panel back unseen. Under a dialog (a toast) the Return is its own.
+for kind,name,turns in (('window','playing_page',0),('dialog','msginfo_dialog',1)):
+    m=flip_open(); m.advance(300); m.top=m.node(kind,name); m.stack.append(m.top)
+    f,ctx=m.handler(m.page,O['EVT_KEY_UP']); ev=m.alloc(0x40); m.word(ev,O['EVT_KEY_UP']); m.word(ev+O['EVENT_KEY'],O['KEY_RETURN'])
+    assert m.call(address=f,args=(ctx,ev,0,0),gap=0)==11
+    assert len([t for t in m.timers.values() if t[1]==payload_syms['flip_close']])==turns,kind; passed()
 m=flip_open(); m.advance(300); m.missing=True; r=m.nodes[m.find('scroll_view')]['children'][0]; f,ctx=m.handler(r,O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0)
 assert not m.plays and m.nodes[[w for w in m.nodes[m.panel()]['children'] if m.nodes[w]['type']=='hscroll_label'][0]]['text']=='Storage unavailable'; passed()
 # The list scrolls by the wheel inside the panel, the header its sibling, so it stays; Go to Album's tracks alone have no covers to turn.

@@ -3597,11 +3597,17 @@ static void *page_under(void) {
 }
 
 /* Return: tracks -> covers (the slide_menu kept its album), preparing -> cancel and covers,
- * covers or the message -> Home, or back out of a scoped page (one album's tracks too). */
+ * covers or the message -> Home, or back out of a scoped page (one album's tracks too). A page
+ * opened over this one (Now Playing from a pick) takes keys only from its open event, after the
+ * pass's input: a Return before then is dropped, not this page's. Under a dialog or a toast, it
+ * is this page's, as before. */
 static int keyup(void *ctx, void *event) {
     if (I(event, EVENT_KEY) != KEY_RETURN) return 0;
+    void *top = window_manager_get_top_window(window_manager());
+    if (top && top != cf.page && !tk_strcmp(widget_get_type(top), "window"))
+        return 11; /* RET_STOP */
     if (fl.panel) { /* the panel's way back; during a turn, nothing */
-        if (!coverflow_turning()) rearm(&cf.timer, flip_close, 0); /* nor while it lands */
+        if (!coverflow_turning()) rearm(&cf.timer, flip_close, 0);
         return 11; /* RET_STOP */
     }
     if ((cf.screen == TRACKS && cf.scoped != ALBUM_TRACKS) || cf.screen == PREPARING)

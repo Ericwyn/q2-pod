@@ -3695,6 +3695,20 @@ def test_the_landing_ends_at_once(fw, mcl, case):
     assert run.tick(1100) == 0 and not run.land.front and run.invalidated() == (run.land.win or C.addressof(run.win), 0)
 
 
+@pytest.mark.parametrize('over, acts', [(None, True), ('window', False), ('dialog', True)])
+def test_a_return_under_a_page_not_yet_taking_keys_is_dropped(fw, over, acts):
+    """keyup: a page opened over Cover Flow's (Now Playing from a pick) takes keys only from its open event, after the
+    pass's input. A Return before then still comes to Cover Flow's page, which drops it: it would turn the panel back
+    unseen. Under a dialog or a toast the Return is Cover Flow's, as on its own."""
+    ui, c, flip = Ui(fw), cf(fw), fw.var('fl', Flip)
+    c.page, flip.panel = ui.make(0, 'window'), ui.make(0, 'view')
+    ui.top = ui.make(0, over) if over else c.page
+    e = (C.c_int * 16)()
+    e[O['EVENT_KEY'] // 4] = O['KEY_RETURN']
+    assert fw.fn('coverflow__keyup', C.c_int, C.c_void_p, C.c_void_p)(None, e) == 11  # RET_STOP
+    assert bool(ui.timer(address(fw, 'coverflow__flip_close'))) == acts
+
+
 def test_the_landing_goes_with_its_window(fw, mcl):
     run = Run(fw, mcl)
     gone = fw.fn('coverflow_land__land_gone', C.c_int, C.c_void_p, C.c_void_p)

@@ -7592,11 +7592,8 @@ static void land_lifecycle(void) {
     void *tex = land_tex, *back = land_back;
     assert(!navs && coverflow_landing() && coverflow_turning() && press && timer_ms == 1 && mem_asks == base + 1);
     assert(lit_row == 0 && lit_list == view && panel->visible && frames == 2 && tex && back);
-    /* A second click, and Return, during the press: nothing; Return leaves the page's timer to the press. */
+    /* A second click during the press: nothing. (A Return then is ringnav's, land_key's: test/fw.) */
     row->click(row->ctx, 0);
-    int e[16] = { 0 };
-    e[EVENT_KEY / 4] = KEY_RETURN;
-    w[8190].click(0, e);
     assert(!navs && timer_fn == press && land_tex == tex && land_back == back && frames == 2);
     /* The press: today's play (by album, 0xff10, the album's queue), the tick at FLIP_TICK_MS. The open took 150 ms:
        the motion's clock starts at the first paint, ms 0 drawn there. */

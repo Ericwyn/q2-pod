@@ -350,10 +350,8 @@ void land_drop(void) {
 /* ringnav's key until the motion's last frame, which names the bar, is drawn (land_turning's clock
  * runs out a tick, or a stall, sooner): the wheel or Return ends the landing, the bar then
  * naming Now Playing (a volume pop-up the tick opens would keep it on Cover Flow's). 1 for a
- * Return Now Playing doesn't take yet (its open event comes after the pass's input), which would
- * reach Cover Flow's page under it and turn the panel back unseen. ponytail: that Return is
- * dropped, not replayed after the open event; a second Return in that moment reaches the page, as
- * one does with no landing */
+ * Return Now Playing doesn't take yet (its open event comes after the pass's input): dropped, not
+ * replayed after the open event. A second one reaches Cover Flow's page, whose keyup drops it. */
 int land_key(unsigned key) {
     if (!land.front || land.ms >= land.L.len ||
         (key != KEY_PREV && key != KEY_NEXT && key != KEY_RETURN))
