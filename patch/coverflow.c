@@ -219,6 +219,17 @@ int has_key(const unsigned *keys, unsigned n, unsigned key) {
             hi = (lo + hi) / 2;
     return lo < n && keys[lo] == key;
 }
+/* The first of keys[0..n), sorted, not below key; n when none is (ratings.c's kept hearts). It is
+ * has_key's search: has_key keeps its own, so Cover Flow's open and Era make no extra call. */
+unsigned key_at(const unsigned *keys, unsigned n, unsigned key) {
+    unsigned lo = 0, hi = n;
+    while (lo < hi)
+        if (keys[(lo + hi) / 2] < key)
+            lo = (lo + hi) / 2 + 1;
+        else
+            hi = (lo + hi) / 2;
+    return lo;
+}
 
 /* path's size, -1 when it can't be opened */
 long file_size(const char *path) {
