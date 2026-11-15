@@ -148,7 +148,7 @@ int land_frame(unsigned *d, int pitch, int ms, const land_t *L, int box[4], int 
  * art; the frame, the panel's back and the art (the screen's BGRA); top the window under the press,
  * at the time Now Playing opened, t0 the first paint's (slid on by a late tick); ms the frame
  * rendered (-1 before the first paint), got and veil land_frame's, box its rect; path the song's
- * (fnv). */
+ * (song_key). */
 static struct {
     land_t L;
     void *win, *art, *frame, *top;
@@ -158,6 +158,11 @@ static struct {
 } land __attribute__((section(".scratch")));
 
 int coverflow_landing(void) { return land.front != 0; }
+
+/* A song's key: its path's FNV and its CUE start, as a CUE image's tracks share one path. */
+static unsigned song_key(void *r) {
+    return hash_bytes(fnv(FNV_SEED, P(r, REC_PATH)), (const unsigned char *)r + REC_CUE_START, 4);
+}
 
 /* From the click until the motion ends (coverflow_turning). */
 int land_turning(void) {
@@ -254,7 +259,7 @@ static int land_tick(const void *unused) {
     /* ponytail: the touch is polled per tick (16 ms, the hold's 50), so a tap shorter than a tick
      * goes to Now Playing; ending it on the pointer's own down event would catch every one */
     if (window_manager_get_top_window(wm) != land.win || !(r = queue_now(&pos, &n)) ||
-        fnv(FNV_SEED, P(r, REC_PATH)) != land.path || window_manager_get_pointer_pressed(wm)) {
+        song_key(r) != land.path || window_manager_get_pointer_pressed(wm)) {
         bar_title_name(land.win); /* a dialog on top keeps the bar's title: Now Playing's */
         widget_invalidate_force(land.win, 0);
         land.timer = 0;
@@ -397,7 +402,7 @@ int land_start(void *t, int row, unsigned t0) {
         land_end();
         return 0;
     }
-    land.path = fnv(FNV_SEED, P(t, REC_PATH)), land.row = row, land.ms = -1;
+    land.path = song_key(t), land.row = row, land.ms = -1;
     land.top = window_manager_get_top_window(window_manager());
     int wait = s->land_press - (int)((unsigned)time_now_ms() - t0);
     if (!(land.timer = timer_add(land_open, 0, wait < 1 ? 1 : (unsigned)wait))) {

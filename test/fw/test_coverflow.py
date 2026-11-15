@@ -3610,7 +3610,7 @@ class Run:
         land.len, land.travel, land.out_ms, land.np_at, land.np_ms = 400, 55, 110, 90, 100
         land.win, land.art = C.addressof(self.win), C.addressof(self.art)
         land.frame, land.back, land.front = LIBC.calloc(0x48, 1), LIBC.calloc(BACK_W * BACK_H, 4), LIBC.calloc(160 * 160, 4)
-        land.path, land.ms, land.at = fw.fn('fnv', C.c_uint, C.c_uint, C.c_char_p)(FNV, path), -1, 1000
+        land.path, land.ms, land.at = fw.fn('coverflow_land__song_key', C.c_uint, C.c_void_p)(self.rec), -1, 1000
         self.top, self.pressed, self.timer = land.win, 0, 7
         fw.mock('window_manager_get_top_window', lambda *_: self.top)
         fw.mock('window_manager_get_pointer_pressed', lambda *_: self.pressed)
@@ -3675,7 +3675,7 @@ def test_a_late_tick_slows_the_landing(fw, mcl):  # more than two ticks late: on
     assert run.tick(4517) == RET_REPEAT and run.tick(4518) == 0 and not land.front  # the hold: its own 2000 from there
 
 
-@pytest.mark.parametrize('case', ['pressed', 'top', 'song', 'none', 'dark', 'no_hold_timer'])
+@pytest.mark.parametrize('case', ['pressed', 'top', 'song', 'cue', 'none', 'dark', 'no_hold_timer'])
 def test_the_landing_ends_at_once(fw, mcl, case):
     run = Run(fw, mcl)
     if case == 'dark':
@@ -3690,6 +3690,8 @@ def test_the_landing_ends_at_once(fw, mcl, case):
     run.top = 0 if case == 'top' else run.top
     if case == 'song':
         run.path.value = b'/mnt/mmc/b.flac'
+    if case == 'cue':  # the next track of a CUE image: the same path
+        struct.pack_into('<i', run.rec, O['REC_CUE_START'], 240)
     if case == 'none':
         fw.mock('fw_deque_size', lambda *_: 0)
     assert run.tick(1100) == 0 and not run.land.front and run.invalidated() == (run.land.win or C.addressof(run.win), 0)
