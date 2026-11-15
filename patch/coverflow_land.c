@@ -254,13 +254,15 @@ static int land_gone(void *ctx, void *event) {
  * (while the frame is opaque or veiled, or was) or the face's old and new boxes invalidated; the
  * back freed once the front faces the eye. Then every LAND_HOLD_TICK_MS of the hold. */
 static int land_tick(const void *unused) {
-    void *wm = window_manager(), *r;
+    void *wm = window_manager(), *r, *top = window_manager_get_top_window(wm);
     unsigned now = (unsigned)time_now_ms(), pos, n;
     /* ponytail: the touch is polled per tick (16 ms, the hold's 50), so a tap shorter than a tick
      * goes to Now Playing; ending it on the pointer's own down event would catch every one */
-    if (window_manager_get_top_window(wm) != land.win || !(r = queue_now(&pos, &n)) ||
-        song_key(r) != land.path || window_manager_get_pointer_pressed(wm)) {
-        bar_title_name(land.win); /* a dialog on top keeps the bar's title: Now Playing's */
+    if (top != land.win || !(r = queue_now(&pos, &n)) || song_key(r) != land.path ||
+        window_manager_get_pointer_pressed(wm)) {
+        /* a dialog on top keeps the bar's title: Now Playing's; a page names its own */
+        if (top && top != land.win && tk_strcmp(widget_get_type(top), "window"))
+            bar_title_name(land.win);
         widget_invalidate_force(land.win, 0);
         land.timer = 0;
         land_end();

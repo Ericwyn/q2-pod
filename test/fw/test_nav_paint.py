@@ -1556,20 +1556,20 @@ def test_the_wheel_or_return_ends_cover_flow_s_landing_and_the_bar_names_now_pla
     assert not land.front and world[label].text == 'Now Playing'
 
 
-def test_a_dialog_that_ends_cover_flow_s_landing_leaves_the_bar_naming_now_playing(fw, world, st):
+@pytest.mark.parametrize('name, kind, title', [('msginfo_dialog', 'dialog', 'Now Playing'),
+                                              ('playerjumpinfo_page', 'window', 'Cover Flow')])
+def test_a_dialog_that_ends_cover_flow_s_landing_leaves_the_bar_naming_now_playing(fw, world, st, name, kind, title):
     """land_tick: a pop-up over Now Playing during the motion ends the landing. A dialog keeps the bar's title, which
-    the landing had left on Cover Flow's: it is Now Playing's now."""
+    the landing had left on Cover Flow's: it is Now Playing's now. A page names its own as it paints."""
     label = bar_title(fw, world, st)
     sync(fw, world.window('coverflow_page'))
     win = world.window('playing_page')
     land = fw.var('coverflow_land__land', Land)
     land.front, land.win, land.ms, land.len = LIBC.calloc(4, 1), win, 100, 400
-    dialog = world.window('msginfo_dialog', 'dialog')
+    world.window(name, kind)
     assert world[label].text == 'Cover Flow'
     assert fw.fn('coverflow_land__land_tick', C.c_int, C.c_void_p)(None) == 0 and not land.front
-    assert world[label].text == 'Now Playing'
-    sync(fw, dialog)
-    assert world[label].text == 'Now Playing'
+    assert world[label].text == title
 
 
 def test_a_wheel_tick_after_the_landing_s_clock_but_before_its_last_frame_still_names_now_playing(fw, world, st):
