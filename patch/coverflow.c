@@ -2026,11 +2026,12 @@ unsigned *fx_buf(int i) { /* slot i's texture */
 }
 
 /* A decoded image copied into a texture: fitted whole and centred, nearest sampled to ART_SIZE,
- * over black, so a non-square cover shows uncropped between black bars, as Now Playing shows it.
+ * over bar (a grey level: 0 black, the shelf's), so a non-square cover shows uncropped between
+ * bars, as Now Playing shows it.
  * Only 32-bit formats (BITMAP_RGBA_AT); stock decodes covers to RGBA8888 with straight alpha,
  * composited over the page (black or Light Mode's paper). The image manager's copy is only read,
  * and a cover's load is dropped again at once, as stock does. */
-int cf_decode(const char *url, unsigned *out, int unload) {
+int cf_decode(const char *url, unsigned *out, int unload, unsigned bar) {
     static const unsigned char at[4][4] = BITMAP_RGBA_AT;
     unsigned bitmap[64]; /* bitmap_t */
     if (widget_load_image(cf.page, url, bitmap)) return 0;
@@ -2049,7 +2050,7 @@ int cf_decode(const char *url, unsigned *out, int unload) {
             unsigned sy = y * side / ART_SIZE - (side - h) / 2; /* wraps above the image */
             for (unsigned x = 0; x < ART_SIZE; ++x) {
                 if (sy >= h || xoff[x] == ~0u) {
-                    *out++ = 0xff000000u;
+                    *out++ = 0xff000000u | bar * 0x010101u;
                     continue;
                 }
                 const unsigned char *px = data + sy * stride + xoff[x];
@@ -2077,7 +2078,7 @@ static void fx_close(void) {
 
 static void fx_placeholder(void) {
     unsigned *placeholder = FX_PLACEHOLDER;
-    if (!cf_decode(PLACEHOLDER, placeholder, 0)) /* a theme image: the manager keeps it */
+    if (!cf_decode(PLACEHOLDER, placeholder, 0, 0)) /* a theme image: the manager keeps it */
         for (int i = 0; i < CF_TEXELS; ++i) placeholder[i] = 0xff3a3a3au;
     fx.light = ipod_light();
 }
@@ -2124,7 +2125,7 @@ void fx_fill(int i, int a, int half) {
     if (half && cf.scoped != PLAYLISTS &&
         half_read(album_key(deque_at(cf.albums, (unsigned)a)), buf))
         fx.art[i] = buf, fx.half[i] = 1;
-    else if (art_url(url, (unsigned)a) && cf_decode(url, buf, 1))
+    else if (art_url(url, (unsigned)a) && cf_decode(url, buf, 1, 0))
         fx.art[i] = buf;
 }
 
@@ -3144,10 +3145,13 @@ void play_folder(void *dq, int idx, int cls) {
 }
 
 static unsigned cover_load __attribute__((section(".scratch"))); /* playback_loads at its play */
-/* A row of the panel plays its queue at idx: a playlist's songs as a song list (0xf001), its load
- * marked for Now Playing's More (coverflow_playlist_queue). */
-void coverflow_play(void *dq, int idx, int cls) {
-    play_folder(dq, idx, cls);
+/* The panel's row plays its queue (cf.tracks) from there: a playlist's songs as a song list
+ * (0xf001), as 0xff10 would resume the first song's album and its own list's 0xff13 needs stock's
+ * playlist set (docs/internals.md, Cover Flow scope), its load marked for Now Playing's More
+ * (coverflow_playlist_queue). */
+void coverflow_play(int row) {
+    int cls = cf.scoped == PLAYLISTS ? 0xf001 : 0xff10;
+    play_folder(cf.tracks, row, cls);
     if (cls == 0xf001) cover_load = playback_loads; /* its load, play_folder's */
 }
 
@@ -3160,10 +3164,7 @@ static int play(void *ctx, void *event) {
         page_retitle(cf.page, cf.title, "Storage unavailable");
         return 0;
     }
-    /* a playlist's songs play as a song list: 0xff10 would resume the first song's album, and its
-     * own list's 0xff13 needs stock's playlist set (docs/internals.md, Cover Flow scope) */
-    if (!land_start(t, i, t0))
-        coverflow_play(cf.tracks, i, cf.scoped == PLAYLISTS ? 0xf001 : 0xff10);
+    if (!land_start(t, i, t0)) coverflow_play(i);
     return 0;
 }
 /* The queue is a playlist's songs played from its cover, no queue loaded since: Now Playing's More
@@ -3268,8 +3269,8 @@ static void panel_fit(void *title, void *time, unsigned n) {
 /* The panel as it stands into fl.back, hidden after: painted by stock on an offline canvas of the
  * screen's size and format, at its screen place, as stock's window snapshots are, so the paint
  * hooks' coordinates hold. The screen's lcd is BGRA8888, as the frame. No canvas, or a layout not
- * the screen's: the paper, so the turn still runs. */
-void flip_capture(void) {
+ * the screen's: the paper, so the turn still runs; whether it was painted. */
+int flip_capture(void) {
     void *c = canvas_offline_create(CF_VIEW_W, 320, LCD_BGRA8888);
     const unsigned *fb = 0;
     if (c) {
@@ -3292,6 +3293,7 @@ void flip_capture(void) {
         for (int x = 0; x < BACK_W; ++x) *o++ = fb ? fb[y * CF_VIEW_W + x] | 0xff000000u : paper;
     if (c) canvas_offline_destroy(c);
     widget_set_visible(fl.panel, 0, 0);
+    return fb != 0;
 }
 
 static void flip_done(void);
@@ -4249,7 +4251,10 @@ void coverflow_slant_close(void) {
 void coverflow_slant(void *w, void *canvas, unsigned paper) {
     static const unsigned char at[4][4] = BITMAP_RGBA_AT;
     unsigned bitmap[64]; /* bitmap_t */
-    if (coverflow_landing()) return; /* the landing draws over the art: no render under it */
+    if (coverflow_landing()) { /* the landing's art, not rendered under it */
+        land_art(w, canvas);
+        return;
+    }
     const char *url = widget_get_prop_str(w, "image", (void *)0);
     if (!url || !*url || widget_load_image(w, url, bitmap)) return; /* stock's copy: kept loaded */
     unsigned bw = bitmap[0], bh = bitmap[1], format = ((unsigned short *)bitmap)[7] - 1u;

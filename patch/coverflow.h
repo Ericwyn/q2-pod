@@ -185,11 +185,10 @@ typedef struct {
 extern cf_thumb_t th;
 
 /* coverflow.c */
-void coverflow_play(void *dq, int idx, int cls);
+void coverflow_play(int row);
 void *queue_now(unsigned *pos, unsigned *n);
-const char *now_tag(void *r, int field);
 int flip_alloc(void);
-void flip_capture(void);
+int flip_capture(void);
 void slant_render(unsigned *d, int pitch, int side, int rows, const unsigned *tex, int t,
                   unsigned paper);
 unsigned album_key(void *r);
@@ -201,7 +200,7 @@ void art_strike(const char *note);
 int ff_wait(int pid, const char *tmp, const char *dst, int *exited);
 int ff_thumb(const char *src, const char *dst, int w, int h);
 char *art_path(char *out, unsigned key, const char *suffix);
-int cf_decode(const char *url, unsigned *out, int unload);
+int cf_decode(const char *url, unsigned *out, int unload, unsigned bar);
 /* the texture pool (fx_window): the shelf's slots, then the placeholder */
 int fx_base(void);
 #define FX_PLACEHOLDER (fx.tex + fx_base() * CF_TEXELS)
@@ -256,6 +255,7 @@ int coverflow_landing(void);
 int land_turning(void);
 int land_start(void *t, int row, unsigned t0);
 void land_paint(void *w, void *canvas);
+void land_art(void *w, void *canvas);
 void land_drop(void);
 
 /* Optional browsing position. */

@@ -632,9 +632,9 @@ def rgba(w, h, colour):
     return (C.c_ubyte * len(data)).from_buffer_copy(data)
 
 
-def decoded(fw, unload=1):
+def decoded(fw, unload=1, bar=0):
     out = exact(C.c_uint, ART * ART)
-    ok = fw.fn('cf_decode', C.c_int, C.c_char_p, C.c_void_p, C.c_int)(b'x', out, unload)
+    ok = fw.fn('cf_decode', C.c_int, C.c_char_p, C.c_void_p, C.c_int, C.c_uint)(b'x', out, unload, bar)
     return ok, out
 
 
@@ -652,6 +652,8 @@ def test_decode_a_wide_cover_sits_between_black_bars(fw):
     _, out = decoded(fw)
     column = [out[y * ART + 80] for y in range(ART)]
     assert column == [0xff000000] * 40 + [0xff0000c8] * 80 + [0xff000000] * 40
+    _, out = decoded(fw, bar=0xf4)  # the landing's: Now Playing's paper
+    assert [out[y * ART + 80] for y in range(ART)] == [0xfff4f4f4] * 40 + [0xff0000c8] * 80 + [0xfff4f4f4] * 40
 
 
 def test_decode_a_tall_cover_too(fw):
@@ -3651,11 +3653,11 @@ def test_the_landing_runs_from_its_first_paint_and_hands_over(fw, mcl):
     assert run.paint(2000) == (1, 0) and land.t0 == 2000 and land.got == 1  # ms 0, opaque: the whole frame
     assert run.tick(2016) == RET_REPEAT and run.invalidated() == (win, 0) and land.back
     assert run.run_to(2120) == RET_REPEAT and run.invalidated() == (win, 0) and not land.back  # veiled; face up
-    assert run.paint() == (1, 2)  # the veil, the art's box, the face
-    assert run.run_to(2216) == RET_REPEAT and run.paint() == (1, 1)
+    assert run.paint() == (1, 1)  # the veil and the face: the art's box is land_art's, under the page dots
+    assert run.run_to(2216) == RET_REPEAT and run.paint() == (1, 0)
     assert run.run_to(2300) == RET_REPEAT and run.invalidated()[1]  # only the face's boxes now
     assert run.run_to(2400) == 0 and land.timer == 7 and land.got == 2  # landed: the hold's tick
-    assert run.paint() == (1, 1)
+    assert run.paint() == (0, 0)  # nothing over Now Playing's children: the landed frame is land_art's
     assert run.tick(2450) == RET_REPEAT  # Now Playing's art not this song's yet
     assert run.tick(4400) == 0 and not land.front and run.invalidated() == (C.addressof(run.art), 0)
 
@@ -3677,7 +3679,7 @@ def test_a_late_tick_slows_the_landing(fw, mcl):  # more than two ticks late: on
 def test_the_landing_ends_at_once(fw, mcl, case):
     run = Run(fw, mcl)
     if case == 'dark':
-        assert run.tick(2999) == RET_REPEAT and run.tick(3000) == 0 and not run.land.front  # no first paint in land_hold
+        assert run.tick(2999) == RET_REPEAT and run.tick(3000) == 0 and not run.land.front  # no first paint within LAND_FIRST_PAINT_MS
         return
     run.paint(1000)
     if case == 'no_hold_timer':
@@ -3698,3 +3700,24 @@ def test_the_landing_goes_with_its_window(fw, mcl):
     gone = fw.fn('coverflow_land__land_gone', C.c_int, C.c_void_p, C.c_void_p)
     assert gone(C.addressof(run.art), None) == 0 and run.land.front  # another window's
     assert gone(C.addressof(run.win), None) == 0 and not run.land.front
+
+
+def test_the_landing_s_art_is_drawn_in_the_art_s_own_paint(fw, mcl):
+    """land_art, from coverflow_slant: the art's box in the paper (Now Playing's own art not shown), once landed the
+    landed frame at the art's place; what Now Playing paints after the art (the page dots) stays on top."""
+    run = Run(fw, mcl)
+    art, land = run.fw.fn('land_art', None, C.c_void_p, C.c_void_p), run.land
+    fills = lambda: [c[1][1:5] for c in fw.calls('canvas_fill_rect')]
+    art(land.win, C.addressof(run.canvas))
+    assert not fills() and not fw.calls('canvas_draw_image')  # another widget's paint
+    run.paint(2000)
+    run.run_to(2200)
+    before = len(fw.calls('canvas_draw_image'))
+    art(land.art, C.addressof(run.canvas))
+    assert fills()[-1] == (0, 0, 178, 218) and len(fw.calls('canvas_draw_image')) == before  # in the motion: paper
+    run.run_to(2400)
+    rects = []  # its src and dst, read while they live (dst is on land_art's stack)
+    fw.mock('canvas_draw_image', lambda c, b, src, dst, *_: rects.append([list((C.c_int * 4).from_address(r)) for r in (src, dst)]))
+    art(land.art, C.addressof(run.canvas))
+    assert fills()[-1] == (0, 0, 178, 218) and land.got == 2
+    assert rects == [[list(land.box), [0, 0, 178, 218]]] and list(land.box) == [16, 22, 178, 218]

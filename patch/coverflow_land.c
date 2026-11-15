@@ -200,8 +200,8 @@ static void land_render(int ms) {
 }
 
 /* Over Now Playing's window (ringnav_paint, after its children): the first paint starts the clock.
- * Opaque, the whole frame; else the paper's veil, the art's box in paper (Now Playing's own art
- * under it), and the face's box. */
+ * Opaque, the whole frame; else, in the motion, the paper's veil and the face's box. The art's box
+ * is land_art's, under the page dots. */
 void land_paint(void *w, void *canvas) {
     if (!w || w != land.win) return;
     if (land.ms < 0) {
@@ -219,10 +219,21 @@ void land_paint(void *w, void *canvas) {
         stock_canvas_set_fill_color(canvas, paper | (unsigned)land.veil << 24);
         canvas_fill_rect(canvas, 0, 0, CF_VIEW_W, FLIP_H);
     }
-    stock_canvas_set_fill_color(canvas, paper | 0xff000000u);
-    canvas_fill_rect(canvas, land.L.to[0], land.L.to[1], I(land.art, W_W), I(land.art, W_H));
-    canvas_draw_image(canvas, land.frame, land.box, land.box);
+    if (!land.got) canvas_draw_image(canvas, land.frame, land.box, land.box);
     stock_canvas_set_fill_color(canvas, fill);
+}
+
+/* Now Playing's art under the landing (coverflow_slant, its own paint, so what Now Playing paints
+ * after it, the page dots, stays on top): the paper, so its own art does not show, and once landed
+ * the landed frame, at the art's place. */
+void land_art(void *w, void *canvas) {
+    if (!w || w != land.art) return;
+    unsigned fill = (unsigned)I(P(canvas, CANVAS_LCD), LCD_FILL_COLOR);
+    stock_canvas_set_fill_color(canvas, (ipod_light() ? scheme()->paper : 0) | 0xff000000u);
+    canvas_fill_rect(canvas, 0, 0, I(w, W_W), I(w, W_H));
+    stock_canvas_set_fill_color(canvas, fill);
+    int at[4] = { 0, 0, land.box[2], land.box[3] };
+    if (land.got == 2) canvas_draw_image(canvas, land.frame, land.box, at);
 }
 
 /* Now Playing's window going: the landing with it, the covers drawn again under it. */
@@ -240,6 +251,8 @@ static int land_gone(void *ctx, void *event) {
 static int land_tick(const void *unused) {
     void *wm = window_manager(), *r;
     unsigned now = (unsigned)time_now_ms(), pos, n;
+    /* ponytail: the touch is polled per tick (16 ms, the hold's 50), so a tap shorter than a tick
+     * goes to Now Playing; ending it on the pointer's own down event would catch every one */
     if (window_manager_get_top_window(wm) != land.win || !(r = queue_now(&pos, &n)) ||
         fnv(FNV_SEED, P(r, REC_PATH)) != land.path || window_manager_get_pointer_pressed(wm)) {
         widget_invalidate_force(land.win, 0);
@@ -249,6 +262,8 @@ static int land_tick(const void *unused) {
     }
     int len = land.L.len, hold = theme()->cf.land_hold, ms = (int)(now - land.t0);
     if (land.ms < 0) {
+        /* ponytail: Centre, Return and the wheel are dropped for up to LAND_FIRST_PAINT_MS + ms if
+         * Now Playing never paints; a Now Playing that shows dark sooner would need its own end */
         if (now - land.at < LAND_FIRST_PAINT_MS) return 8; /* RET_REPEAT: no first paint yet */
     } else if (land.ms < len) {
         /* late: one tick on from the last frame, never a skip */
@@ -274,7 +289,11 @@ static int land_tick(const void *unused) {
         if (!(land.timer = timer_add(land_tick, 0, LAND_HOLD_TICK_MS))) land_end();
         return 0;
     } else if (!np_art_ready() && ms - len < hold)
-        return 8;
+        return 8; /* ponytail: past hold, Now Playing's art not loaded yet shows as stock's init
+                   * left it (the last song's, or the placeholder) until np_art_poll loads it; a
+                   * longer hold, or holding on while it reads, would cover it */
+    /* ponytail: handed over, the 160-texel cache's art turns to stock's 356-texel cover, sharper;
+     * the landing rendering from stock's cover would need its decode before Now Playing's own */
     void *art = land.art; /* handed over: Now Playing's own art */
     land.timer = 0;
     land_end();
@@ -288,7 +307,7 @@ static int land_tick(const void *unused) {
  * canvas. */
 static int land_open(const void *unused) {
     land.timer = 0;
-    coverflow_play(cf.tracks, land.row, cf.scoped == PLAYLISTS ? 0xf001 : 0xff10);
+    coverflow_play(land.row);
     if (!land.front) return 0; /* ended while Now Playing opened */
     void *win = window_manager_get_top_window(window_manager()), *art = 0;
     if (win != land.top && !tk_strcmp(widget_get_prop_str(win, "name", ""), "playing_page"))
@@ -309,6 +328,11 @@ static int land_open(const void *unused) {
                  .np_at = s->land_np_at,
                  .np_ms = s->land_np_ms };
     for (void *a = art; a != win; a = P(a, W_PARENT)) L.to[0] += I(a, W_X), L.to[1] += I(a, W_Y);
+    if (L.to[0] < 0 || L.to[1] < 0 || L.to[0] + NP_IPOD_ART > CF_VIEW_W ||
+        L.to[1] + I(art, W_H) > FLIP_H) { /* outside the frame slant_render lands in */
+        land_end();
+        return 0;
+    }
     land.L = L, land.win = win, land.art = art, land.at = (unsigned)time_now_ms();
     widget_on(win, EVT_DESTROY, land_gone, win);
     return 0;
@@ -317,39 +341,44 @@ static int land_open(const void *unused) {
 /* Cover Flow closing or loading again under the landing: a press not over yet plays its song now,
  * as with no landing; a frame drawn over Now Playing goes with it. */
 void land_drop(void) {
-    if (land.timer && !land.win)
-        coverflow_play(cf.tracks, land.row, cf.scoped == PLAYLISTS ? 0xf001 : 0xff10);
+    if (land.timer && !land.win) coverflow_play(land.row);
     if (land.win) widget_invalidate_force(land.win, 0);
     land_end();
 }
 
 /* The click on row (t) at t0, or 0: Now Playing then opens at once, as under Minimal. Classic's
- * panel standing, Now Playing's leaning art, the memory for the frame, the back, the art and the
- * capture's canvas, and the art: an album's its cover's texture, not the placeholder; a
- * playlist's song's its album's, from the cache, as Home falls back to (coverflow_home_art). */
+ * panel standing, not turning back (a row's click can come during it: the turn's grab), Now
+ * Playing's leaning art, the memory for the frame, the back, the art and the capture's canvas, the
+ * art and the capture. The art is the cache's of the album the panel shows, a playlist's song's
+ * own album's, as Home falls back to (coverflow_home_art), over Now Playing's paper as its bars;
+ * no cache file, or a "no art" one, is refused. */
 int land_start(void *t, int row, unsigned t0) {
     const cf_style_t *s = &theme()->cf;
     unsigned kb = (CF_VIEW_W * (FLIP_H + 320) + BACK_W * BACK_H + CF_TEXELS) / 256 + MP4_SPARE_KB;
-    if (!classic_pages() || !s->land_ms || !fl.panel || np_layout() == NP_CENTRED ||
+    if (!classic_pages() || !s->land_ms || !fl.panel || fl.dir || np_layout() == NP_CENTRED ||
         mem_available_kb() < kb || !(land.front = calloc(CF_TEXELS, 4)))
         return 0;
-    int ok;
-    if (cf.scoped == PLAYLISTS) {
-        char url[600] = "file://";
-        art_path(url + 7, tags_key(now_tag(t, REC_ARTIST), now_tag(t, REC_ALBUM)), "");
-        ok = cf_decode(url, land.front, 1);
-    } else if ((ok = fl.front != FX_PLACEHOLDER))
-        memcpy(land.front, fl.front, CF_TEXELS * 4);
-    if (!ok || !flip_alloc()) {
+    /* ponytail: the album's cache, so a compilation track or a playlist song with its own embedded
+     * art swaps pictures at the hand-over; the track's own art would need its decode on the click
+     */
+    void *r = cf.scoped == PLAYLISTS ? t : deque_at(cf.albums, (unsigned)cf.album);
+    char url[600] = "file://";
+    if (r) art_path(url + 7, album_key(r), "");
+    if (!r || !cf_decode(url, land.front, 1, ipod_light() ? scheme()->paper & 255 : 0) ||
+        !flip_alloc()) {
         land_end();
         return 0;
     }
     for (int i = 0; i < CF_TEXELS; ++i) land.front[i] = bgra(land.front[i]);
     ringnav_light(widget_get_child(widget_get_child(fl.panel, 1), 0), row); /* lit, tapped too */
-    flip_capture();
+    int painted = flip_capture();
     widget_set_visible(fl.panel, 1, 0);
     widget_invalidate_force(fl.panel, 0);
     land.frame = fl.frame, land.back = fl.back, fl.frame = 0, fl.back = 0;
+    if (!painted) { /* the flip's paper would turn a blank sheet */
+        land_end();
+        return 0;
+    }
     land.path = fnv(FNV_SEED, P(t, REC_PATH)), land.row = row, land.ms = -1;
     land.top = window_manager_get_top_window(window_manager());
     int wait = s->land_press - (int)((unsigned)time_now_ms() - t0);
