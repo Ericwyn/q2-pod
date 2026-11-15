@@ -33,6 +33,8 @@ typedef struct {
     char name[32], id[16], repo[80], dir[17], bin[40], latest[32], dropped;
     const char *keep;
 } shelf_app;
+extern shelf_app shelf_apps[SH_MAX]; /* global: test/fw reads both by name */
+extern int shelf_n;
 shelf_app shelf_apps[SH_MAX];
 int shelf_n;
 #define apps shelf_apps

@@ -392,7 +392,8 @@ static int fold_order(int t16, int lean, int off16, signed char *order, pose_t *
     }
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < i; ++j) {
-            int col = lo[i] > lo[j] ? lo[i] : lo[j], to = hi[i] < hi[j] ? hi[i] : hi[j], ti, tj;
+            int col = lo[i] > lo[j] ? lo[i] : lo[j], to = hi[i] < hi[j] ? hi[i] : hi[j], ti = 0,
+                tj = 0;
             while (col <= to &&
                    !(fold_h(&ps[i], &q[i], col, &ti) && fold_h(&ps[j], &q[j], col, &tj)))
                 ++col;

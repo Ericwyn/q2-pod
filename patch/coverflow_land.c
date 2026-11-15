@@ -36,11 +36,11 @@ void land_quad(const int from[4], const int to[3], int ms, int len, int travel, 
     float x = (float)ms / len, m = land_ease(x * 100 / travel), u = land_ease(x), s = to[2],
           i = s * (256 - SLANT_FAR) / 512, end[8], d = 180 + (180 - LAND_LEAN) * u;
     float ax = to[0] + s / 2, ay = to[1] + s / 2, px = from[0] + from[2] / 2.f,
-          py = from[1] + from[3] / 2.f, th = d * 3.14159265f / 180;
+          py = from[1] + from[3] / 2.f, rad = d * 3.14159265f / 180;
     const float ks[8] = { to[0],     to[1],         to[0] + s, to[1] + i,
                           to[0] + s, to[1] + s - i, to[0],     to[1] + s };
     land_face(px + (ax - px) * m, py + (ay - py) * m, from[2] + (s - from[2]) * u,
-              from[3] + (s - from[3]) * u, sinf(th), cosf(th), q);
+              from[3] + (s - from[3]) * u, sinf(rad), cosf(rad), q);
     land_face(ax, ay, s, s, -LAND_LEAN_SIN, LAND_LEAN_COS, end);
     for (int j = 0; j < 8; ++j) q[j] += (ks[j] - end[j]) * u;
     *deg = d;
@@ -70,8 +70,8 @@ int land_frame(unsigned *d, int pitch, int ms, const land_t *L, int box[4], int 
     float q[8], deg;
     land_quad(L->from, L->to, ms, L->len, L->travel, q, &deg);
     float cs = cosf(deg * 3.14159265f / 180);
-    int back = cs < 0, i = back ? 2 : 0, j = 2 - i, tw = back ? BACK_W : ART_SIZE;
-    int th = back ? BACK_H : ART_SIZE,
+    int back = cs < 0, i = back ? 2 : 0, j = 2 - i, aw = back ? BACK_W : ART_SIZE;
+    int ah = back ? BACK_H : ART_SIZE,
         ra = cs <= 0 ? 0 : (int)(SLANT_REFLECT_A * cs / LAND_LEAN_COS);
     ra = ra > SLANT_REFLECT_A ? SLANT_REFLECT_A : ra;
     /* the screen's left edge (x0, its top t0, bottom b0) and right (x1, t1, b1), 1/256 px */
@@ -112,31 +112,31 @@ int land_frame(unsigned *d, int pitch, int ms, const land_t *L, int box[4], int 
         int s = (((a + b) >> 1) - x0) * 4096 / w; /* across, 12 bits */
         int y0 = t0 + ((t1 - t0) * s >> 12), y1 = b0 + ((b1 - b0) * s >> 12), h = y1 - y0;
         if (cx <= 0 || h < 256) continue;
-        int col = (s * ((b1 - t1) >> 4) / (h >> 4)) * tw >> 12, step = (th << 20) / (h >> 4);
+        int col = (s * ((b1 - t1) >> 4) / (h >> 4)) * aw >> 12, step = (ah << 20) / (h >> 4);
         int fade = h * SLANT_REFLECT_PCT / 100, end = ra ? y1 + fade : y1;
-        col = col < tw ? col : tw - 1;
+        col = col < aw ? col : aw - 1;
         int y = y0 >> 8 < 0 ? 0 : y0 >> 8, last = (end - 1) >> 8;
         for (; y <= last && y < FLIP_H; ++y) {
             int p = y << 8, f0 = p > y0 ? p : y0, f1 = p + 256 < y1 ? p + 256 : y1;
             int r0 = p > y1 ? p : y1, r1 = p + 256 < end ? p + 256 : end, wf = 0, wr = 0;
-            unsigned cf = 0, cr = 0, *o = d + y * pitch + x;
+            unsigned fc = 0, rc = 0, *o = d + y * pitch + x;
             if (f1 > f0) { /* the face's, its rows a step apart */
                 int v = ((p + 128 - y0) >> 4) * step >> 20;
-                cf = t[(v < 0 ? 0 : v < th ? v : th - 1) * tw + col];
+                fc = t[(v < 0 ? 0 : v < ah ? v : ah - 1) * aw + col];
                 wf = (f1 - f0) * cx >> 8;
             }
             if (r1 > r0) { /* the reflection's, as far under the bottom as the texel is above it */
                 int v = ((p + 128 - y1) >> 4) * step >> 20;
-                cr = t[(th - 1 - (v < 0 ? 0 : v < th ? v : th - 1)) * tw + col];
+                rc = t[(ah - 1 - (v < 0 ? 0 : v < ah ? v : ah - 1)) * aw + col];
                 wr = (r1 - r0) * (ra * (fade - ((r0 + r1) >> 1) + y1) / fade) >> 8;
                 wr = wr * cx >> 8;
             }
             if (opaque)
-                *o = (shade(*o, (unsigned)(256 - wf - wr)) + shade(cf, (unsigned)wf) +
-                      shade(cr, (unsigned)wr)) |
+                *o = (shade(*o, (unsigned)(256 - wf - wr)) + shade(fc, (unsigned)wf) +
+                      shade(rc, (unsigned)wr)) |
                      0xff000000u;
             else if (wf + wr) /* straight alpha: the colour, its share */
-                *o = ((wr ? wf ? tilt_mix(cf, cr, (unsigned)(wr * 256 / (wf + wr))) : cr : cf) &
+                *o = ((wr ? wf ? tilt_mix(fc, rc, (unsigned)(wr * 256 / (wf + wr))) : rc : fc) &
                       0xffffffu) |
                      (unsigned)(wf + wr > 255 ? 255 : wf + wr) << 24;
         }

@@ -144,8 +144,8 @@ int mp3_smpb(const unsigned char *h, unsigned n, const char *v, unsigned *start,
     }
     /* The tag's count leaves out the tag frame. Without a count, FFmpeg has nothing to check either. */
     if (frames && priming + samples + remainder != frames * spf) return 0;
-    *start = (tag ? spf : 0) + priming + 529;
-    *padding = remainder > 529 ? remainder - 529 : 0;
+    *start = (unsigned)((tag ? spf : 0) + priming + 529);
+    *padding = (unsigned)(remainder > 529 ? remainder - 529 : 0);
     *rate = hz;
     *channels = mono ? 1 : 2;
     return 1;

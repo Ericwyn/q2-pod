@@ -72,7 +72,7 @@ static void lavf_window(window *w, char *fc, int id, int rate, long long first) 
         long long padding = -1;
         if (!priming && from < 0 && from >= -MAX_PRIMING) {
             w->start = 0;
-            w->head = -from;
+            w->head = (int)-from;
         }
         /* A tag's priming of 0 on AAC, which always has some, can't be counted from. */
         if (priming && tag && __isoc99_sscanf(tag[1], "%*X %*X %X %llX", &remainder, &total) == 2)
@@ -140,5 +140,5 @@ void lavf_trim(void *d, void *sh, af_data *data) {
             n -= cut;
         }
     }
-    data->len = n * unit;
+    data->len = (int)(n * unit);
 }

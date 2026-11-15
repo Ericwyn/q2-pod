@@ -181,15 +181,15 @@ static void *wl_write(void *unused) {
     void *f = fopen("/mnt/data/q2-wheel.log", "ab");
     long size = f && !fseek(f, 0, 2) ? ftell(f) : -1;
     if (size >= 0 && size < WL_MAX_BYTES) {
-        char s[80];
-        tk_snprintf(s, sizeof s, "== wheel: %s at %u ms: gate drops %u, stops %u\n", wl_why,
+        char line[80];
+        tk_snprintf(line, sizeof line, "== wheel: %s at %u ms: gate drops %u, stops %u\n", wl_why,
                     wl_copy_at, wl_drops, wl_stops);
-        fputs(s, f);
+        fputs(line, f);
         for (unsigned i = 0; i < WL_FRAMES; ++i) {
             const wl_frame *k = &wl_copy[(wl_copy_next + i) % WL_FRAMES];
             if (!k->ms) continue; /* not filled yet */
-            tk_snprintf(s, sizeof s, "%u x=%d p=%d\n", k->ms, k->x, k->pressure);
-            fputs(s, f);
+            tk_snprintf(line, sizeof line, "%u x=%d p=%d\n", k->ms, k->x, k->pressure);
+            fputs(line, f);
         }
         fflush(f);
         fsync(fileno(f));
@@ -223,10 +223,10 @@ void wheel_gate_note(void) {
     if (now - wl_drop_at >= WHEEL_FRESH_MS) wl_flush("a tick with no ring frame");
     wl_drop_at = now;
 }
-static void wl_note_frame(const int *s) {
+static void wl_note_frame(const int *ts) {
     wl_frame *k = &wl_frames[wl_next++ % WL_FRAMES];
-    k->x = s[0], k->pressure = s[2], k->ms = (unsigned)time_now_ms();
-    if (!s[2]) wl_run = 0;
+    k->x = ts[0], k->pressure = ts[2], k->ms = (unsigned)time_now_ms();
+    if (!ts[2]) wl_run = 0;
 }
 static void wl_note_stop(void) {
     wl_stops++;
@@ -285,13 +285,13 @@ volatile int wheel_travel __attribute__((section(".scratch")));
 volatile int wheel_held __attribute__((section(".scratch"))); /* a finger on the wheel */
 
 /* struct ts_sample {int x, y; unsigned pressure; struct timeval tv;} */
-void wheel_sample(int *s, int ret, char *info) {
+void wheel_sample(int *ts, int ret, char *info) {
     if (ret <= 0) return;
-    wl_note_frame(s); /* x as it came, before anything judges it */
-    if (!s[2]) { /* lifted */
+    wl_note_frame(ts); /* x as it came, before anything judges it */
+    if (!ts[2]) {      /* lifted */
         /* Stock's lift path (0x638a68) ticks on an x away from its touch-down x, 0 once it has seen
          * this touch's lift, per sample and past wheel_post's guard: it only ever sees that x. */
-        s[0] = wh_anchor;
+        ts[0] = wh_anchor;
         wh_anchor = 0;
         wheel_mute = wh_armed = 0;
         if (wh_guard != DARK_OPEN) wh_guard = 0;
@@ -302,16 +302,16 @@ void wheel_sample(int *s, int ret, char *info) {
     if (now - wheel_frame_at >= WHEEL_FRESH_MS) wheel_mute = wh_armed = 0;
     wheel_frame_at = now;
     if (!wh_anchor) {
-        wh_anchor = wh_last = s[0];
+        wh_anchor = wh_last = ts[0];
         wh_acc = 0;
         wh_raw = 0;
         wheel_held = 1;
         return;
     }
-    int d = s[0] - wh_last, units = wheel_units ? wheel_units : WHEEL_TICK_UNITS * WHEEL_FINE;
+    int d = ts[0] - wh_last, units = wheel_units ? wheel_units : WHEEL_TICK_UNITS * WHEEL_FINE;
     d = d < -100 ? d + 200 : d > 100 ? d - 200 : d;
     d *= WHEEL_FINE;
-    wh_last = s[0];
+    wh_last = ts[0];
     if (wheel_raw) { /* games.c's Vortex reads the travel itself; nothing is queued for a menu */
         __sync_fetch_and_add(&wheel_travel, d / WHEEL_FINE);
         wh_acc = 0;
@@ -321,7 +321,7 @@ void wheel_sample(int *s, int ret, char *info) {
                 wh_tick_at = now;
                 wh_since++;
             }
-        s[0] = wh_anchor;
+        ts[0] = wh_anchor;
         return;
     }
     /* Sensitivity changed mid-turn (its own page takes the wheel): the carry keeps its share of a
@@ -341,7 +341,7 @@ void wheel_sample(int *s, int ret, char *info) {
         wl_note_tick(now, before);
         if (!wheel_mute) wheel_post(info, dir > 0 ? KEY_PREV : KEY_NEXT); /* x rising is back, as stock */
     }
-    s[0] = wh_anchor;
+    ts[0] = wh_anchor;
 }
 
 /* $t9 still holds ts_read, which stock loaded for its jalr; $s1 is the thread's info, which stock
@@ -395,7 +395,7 @@ static unsigned speed_read(int at) {
                : 0;
 }
 
-void playback_speed_start(void) { g_playspeed_mode = speed_read(M(MCL_POS)); }
+void playback_speed_start(void) { g_playspeed_mode = (unsigned char)speed_read(M(MCL_POS)); }
 /* A track's start: its folder's speed, sent to the decoder, which keeps the last track's otherwise. */
 void playback_track_speed(void) {
     playback_speed_start();

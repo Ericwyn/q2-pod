@@ -1292,10 +1292,10 @@ static void e3_paint(void *canvas) {
         caption(canvas, names[i], x, E3_BUTTONS, w, 40, !i && peq && n > 9 ? 16 : 20, 0xffffffffu);
     }
     for (int i = 0; i < 3; ++i) {
-        static const char *const names[] = { "Low", "Mid", "High" };
+        static const char *const bands[] = { "Low", "Mid", "High" };
         int x = 62 + 125 * i, y = e3_y(e3.gain[i]), focus = e3.focus == E3_LOW + i;
         if (focus) e3_box(canvas, x - 56, E3_SLIDERS, 112, e3_bottom() + 36 - E3_SLIDERS, 0x1a1a1a);
-        caption(canvas, names[i], x - 56, E3_SLIDERS, 112, 28, 20, peq ? CF_GREY : 0xffffffffu);
+        caption(canvas, bands[i], x - 56, E3_SLIDERS, 112, 28, 20, peq ? CF_GREY : 0xffffffffu);
         e3_box(canvas, x - 2, e3_top(), 4, e3_bottom() - e3_top(), 0x333333);
         e3_box(canvas, x - 3, y < zero ? y : zero, 6, y < zero ? zero - y : y - zero + 1, tone);
         e3_box(canvas, x - 20, y - 5, 40, 10, focus && e3.adjusting ? 0xffffff : peq ? 0x555555 : 0x8a8a8a);

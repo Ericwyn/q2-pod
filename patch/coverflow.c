@@ -1107,8 +1107,8 @@ static unsigned initial(int i) {
     }
     if (c >= 'a' && c <= 'z') c -= 32;
     if (c < 128) return c >= 'A' && c <= 'Z' ? c : '#';
-    for (unsigned i = 0; i < sizeof initial_misc / sizeof *initial_misc; ++i)
-        if (c >= initial_misc[i][0] && c <= initial_misc[i][1]) return '#';
+    for (unsigned k = 0; k < sizeof initial_misc / sizeof *initial_misc; ++k)
+        if (c >= initial_misc[k][0] && c <= initial_misc[k][1]) return '#';
     return c;
 }
 
@@ -1400,7 +1400,7 @@ extern int ringnav_artist_az(void);
 /* albums (split's rows) in place by year, as year_sql, or by name (Playback's Artist album order
  * A-Z): the query's order, then the albums it missed, then the Unknown album. navigation.c's artist pages. Out of memory they keep their order. */
 void coverflow_by_year(void *albums) {
-    unsigned n = deque_size(albums), m;
+    unsigned n = deque_size(albums), m = 0;
     char *taken = calloc(n + 1, 1);
     row_t *v = taken ? album_rows(albums, &m, by_album, 0) : 0;
     int found;
@@ -2391,7 +2391,7 @@ void coverflow_flip_render(unsigned *d, int pitch, int e, const unsigned *const 
     int back = a != e, at = e >> 4; /* at: 12 bits */
     const unsigned *t = tex[back ? 2 : 1];
     if (!c || !t) return; /* edge on */
-    int tw = back ? BACK_W : ART_SIZE, th = back ? BACK_H : ART_SIZE;
+    int aw = back ? BACK_W : ART_SIZE, ah = back ? BACK_H : ART_SIZE;
     int half = 1280 + (16 * (BACK_W / 2 - ART_SIZE / 2) * at >> 12);  /* half the width, 1/16 px */
     int top = 256 * cfs.top + (256 * (PANEL_Y - cfs.top) * at >> 12); /* 1/256 px */
     int bottom = top + 40960 + (256 * (BACK_H - ART_SIZE) * at >> 12), eye_y = 256 * FLIP_EYE_Y;
@@ -2405,13 +2405,13 @@ void coverflow_flip_render(unsigned *d, int pitch, int e, const unsigned *const 
         int y0 = eye_y + ((top - eye_y) * k >> 12), y1 = eye_y + ((bottom - eye_y) * k >> 12);
         int h = y1 - y0;
         if (h < 16) continue;
-        int col = (back ? 4095 - u : u + 4096) * tw >> 13, step = (th << 20) / (h >> 4);
+        int col = (back ? 4095 - u : u + 4096) * aw >> 13, step = (ah << 20) / (h >> 4);
         int ins = back ? 0 : h * cf_inset[col] / (ART_SIZE * 256), from = y0 + ins, to = y1 - ins;
         int first = from >> 8, last = (to - 1) >> 8, y = first < 0 ? 0 : first;
         unsigned *o = d + y * pitch + x;
         for (; y <= last && y < FLIP_H; ++y, o += pitch) {
             int v = (((y << 8) + 128 - y0) >> 4) * step >> 20; /* texel row */
-            unsigned px = t[(v < 0 ? 0 : v >= th ? th - 1 : v) * tw + col];
+            unsigned px = t[(v < 0 ? 0 : v >= ah ? ah - 1 : v) * aw + col];
             px = back ? px | 0xff000000u : bgra(px); /* the back is the screen's already */
             if (y != first && y != last) {
                 *o = px;
@@ -3434,7 +3434,7 @@ static void *page_under(void);
 #define PANEL_ROWS 200
 static int to_tracks(const void *unused) {
     cf.timer = 0;
-    int n;
+    int n = 0;
     char name[512];
     void *r = deque_at(cf.albums, (unsigned)cf.album), *under;
     if (cf.tracks) deque_destroy(cf.tracks), cf.tracks = 0;
@@ -4051,19 +4051,19 @@ void home_sharpen(unsigned *t, int n, int step) { /* test/coverflow.py */
     }
 }
 
-/* The decoded image (data, stride, channel order o, w x h) box filtered to tw x th texels at out,
+/* The decoded image (data, stride, channel order o, w x h) box filtered to aw x ah texels at out,
  * ostride texels a row, over the grey paper (a byte). Alpha-weighted sums, so only the average
  * divides; at most 4 x 4 samples a texel, so a huge embedded cover filters as quickly as a small
  * one. */
 static void box_filter(const unsigned char *data, unsigned stride, const unsigned char *o,
-                       unsigned w, unsigned h, unsigned *out, int ostride, int tw, int th,
+                       unsigned w, unsigned h, unsigned *out, int ostride, int aw, int ah,
                        unsigned paper) {
-    for (int y = 0; y < th; ++y) {
+    for (int y = 0; y < ah; ++y) {
         unsigned *px_out = out + y * ostride;
-        unsigned y0 = (unsigned)y * h / (unsigned)th, y1 = (unsigned)(y + 1) * h / (unsigned)th;
+        unsigned y0 = (unsigned)y * h / (unsigned)ah, y1 = (unsigned)(y + 1) * h / (unsigned)ah;
         y1 += y1 == y0;
-        for (int x = 0; x < tw; ++x) {
-            unsigned x0 = (unsigned)x * w / (unsigned)tw, x1 = (unsigned)(x + 1) * w / (unsigned)tw;
+        for (int x = 0; x < aw; ++x) {
+            unsigned x0 = (unsigned)x * w / (unsigned)aw, x1 = (unsigned)(x + 1) * w / (unsigned)aw;
             x1 += x1 == x0;
             unsigned r = 0, g = 0, b = 0, a = 0, n = 0, xs = (x1 - x0 + 3) / 4 * 4,
                      ys = (y1 - y0 + 3) / 4;
@@ -4085,7 +4085,7 @@ static void box_filter(const unsigned char *data, unsigned stride, const unsigne
  * the zoom's margin only (rx ry), from the old crop (u0 v0), so its edges never show. 1 when it
  * pans, -1 when nothing loads, 0 for a 16-bit decode or a cover too long for DRIFT_TEXELS, which
  * the stock fill shows still. home.tex holds it inside a border of its edges, a texel left and
- * above and two right and below (tw + 3 texels a row): home_render reads that far past the panel.
+ * above and two right and below (aw + 3 texels a row): home_render reads that far past the panel.
  * ponytail: only the playing track's cover, no iPod slideshow of library covers or crossfades;
  * library thumbnails are too small for the panel, so each change would decode a full cover. Light
  * Mode's paper behind a transparent cover changes with the next cover. */
@@ -4096,32 +4096,32 @@ static int home_tex(const char *url) {
     unsigned w = bitmap[0], h = bitmap[1], format = ((unsigned short *)bitmap)[7] - 1u;
     int fw, fh;
     home_fit(w, h, &fw, &fh);
-    int tw = fw * DRIFT_ZOOM_PCT / 100, th = fh * DRIFT_ZOOM_PCT / 100;
+    int aw = fw * DRIFT_ZOOM_PCT / 100, ah = fh * DRIFT_ZOOM_PCT / 100;
     const unsigned char *data = 0;
     if (!home.frame) home.frame = opaque_frame(HOME_PW, client_h(), 1);
-    if (home.frame && format < 4 && w && h && w <= 8192 && h <= 8192 && tw <= DRIFT_TEXELS / th) {
+    if (home.frame && format < 4 && w && h && w <= 8192 && h <= 8192 && aw <= DRIFT_TEXELS / ah) {
         free(home.tex);
-        home.tex = calloc((unsigned)(th + 3) * (unsigned)(tw + 3), 4);
+        home.tex = calloc((unsigned)(ah + 3) * (unsigned)(aw + 3), 4);
         data = home.tex ? bitmap_lock_buffer_for_read(bitmap) : 0;
     }
     if (data) {
         unsigned stride = bitmap_get_line_length(bitmap),
                  paper = ipod_light() ? scheme()->paper & 255 : 0;
-        int ts = tw + 3;                   /* home.tex's row, its border included */
+        int ts = aw + 3;                   /* home.tex's row, its border included */
         unsigned *tex = home.tex + ts + 1; /* texel 0, 0 */
-        box_filter(data, stride, at[format], w, h, tex, ts, tw, th, paper);
+        box_filter(data, stride, at[format], w, h, tex, ts, aw, ah, paper);
         bitmap_unlock_buffer(bitmap);
-        for (int y = 0; y < th; ++y) home_sharpen(tex + y * ts, tw, 1);
-        for (int x = 0; x < tw; ++x) home_sharpen(tex + x, th, ts);
-        for (int y = 0; y < th; ++y) {
+        for (int y = 0; y < ah; ++y) home_sharpen(tex + y * ts, aw, 1);
+        for (int x = 0; x < aw; ++x) home_sharpen(tex + x, ah, ts);
+        for (int y = 0; y < ah; ++y) {
             unsigned *row = tex + y * ts;
-            row[-1] = row[0], row[tw] = row[tw + 1] = row[tw - 1];
+            row[-1] = row[0], row[aw] = row[aw + 1] = row[aw - 1];
         }
-        /* then rows -1, th and th + 1, from the edge rows and their border */
+        /* then rows -1, ah and ah + 1, from the edge rows and their border */
         memcpy(home.tex, home.tex + ts, (unsigned)ts * 4);
-        for (int y = th + 1; y < th + 3; ++y)
-            memcpy(home.tex + y * ts, home.tex + th * ts, (unsigned)ts * 4);
-        home.tw = tw, home.rx = tw - fw, home.ry = th - fh;
+        for (int y = ah + 1; y < ah + 3; ++y)
+            memcpy(home.tex + y * ts, home.tex + ah * ts, (unsigned)ts * 4);
+        home.tw = aw, home.rx = aw - fw, home.ry = ah - fh;
         home.u0 = (fw - HOME_PW) / 2, home.v0 = (fh - client_h()) / 2, home.du = -1;
     }
     widget_unload_image(home.art, bitmap);
@@ -4190,8 +4190,8 @@ HOT unsigned lerp(unsigned a, unsigned b, unsigned k) {
 HOT unsigned bilerp(const unsigned *tex, int t, float u, float v) {
     int x = (int)(u * 256) - 128, y = (int)(v * 256) - 128, end = (t - 1) * 256 - 1;
     x = x < 0 ? 0 : x > end ? end : x, y = y < 0 ? 0 : y > end ? end : y;
-    unsigned fx = (unsigned)x & 255, fy = (unsigned)y & 255,
-             w[4] = { (256 - fx) * (256 - fy) >> 8, fx * (256 - fy) >> 8, (256 - fx) * fy >> 8, 0 };
+    unsigned xf = (unsigned)x & 255, yf = (unsigned)y & 255,
+             w[4] = { (256 - xf) * (256 - yf) >> 8, xf * (256 - yf) >> 8, (256 - xf) * yf >> 8, 0 };
     w[3] = 256 - w[0] - w[1] - w[2];
     const unsigned *p = tex + (y >> 8) * t + (x >> 8);
     return tap4(p[0], p[1], p[t], p[t + 1], w);
@@ -4285,10 +4285,10 @@ void coverflow_slant(void *w, void *canvas, unsigned paper) {
     unsigned *d = tex ? (unsigned *)bitmap_lock_buffer_for_write(slant.frame) : 0;
     if (d) { /* fitted whole and centred on the paper */
         unsigned fit = bw > bh ? bw : bh;
-        int tw = (int)(t * bw / fit), th = (int)(t * bh / fit);
+        int aw = (int)(t * bw / fit), ah = (int)(t * bh / fit);
         for (int i = 0; i < t * t; ++i) tex[i] = 0xff000000u | paper * 0x010101u;
-        box_filter(data, stride, at[format], bw, bh, tex + (t - th) / 2 * t + (t - tw) / 2, t, tw,
-                   th, paper);
+        box_filter(data, stride, at[format], bw, bh, tex + (t - ah) / 2 * t + (t - aw) / 2, t, aw,
+                   ah, paper);
         slant_render(d, (int)(bitmap_get_line_length(slant.frame) / 4), side, rows, tex, t, paper);
         bitmap_unlock_buffer(slant.frame);
         slant.key = key;
@@ -4390,10 +4390,11 @@ static void *pane_scaled(void *bitmap, const char *name, unsigned px) {
         unsigned fy = sharp(sy < 128 ? 0 : (sy - 128) & 255, px, h), y1 = y0 + 1 < h ? y0 + 1 : y0;
         for (unsigned x = 0; x < px; ++x) {
             unsigned sx = (2 * x + 1) * w * 128 / px, x0 = sx < 128 ? 0 : (sx - 128) >> 8;
-            unsigned fx = sharp(sx < 128 ? 0 : (sx - 128) & 255, px, w), x1 = x0 + 1 < w ? x0 + 1 : x0;
+            unsigned xf = sharp(sx < 128 ? 0 : (sx - 128) & 255, px, w),
+                     x1 = x0 + 1 < w ? x0 + 1 : x0;
             const unsigned char *r0 = data + y0 * stride, *r1 = data + y1 * stride;
             const unsigned char *s[4] = { r0 + x0 * 4, r0 + x1 * 4, r1 + x0 * 4, r1 + x1 * 4 };
-            unsigned k[4] = { (256 - fx) * (256 - fy), fx * (256 - fy), (256 - fx) * fy, fx * fy };
+            unsigned k[4] = { (256 - xf) * (256 - fy), xf * (256 - fy), (256 - xf) * fy, xf * fy };
             unsigned r = 0, g = 0, bl = 0, a = 0; /* each under 2^16 x 255 x 255 */
             for (int i = 0; i < 4; ++i) {
                 unsigned v = k[i] * s[i][o[3]];

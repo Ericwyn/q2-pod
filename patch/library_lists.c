@@ -568,7 +568,7 @@ static int era_pick(void *ctx, void *event) {
         return 0;
     }
     int n = 0;
-    void *songs, *r = (unsigned)(i - 2) < era.m ? era_record((unsigned)(i - 2), &songs, &n) : 0;
+    void *songs = 0, *r = (unsigned)(i - 2) < era.m ? era_record((unsigned)(i - 2), &songs, &n) : 0;
     if (n < 0) /* partial rows then an error: not an album to open */
         toast("Era unavailable");
     else if (!r || !coverflow_goto_album(r))

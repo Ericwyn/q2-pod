@@ -63,7 +63,7 @@ static int build(huff_t *h, const unsigned char *length, int n) {
     offs[1] = 0;
     for (int len = 1; len < 15; ++len) offs[len + 1] = offs[len] + h->count[len];
     for (int i = 0; i < n; ++i)
-        if (length[i]) h->symbol[offs[length[i]]++] = i;
+        if (length[i]) h->symbol[offs[length[i]]++] = (short)i;
     return 0;
 }
 
@@ -140,13 +140,13 @@ int book_inflate(const unsigned char *in, unsigned n, unsigned char *out, unsign
             int ncode = bits(&s, 4) + 4;
             if (nlen > 286 || ndist > 30) return -1;
             memset(length, 0, 19);
-            for (int i = 0; i < ncode; ++i) length[order[i]] = bits(&s, 3);
+            for (int i = 0; i < ncode; ++i) length[order[i]] = (unsigned char)bits(&s, 3);
             if (build(&lit, length, 19)) return -1;
             for (int i = 0; i < nlen + ndist;) {
                 int sym = decode(&s, &lit), len = 0, repeat;
                 if (s.err || sym < 0) return -1;
                 if (sym < 16) {
-                    length[i++] = sym;
+                    length[i++] = (unsigned char)sym;
                     continue;
                 }
                 if (sym == 16) {
@@ -155,7 +155,7 @@ int book_inflate(const unsigned char *in, unsigned n, unsigned char *out, unsign
                 } else
                     repeat = sym == 17 ? 3 + bits(&s, 3) : 11 + bits(&s, 7);
                 if (i + repeat > nlen + ndist) return -1;
-                while (repeat--) length[i++] = len;
+                while (repeat--) length[i++] = (unsigned char)len;
             }
             dl = length + nlen;
         }

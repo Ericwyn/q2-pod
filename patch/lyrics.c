@@ -192,7 +192,7 @@ int ringnav_lyric(void) {
     lrc_mark *m = 0;
     char *file = lrc_file, **v = 0;
     unsigned lib = 0;
-    void *q = P(mcl_pdeqplaylist, 0), *r, *f = 0;
+    void *q = P(mcl_pdeqplaylist, 0), *r = 0, *f = 0;
     lrc_file = 0;
     if (file && mclGetLyricSize() > 0) { /* a .lrc's synced lines replace stock's */
         n = lrc_parse(file + 3 * !memcmp(file, "\xef\xbb\xbf", 3), &l, &m);
@@ -378,7 +378,9 @@ static int ly_wrap(ly_line *l, const unsigned *s, const unsigned short *adv) {
         unsigned end = i;
         if (i < l->n && brk > start) end = brk, x = wbrk, i = resume;
         while (end > start && s[end - 1] == ' ') x -= adv[--end];
-        if (rows < LYRIC_ROWS) l->start[rows] = start, l->len[rows] = end - start, l->w[rows] = x;
+        if (rows < LYRIC_ROWS)
+            l->start[rows] = (unsigned short)start, l->len[rows] = (unsigned short)(end - start),
+            l->w[rows] = (unsigned short)x;
         ++rows;
     }
     return rows;
@@ -391,7 +393,7 @@ static void ly_layout(void *canvas, ly_line *l) {
     for (unsigned k = 0; k < l->n; ++k)
         adv[k] = (unsigned short)(canvas_measure_text(canvas, s + k, 1) + 0.5f);
     int rows = ly_wrap(l, s, adv);
-    l->px = LYRIC_PX, l->rows = rows < LYRIC_ROWS ? rows : LYRIC_ROWS;
+    l->px = LYRIC_PX, l->rows = (unsigned char)(rows < LYRIC_ROWS ? rows : LYRIC_ROWS);
 }
 
 /* Stock built lrc's rows (navigation.c ringnav_lyric_rows), a label a line: their table is the

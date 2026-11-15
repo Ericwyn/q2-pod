@@ -130,7 +130,8 @@ static unsigned save(const void *data, unsigned size, unsigned n, void *file) {
  * fetch_progress. ponytail: Stop is inferred from stock's play status, not signalled, so a stream that
  * sits stopped longer than that before it plays drops its copy too. Hook stock's stop if that bites. */
 static int progress(void *stopped_at, long long a, long long b, long long c, long long d) {
-    unsigned *at = stopped_at, now = now_ms(); /* low 32 bits: the difference below wraps safely */
+    unsigned *at = stopped_at,
+             now = (unsigned)now_ms(); /* low 32 bits: the difference below wraps safely */
     if (at[1]) return !td.all; /* Download All's: nothing played stops it, only its own end */
     if (mclGetPlayStatus() != 1) /* 1 stopped */
         *at = 0;
@@ -667,7 +668,7 @@ static int app_track(void *r, const char *id) {
     au_job *j = url ? calloc(1, sizeof *j + strlen(url) + 1) : 0;
     if (j) memcpy(j->url, url, strlen(url)), j->play = play, j->loads = playback_loads;
     pthread_mutex_unlock(au.lock);
-    unsigned long t;
+    unsigned long t = 0;
     if (j && pthread_create(&t, 0, app_start, j))
         free(j);
     else if (j)

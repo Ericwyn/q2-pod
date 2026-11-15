@@ -2531,18 +2531,18 @@ static void paint_selection(void *w, void *canvas) {
     if (band && (!tile || g_menu.kind == 4)) {
         if (speed) st.sel_accent = speed;
         if (painter == SEL_STOPS) { /* Classic's band: square and full width, the glass clips it */
-            int top = !!S->sel_top, tall = S->sel_tall_edge && r.h > geom(G_PITCH),
+            int lid = !!S->sel_top, tall = S->sel_tall_edge && r.h > geom(G_PITCH),
                 edge = tall ? 2 : !!S->sel_edge;
             if (tall) paint_stops(canvas, r.x, r.y, r.w, r.h, &S->sel); /* its lines go over them */
-            if (top) {
+            if (lid) {
                 stock_canvas_set_fill_color(canvas, RGBA(S->sel_top));
                 canvas_fill_rect(canvas, r.x, r.y, r.w, 1);
             }
             if (tall && S->sel_tall_top) {
                 stock_canvas_set_fill_color(canvas, RGBA(S->sel_tall_top));
-                canvas_fill_rect(canvas, r.x, r.y + top, r.w, 1);
+                canvas_fill_rect(canvas, r.x, r.y + lid, r.w, 1);
             }
-            if (!tall) paint_stops(canvas, r.x, r.y + top, r.w, r.h - top - edge, &S->sel);
+            if (!tall) paint_stops(canvas, r.x, r.y + lid, r.w, r.h - lid - edge, &S->sel);
             if (tall) {
                 stock_canvas_set_fill_color(canvas, RGBA(S->sel_tall_edge));
                 canvas_fill_rect(canvas, r.x, r.y + r.h - 2, r.w, 1);
@@ -2708,8 +2708,8 @@ static void paint_radio(void *w, void *canvas) {
         rect_t clear = { x - 13, y - 4, 26, 8 };
         fill_box(canvas, &clear, RGBA(S->fill), 0);
         for (int i = -1; i <= 1; ++i) {
-            rect_t dot = { x - 11 + (i + 1) * 7, y - 2, 4, 4 };
-            fill_box(canvas, &dot, RGBA(0x171717), 2);
+            rect_t pip = { x - 11 + (i + 1) * 7, y - 2, 4, 4 };
+            fill_box(canvas, &pip, RGBA(0x171717), 2);
         }
         stock_canvas_set_fill_color(canvas, fill);
         return;
@@ -3059,7 +3059,7 @@ static int lock_choice(void) {
     return g_keylock_flag ? 4 - g_keylock_mode : 0;
 }
 static void lock_set(int choice) {
-    g_keylock_mode = choice ? 4 - choice : 3;
+    g_keylock_mode = (unsigned char)(choice ? 4 - choice : 3);
     g_keylock_flag = choice != 0;
     write_int_config(g_keylock_mode, "SYSSET", "LOCKMODE");
     write_int_config(g_keylock_flag, "SYSSET", "LOCKFLAG");
@@ -6518,9 +6518,9 @@ int ringnav_image_add(void *manager, const char *name, void *bitmap) {
                         ((c & 255) * 299 + (c >> 8 & 255) * 587 + (c >> 16) * 114) / 1000;
                     c = grey * 0x010101;
                 }
-                p[o[0]] = c;
-                p[o[1]] = c >> 8;
-                p[o[2]] = c >> 16;
+                p[o[0]] = (unsigned char)c;
+                p[o[1]] = (unsigned char)(c >> 8);
+                p[o[2]] = (unsigned char)(c >> 16);
             }
         bitmap_unlock_buffer(bitmap);
     }
@@ -8972,7 +8972,7 @@ int ringnav_folder(void *win, void *ctx) {
     if (path[0]) {
         folder_reset_variable();
         memcpy((char *)g_folder_path, path, strlen(path) + 1);
-        g_folder_layer = layer;
+        g_folder_layer = (unsigned char)layer;
         folder_reload_data();
         folder_reinit_navbarname();
         folder_refresh(win);
@@ -10450,7 +10450,7 @@ static void vol_step(unsigned key) {
     if (value > g_maxvolume) value = g_maxvolume;
     if (value > 100) value = 100;
     if (value == g_volume) return;
-    g_volume = value;
+    g_volume = (unsigned char)value;
     device_set_volume(value, 1);
     write_int_config(value, "PLAYSET", "VOLUME");
 }
@@ -10995,11 +10995,11 @@ static int edit_single(const void *info) {
 
 static int edit_key(void *top, unsigned key) {
     static const unsigned release[EVENT_KEY / 4 + 1] = { [EVENT_KEY / 4] = KEY_CENTER };
-    int quick = top && !tk_strcmp(widget_get_prop_str(top, "name", ""), "statusbar_dialog");
+    int qs = top && !tk_strcmp(widget_get_prop_str(top, "name", ""), "statusbar_dialog");
     int n = fields(top);
-    if (!quick && !n && !slider_page(top)) return 0;
+    if (!qs && !n && !slider_page(top)) return 0;
     if (key == KEY_CENTER) {
-        if (quick) return 0;
+        if (qs) return 0;
         int press = center_press(&st.edit_press, &st.edit_at, edit_single, 0);
         if (!press)
             press = center_press(&st.edit_press, &st.edit_at, edit_single,
@@ -11009,14 +11009,14 @@ static int edit_key(void *top, unsigned key) {
     }
     if (key != KEY_PREV && key != KEY_NEXT) return 0;
     /* sliding open or shut (quick_stuck's states, or its slide timer): the wheel waits for it */
-    if (quick && ((unsigned)(I(g_dropdown_menu_state, 0) - 1) < 2 ||
-                  widget_get_prop_int(top, "timer_idex", -1) != -1))
+    if (qs && ((unsigned)(I(g_dropdown_menu_state, 0) - 1) < 2 ||
+               widget_get_prop_int(top, "timer_idex", -1) != -1))
         return 1;
-    if (quick && quick_volume()) return 0; /* stock's wheel volume */
+    if (qs && quick_volume()) return 0; /* stock's wheel volume */
     void *wm = window_manager();
     if (window_manager_is_animating(wm) || pointer_down()) return 1;
     int dir = key == KEY_NEXT ? 1 : -1;
-    if (quick) {
+    if (qs) {
         void *slider = widget_lookup(top, "slider_backlight", 1);
         if (!slider || !widget_get_visible(slider)) return 1;
         int value = widget_get_prop_int(slider, "value", 0);
@@ -11452,8 +11452,8 @@ int ringnav(void *ctx, void *event) {
         if (owned && id >= 0) buzzeer_switch(1); /* one click per row change, however far */
     } else {
         /* no row to select: the view's own end, not the selection's list_end */
-        int top = view_top(&g_menu), end = scroll_end(&g_menu, g_menu.height);
-        int next = clamp_step(top, end, dir * RING_STEP * step);
+        int at = view_top(&g_menu), end = scroll_end(&g_menu, g_menu.height);
+        int next = clamp_step(at, end, dir * RING_STEP * step);
         if (next == 0 || next >= end) st.wheel_run = 0;
         wheel_offset(&g_menu, next);
     }
