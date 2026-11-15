@@ -8,6 +8,7 @@
   - Status bar: under **Theme: Classic**, USB mode's screen has Classic's status bar, as every other screen does. It was black, with a plain white battery.
   - Language: a Q2 that an older version left on another language now starts in English. Q2 Pod is English only for now, and those screens were half in that language, with no row to change it back.
   - EQ: when presets go from the card while their list is open on a later page, the list falls back to its last page with the top row lit. The lit row could be one that page doesn't have.
+  - Tidal Downloads: a song with a very long artist and title together, such as a classical movement that lists every tempo marking, is saved to the card like any other. The card refused the names its download is written under, so it streamed every time it played and **Download Playing Songs** counted it as not saved; a little shorter, it was saved without its title and artist. A copy already saved that way stays so until **Clear All Downloads**.
 - **1.8.4**:
   - Playback: with **Memory Playback** or **In-Vehicle Mode** on, picking your queue back up at power-on reads only the queue's songs from the library, not the whole library, so it is much quicker and needs far less memory on a big library.
   - Library: **Recent** no longer reads the whole library to find the title of a song played from Folder, only that song, so it opens much faster on a big library.
