@@ -204,7 +204,7 @@ class Machine:
         self.handlers[syms['memcpy@GLIBC_2.0']]='memcpy'
         self.handlers[syms['memset@GLIBC_2.0']]='memset'
         self.mock('canvas_set_global_alpha')
-        self.mock('sqrtf@GLIBC_2.0','sinf@GLIBC_2.0','acosf@GLIBC_2.0',prefix='float:')
+        self.mock('sqrtf@GLIBC_2.0','sinf@GLIBC_2.0','cosf@GLIBC_2.0','acosf@GLIBC_2.0',prefix='float:')
         self.mock(*VG_MOCKS,prefix='vg:')
         self.handlers[payload_syms['peq_lib_localtime_r']]='localtime_r'
         self.code_hook=self.hooked()
@@ -664,7 +664,7 @@ class Machine:
             ret=1 if name[3:]=='vgcanvas_save' else 0
         elif name.startswith('float:'):
             x=struct.unpack('<f',struct.pack('<I',u.reg_read(UC_MIPS_REG_F12)))[0]
-            fn={'sqrtf@GLIBC_2.0':math.sqrt,'sinf@GLIBC_2.0':math.sin,'acosf@GLIBC_2.0':math.acos}[name[6:]]
+            fn={'sqrtf@GLIBC_2.0':math.sqrt,'sinf@GLIBC_2.0':math.sin,'cosf@GLIBC_2.0':math.cos,'acosf@GLIBC_2.0':math.acos}[name[6:]]
             ret=struct.unpack('<I',struct.pack('<f',fn(x)))[0]
             u.reg_write(UC_MIPS_REG_F0,ret)
         elif name in ('alloc:tk_calloc','alloc:tk_free'):
@@ -11398,7 +11398,27 @@ for armed,gap in ((1,0),(0,0),(0,100)):
     assert not m.panel() and flip_held(m)==held and m.nodes[m.slide]['visible']; passed()
 # Centre plays the row, Return as today; a missing card says so in the header.
 m=flip_open(); m.advance(300); view=m.find('scroll_view'); r=m.nodes[view]['children'][1]; f,ctx=m.handler(r,O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0)
+assert not m.plays; m.advance(1)  # Classic's landing: the row lit, it plays at the next loop (cf.land_press 0)
 assert m.plays[-1][0]=='playing_page' and m.plays[-1][2]==1 and m.plays[-1][3]==0xff10 and m.play_names==['T1','T2'] and m.nodes[m.panel()]['visible']; passed()
+# The landing: the press opens Now Playing (here a window with Classic's leaning art), and until its motion ends Return and the
+# wheel, through ringnav, are dropped: Now Playing stays, no volume dialog opens, no tick waits to be replayed.
+class LandMachine(FlipMachine):
+    def hook(self,u,address,size,unused):
+        opening=self.handlers.get(address,'')=='c:navigator_to_with_context' and self.text(u.reg_read(REGS[0]))=='playing_page'
+        ret=super().hook(u,address,size,unused)
+        if opening:
+            art=self.node('image','img_cover'); self.np=self.node('window','playing_page',[art]); self.word(art+O['W_PARENT'],self.np)
+            for off,v in (('W_X',O['SPOT_ART_X']),('W_Y',O['NP_IPOD_ART_Y']),('W_W',O['NP_IPOD_ART']),('W_H',O['NP_IPOD_ART']+40)): self.word(art+O[off],v)
+            self.top=self.np; self.stack.append(self.np); self.np_art=art
+        return ret
+m=classic_light_new(LandMachine); m.stock_load=1; m.open(); flip_click(m); m.advance(300); view=m.find('scroll_view'); r=m.nodes[view]['children'][1]
+f,ctx=m.handler(r,O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0); assert not m.plays
+for k in (O['KEY_RETURN'],O['KEY_NEXT']): assert m.call(k,gap=0)==11 and m.top==m.page and not m.plays and m.nodes[m.panel()]['visible']
+m.advance(1); assert m.plays and m.top==m.np
+m.draws=[]; m.call(address=payload_syms['coverflow_paint'],args=(m.np,m.canvas,0,0),gap=0); assert len(m.draws)==1 and m.draws[0][3]==(0,0,375,294)  # its first paint: ms 0, opaque
+for k in (O['KEY_RETURN'],O['KEY_NEXT'],O['KEY_PREV']): assert m.call(k,gap=0)==11 and m.top==m.np
+assert not [o for o in m.opened if 'volume' in o[0]] and not [c for c in m.calls if c[0] in ('navigator_back','vol_step')]
+m.advance(400); assert m.top==m.np and len(m.plays)==1 and m.call(address=payload_syms['coverflow_landing'],args=(0,0,0,0),gap=0)==1; passed()  # held over the art
 m=flip_open(); m.advance(300); m.missing=True; r=m.nodes[m.find('scroll_view')]['children'][0]; f,ctx=m.handler(r,O['EVT_CLICK']); m.call(address=f,args=(ctx,m.event,0,0),gap=0)
 assert not m.plays and m.nodes[[w for w in m.nodes[m.panel()]['children'] if m.nodes[w]['type']=='hscroll_label'][0]]['text']=='Storage unavailable'; passed()
 # The list scrolls by the wheel inside the panel, the header its sibling, so it stays; Go to Album's tracks alone have no covers to turn.

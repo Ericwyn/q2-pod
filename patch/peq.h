@@ -262,6 +262,21 @@ void *text(void *parent, int x, int y, int w, int h);
 #define PANEL_X 40 /* the panel's first column: Cover Flow's axis less half of it */
 #define BACK_W 294 /* its width and its rows' */
 void coverflow_panel_paint(void *canvas, int x, int y, int head, int h, int over);
+/* The landing's path (coverflow_land.c): the cubic ease-out, and the face's four corners. */
+float land_ease(float x);
+void land_quad(const int from[4], const int to[3], int ms, int len, int travel, float q[8],
+               float *deg);
+/* Classic's landing, the panel turning into Now Playing's art: what a frame of it is drawn from
+ * (coverflow_land.c land_frame). from is the panel's box (x, y, w, h), to the art's (x, y, side),
+ * in the frame's coordinates; the ms are the motion's, the covers' fade's and Now Playing's. The
+ * pixels are the screen's BGRA: shelf the side covers' frame (CF_VIEW_W wide, or 0), back BACK_W x
+ * BACK_H (0 once face up), front ART_SIZE square. */
+typedef struct {
+    int from[4], to[3], len, travel, out_at, out_ms, np_at, np_ms;
+    const unsigned *shelf, *back, *front;
+    unsigned paper; /* opaque */
+} land_t;
+int land_frame(unsigned *d, int pitch, int ms, const land_t *L, int box[4], int *veil);
 void panel_font(void *label, int px, int bold);
 void *page_open(const char *name, int (*closed)(void *, void *), int (*keyup)(void *, void *));
 void motion_open(void *page,

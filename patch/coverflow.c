@@ -620,6 +620,7 @@ static void stop(void) {
 static void fx_close(void);
 
 static void drop(void) {
+    land_drop(); /* its shelf is fx.frame */
     stop();
     fx_close();
     if (cf.tracks) deque_destroy(cf.tracks);
@@ -1768,17 +1769,6 @@ int unproject(const pose_t *p, int dx, int *u, int *h) {
     return 1;
 }
 
-#define HOT static inline __attribute__((always_inline)) /* -Oz would call these per pixel */
-
-/* p scaled by b (of 256), per 8-bit channel; alpha is left 0. */
-HOT unsigned shade(unsigned p, unsigned b) {
-    return ((p & 0xff00ffu) * b >> 8 & 0xff00ffu) | ((p & 0xff00u) * b >> 8 & 0xff00u);
-}
-/* A texel (RGBA8888, red low) as the screen's BGRA8888, opaque; both ways, but for the alpha. */
-HOT unsigned bgra(unsigned p) { /* R and B from p turned half way round (one rotr) */
-    return 0xff000000u | (p & 0xff00u) | ((p >> 16 | p << 16) & 0xff00ffu);
-}
-
 /* colour (alpha ignored) under what is already at px, covering cov (of 256) of the pixel */
 HOT void put(unsigned *px, unsigned colour, unsigned cov) {
     unsigned a = *px >> 24, have = a + (a >> 7), w = cov * (256 - have) >> 8;
@@ -2100,10 +2090,6 @@ static void *opaque_frame(int w, int h, int format) {
     return b;
 }
 
-HOT unsigned tilt_mix(unsigned a, unsigned b, unsigned w) { /* a to b, w of 256 */
-    return shade(a, 256 - w) + shade(b, w);
-}
-
 /* The frame and every texture at once, or neither: the flat covers then stand in. Under a thumb
  * theme 16 slots, 1.6 MB. */
 static int fx_open(void) {
@@ -2356,19 +2342,15 @@ static void fx_ring(int c, int n, const unsigned **ring) {
  * fl.back live only while a turn runs (about 776 KB): at rest the panel stands over the shelf's
  * frame, parted, drawn as it is. */
 #define FLIP_MS 270
-#define FLIP_TICK_MS 16
-#define FLIP_H 294     /* the frame's rows, the client area's */
-#define FLIP_EYE 700   /* px; the shelf's eye can be nearer than the panel's half width */
 #define FLIP_EYE_Y 147 /* the row the eye looks along, the frame's middle */
-#define FLIP_PART 24   /* px each way */
-#define BACK_H 285
 #define PANEL_Y 9
 #define PANEL_HEAD 57
 #define PANEL_MUTED 0xffaaaaaau /* stock's second line: the theme's muted, white when selected */
 #define PANEL_TWO 45 /* a playlist's rows, title over artist: five show, an album's seven */
 cf_flip_t fl __attribute__((section(".scratch")));
 
-int coverflow_turning(void) { return fl.dir != 0; }
+/* The flip's turn, or the landing from its click until its motion ends (coverflow_land.c). */
+int coverflow_turning(void) { return fl.dir != 0 || land_turning(); }
 
 /* The time's share of the turn (16.16) at ms of FLIP_MS: ease-in-out, .42, 0, .58, 1, at each
  * sixteenth of the time. Its own mirror, so backwards it's the same frames. */
@@ -2576,6 +2558,7 @@ static int touched(void);
  * for every widget: over Coverflow's slide_menu it draws the frame, rendered again only when the
  * position or a texture has changed. */
 void coverflow_paint(void *w, void *canvas) {
+    land_paint(w, canvas);
     coverflow_position_paint(w, canvas);
     int c, frac, n;
     if (fl.panel && w && flip_paint(w, canvas)) return;
@@ -3161,7 +3144,16 @@ void play_folder(void *dq, int idx, int cls) {
 }
 
 static unsigned cover_load __attribute__((section(".scratch"))); /* playback_loads at its play */
+/* A row of the panel plays its queue at idx: a playlist's songs as a song list (0xf001), its load
+ * marked for Now Playing's More (coverflow_playlist_queue). */
+void coverflow_play(void *dq, int idx, int cls) {
+    play_folder(dq, idx, cls);
+    if (cls == 0xf001) cover_load = playback_loads; /* its load, play_folder's */
+}
+
 static int play(void *ctx, void *event) {
+    unsigned t0 = (unsigned)time_now_ms();
+    if (coverflow_landing()) return 0; /* picked already: its press runs */
     int i = (int)(long)ctx;
     void *t = deque_at(cf.tracks, (unsigned)i);
     if (!t || access(P(t, REC_PATH), 0)) {
@@ -3170,8 +3162,8 @@ static int play(void *ctx, void *event) {
     }
     /* a playlist's songs play as a song list: 0xff10 would resume the first song's album, and its
      * own list's 0xff13 needs stock's playlist set (docs/internals.md, Cover Flow scope) */
-    play_folder(cf.tracks, i, cf.scoped == PLAYLISTS ? 0xf001 : 0xff10);
-    if (cf.scoped == PLAYLISTS) cover_load = playback_loads; /* its load, play_folder's */
+    if (!land_start(t, i, t0))
+        coverflow_play(cf.tracks, i, cf.scoped == PLAYLISTS ? 0xf001 : 0xff10);
     return 0;
 }
 /* The queue is a playlist's songs played from its cover, no queue loaded since: Now Playing's More
@@ -3277,7 +3269,7 @@ static void panel_fit(void *title, void *time, unsigned n) {
  * screen's size and format, at its screen place, as stock's window snapshots are, so the paint
  * hooks' coordinates hold. The screen's lcd is BGRA8888, as the frame. No canvas, or a layout not
  * the screen's: the paper, so the turn still runs. */
-static void flip_capture(void) {
+void flip_capture(void) {
     void *c = canvas_offline_create(CF_VIEW_W, 320, LCD_BGRA8888);
     const unsigned *fb = 0;
     if (c) {
@@ -3329,7 +3321,7 @@ static void flip_drop(void) {
 }
 
 /* A turn's buffers, both or neither. */
-static int flip_alloc(void) {
+int flip_alloc(void) {
     fl.frame = opaque_frame(CF_VIEW_W, FLIP_H, LCD_BGRA8888);
     fl.back = fl.frame ? calloc(BACK_W * BACK_H, 4) : 0;
     if (!fl.back) flip_drop();
@@ -3607,7 +3599,7 @@ static void *page_under(void) {
 static int keyup(void *ctx, void *event) {
     if (I(event, EVENT_KEY) != KEY_RETURN) return 0;
     if (fl.panel) { /* the panel's way back; during a turn, nothing */
-        if (!fl.dir) rearm(&cf.timer, flip_close, 0);
+        if (!coverflow_turning()) rearm(&cf.timer, flip_close, 0); /* nor while it lands */
         return 11; /* RET_STOP */
     }
     if ((cf.screen == TRACKS && cf.scoped != ALBUM_TRACKS) || cf.screen == PREPARING)
@@ -4257,6 +4249,7 @@ void coverflow_slant_close(void) {
 void coverflow_slant(void *w, void *canvas, unsigned paper) {
     static const unsigned char at[4][4] = BITMAP_RGBA_AT;
     unsigned bitmap[64]; /* bitmap_t */
+    if (coverflow_landing()) return; /* the landing draws over the art: no render under it */
     const char *url = widget_get_prop_str(w, "image", (void *)0);
     if (!url || !*url || widget_load_image(w, url, bitmap)) return; /* stock's copy: kept loaded */
     unsigned bw = bitmap[0], bh = bitmap[1], format = ((unsigned short *)bitmap)[7] - 1u;

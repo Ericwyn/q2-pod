@@ -3551,3 +3551,150 @@ def test_a_panel_length_too_wide_for_its_reserve_keeps_it(fw):
 def test_a_panel_row_keeps_its_reserve_with_no_canvas(fw):
     _, resize, move, *_ = panel_row(fw, '4:01', canvas=0)
     assert not resize and not move
+
+
+# Classic's landing (coverflow_land.c): its state from the click to the hand-over, on the device path. test/coverflow.py
+# runs it from the panel's click on the host; here the tick and the paint over Now Playing's window, with the C's own
+# buffers (calloc'd: land_end frees them).
+
+from test_nav_loop import Clock, Flip, Land  # noqa: E402
+import test_nav_paint  # noqa: E402  its theme(): the settings the C reads
+
+LIBC = C.CDLL(None)
+LIBC.calloc.restype = C.c_void_p
+LIBC.calloc.argtypes = [C.c_size_t, C.c_size_t]
+W_W, W_H, CANVAS_LCD, LCD_FILL_COLOR, REC_PATH = O['W_W'], O['W_H'], O['CANVAS_LCD'], O['LCD_FILL_COLOR'], O['REC_PATH']
+FLIP_H, BACK_W, BACK_H = 294, 294, 285
+RET_REPEAT = 8
+
+
+def test_the_landing_turns_from_its_click_until_its_motion_ends(fw):
+    clock = Clock(fw, 1000)
+    land, flip = fw.var('coverflow_land__land', Land), fw.var('fl', Flip)
+    turning, landing, end = fw.fn('coverflow_turning', C.c_int), fw.fn('coverflow_landing', C.c_int), fw.fn('coverflow_land__land_end', None)
+    assert not turning() and not landing()
+    flip.dir = 1
+    assert turning() and not landing()
+    flip.dir = 0
+    land.front, land.ms = LIBC.calloc(4, 1), -1  # clicked, no paint yet
+    assert turning() and landing()
+    land.ms, land.t0, land.len = 0, 1000, 400
+    clock.now = 1399
+    assert turning()
+    clock.now = 1400
+    assert not turning() and landing()  # held
+    land.frame = LIBC.calloc(0x48, 1)
+    end()
+    assert not landing() and len(fw.calls('bitmap_destroy')) == 1
+    end()
+    assert len(fw.calls('bitmap_destroy')) == 1  # nothing left to free
+
+
+class Run:
+    """A landing past its press, over Now Playing's window win: the tick and the paint, the clock, the queue's song."""
+    def __init__(self, fw, mcl, path=b'/mnt/mmc/a.flac'):
+        test_nav_paint.theme(fw, test_nav_paint.CLASSIC)
+        self.fw, self.clock = fw, Clock(fw, 1000)
+        self.land = land = fw.var('coverflow_land__land', Land)
+        self.win, self.art, self.px = C.create_string_buffer(0x100), C.create_string_buffer(0x100), (C.c_uint * (375 * FLIP_H))()
+        struct.pack_into('<ii', self.art, W_W, 178, 218)
+        self.lcd, self.canvas = C.create_string_buffer(0x200), C.create_string_buffer(0x100)
+        struct.pack_into('<Q', self.canvas, CANVAS_LCD, C.addressof(self.lcd))
+        struct.pack_into('<I', self.lcd, LCD_FILL_COLOR, 0x12345678)
+        self.path, self.rec = C.create_string_buffer(path), C.create_string_buffer(0x100)
+        struct.pack_into('<Q', self.rec, REC_PATH, C.addressof(self.path))
+        land.from_[:] = [40, 9, BACK_W, BACK_H]
+        land.to[:] = [16, 22, 178]
+        land.len, land.travel, land.out_ms, land.np_at, land.np_ms = 400, 55, 110, 90, 100
+        land.win, land.art = C.addressof(self.win), C.addressof(self.art)
+        land.frame, land.back, land.front = LIBC.calloc(0x48, 1), LIBC.calloc(BACK_W * BACK_H, 4), LIBC.calloc(160 * 160, 4)
+        land.path, land.ms, land.at = fw.fn('fnv', C.c_uint, C.c_uint, C.c_char_p)(FNV, path), -1, 1000
+        self.top, self.pressed, self.timer = land.win, 0, 7
+        fw.mock('window_manager_get_top_window', lambda *_: self.top)
+        fw.mock('window_manager_get_pointer_pressed', lambda *_: self.pressed)
+        fw.mock('timer_add', lambda *_: self.timer)
+        fw.var('fw_ctx_mcl_pdeqplaylist', C.c_void_p).value = 1  # the queue: one song, the landing's
+        fw.mock('fw_deque_size', lambda *_: 1)
+        fw.mock('fw_deque_at', lambda *_: C.addressof(self.rec))
+        fw.mock('bitmap_lock_buffer_for_write', lambda *_: C.addressof(self.px))
+        fw.mock('bitmap_lock_buffer_for_read', lambda *_: C.addressof(self.px))
+        fw.mock('bitmap_get_line_length', lambda *_: 375 * 4)
+        self.tick_fn = fw.fn('coverflow_land__land_tick', C.c_int, C.c_void_p)
+        self.paint_fn = fw.fn('land_paint', None, C.c_void_p, C.c_void_p)
+
+    def tick(self, at):
+        self.clock.now = at
+        return self.tick_fn(None)
+
+    def run_to(self, at):  # the motion's ticks on time, every 16 ms, to at: the last one's return
+        ret = None
+        while self.clock.now < at:
+            ret = self.tick(min(self.clock.now + 16, at))
+        return ret
+
+    def paint(self, at=None, w=None):
+        if at is not None:
+            self.clock.now = at
+        draws, fills = len(self.fw.calls('canvas_draw_image')), len(self.fw.calls('canvas_fill_rect'))
+        self.paint_fn(w or self.land.win, C.addressof(self.canvas))
+        return len(self.fw.calls('canvas_draw_image')) - draws, len(self.fw.calls('canvas_fill_rect')) - fills
+
+    def invalidated(self):
+        return self.fw.calls('widget_invalidate_force')[-1][1][:2]
+
+
+def test_the_landing_runs_from_its_first_paint_and_hands_over(fw, mcl):
+    run = Run(fw, mcl)
+    land, win = run.land, run.land.win
+    assert run.tick(1500) == RET_REPEAT  # no paint yet: it waits
+    assert run.paint(w=C.addressof(run.art)) == (0, 0)  # only its window's paint
+    assert run.paint(2000) == (1, 0) and land.t0 == 2000 and land.got == 1  # ms 0, opaque: the whole frame
+    assert run.tick(2016) == RET_REPEAT and run.invalidated() == (win, 0) and land.back
+    assert run.run_to(2120) == RET_REPEAT and run.invalidated() == (win, 0) and not land.back  # veiled; face up
+    assert run.paint() == (1, 2)  # the veil, the art's box, the face
+    assert run.run_to(2216) == RET_REPEAT and run.paint() == (1, 1)
+    assert run.run_to(2300) == RET_REPEAT and run.invalidated()[1]  # only the face's boxes now
+    assert run.run_to(2400) == 0 and land.timer == 7 and land.got == 2  # landed: the hold's tick
+    assert run.paint() == (1, 1)
+    assert run.tick(2450) == RET_REPEAT  # Now Playing's art not this song's yet
+    assert run.tick(4400) == 0 and not land.front and run.invalidated() == (C.addressof(run.art), 0)
+
+
+def test_a_late_tick_slows_the_landing(fw, mcl):  # more than two ticks late: one tick on from the frame, t0 slid
+    run = Run(fw, mcl)
+    land = run.land
+    run.paint(2000)
+    assert run.tick(2050) == RET_REPEAT and (land.ms, land.t0) == (16, 2034)
+    assert run.tick(2066) == RET_REPEAT and (land.ms, land.t0) == (32, 2034)
+    assert run.tick(2098) == RET_REPEAT and (land.ms, land.t0) == (64, 2034)  # two ticks: its own step
+    assert run.tick(2198) == RET_REPEAT and (land.ms, land.t0) == (80, 2118)
+    assert run.run_to(2517) == RET_REPEAT and land.ms == 399
+    assert run.tick(2518) == 0 and land.got == 2 and land.t0 == 2118  # landed at the slid t0's 400
+    assert run.tick(4517) == RET_REPEAT and run.tick(4518) == 0 and not land.front  # the hold: its own 2000 from there
+
+
+@pytest.mark.parametrize('case', ['pressed', 'top', 'song', 'none', 'dark', 'no_hold_timer'])
+def test_the_landing_ends_at_once(fw, mcl, case):
+    run = Run(fw, mcl)
+    if case == 'dark':
+        assert run.tick(2999) == RET_REPEAT and run.tick(3000) == 0 and not run.land.front  # no first paint in land_hold
+        return
+    run.paint(1000)
+    if case == 'no_hold_timer':
+        run.timer = 0
+        assert run.run_to(1400) == 0 and not run.land.front
+        return
+    run.pressed = case == 'pressed'
+    run.top = 0 if case == 'top' else run.top
+    if case == 'song':
+        run.path.value = b'/mnt/mmc/b.flac'
+    if case == 'none':
+        fw.mock('fw_deque_size', lambda *_: 0)
+    assert run.tick(1100) == 0 and not run.land.front and run.invalidated() == (run.land.win or C.addressof(run.win), 0)
+
+
+def test_the_landing_goes_with_its_window(fw, mcl):
+    run = Run(fw, mcl)
+    gone = fw.fn('coverflow_land__land_gone', C.c_int, C.c_void_p, C.c_void_p)
+    assert gone(C.addressof(run.art), None) == 0 and run.land.front  # another window's
+    assert gone(C.addressof(run.win), None) == 0 and not run.land.front
