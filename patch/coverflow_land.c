@@ -170,7 +170,7 @@ int land_turning(void) {
  * run for land_ms; then the landed art stays over Now Playing's own until that is this song's
  * (np_art_ready), or for land_hold ms at most. Anything else ends it at once, Now Playing then
  * shown as it is: no first paint within LAND_FIRST_PAINT_MS of the open, another window on top,
- * another song, a touch on it, the wheel or Return (ringnav, land_drop). */
+ * another song, a touch on it, the wheel or Return (ringnav, land_key). */
 extern int np_layout(void), np_art_ready(void);
 extern void ringnav_light(void *list, int index);
 #define LAND_HOLD_TICK_MS 50
@@ -347,14 +347,17 @@ void land_drop(void) {
     land_end();
 }
 
-/* ringnav's key before the motion ends: the wheel or Return ends the landing, the bar then naming
- * Now Playing (a volume pop-up the tick opens would keep it on Cover Flow's). 1 for a Return Now
- * Playing doesn't take yet (its open event comes after the pass's input), which would reach Cover
- * Flow's page under it and turn the panel back unseen. ponytail: that Return is dropped, not
- * replayed after the open event; a second Return in that moment reaches the page, as one does
- * with no landing */
+/* ringnav's key until the motion's last frame, which names the bar, is drawn (land_turning's clock
+ * runs out a tick, or a stall, sooner): the wheel or Return ends the landing, the bar then
+ * naming Now Playing (a volume pop-up the tick opens would keep it on Cover Flow's). 1 for a
+ * Return Now Playing doesn't take yet (its open event comes after the pass's input), which would
+ * reach Cover Flow's page under it and turn the panel back unseen. ponytail: that Return is
+ * dropped, not replayed after the open event; a second Return in that moment reaches the page, as
+ * one does with no landing */
 int land_key(unsigned key) {
-    if (!land_turning() || (key != KEY_PREV && key != KEY_NEXT && key != KEY_RETURN)) return 0;
+    if (!land.front || land.ms >= land.L.len ||
+        (key != KEY_PREV && key != KEY_NEXT && key != KEY_RETURN))
+        return 0;
     land_drop();
     void *wm = window_manager(), *top = window_manager_get_top_window(wm);
     bar_title_sync(top);

@@ -11,7 +11,7 @@ import pytest
 
 import host
 from conftest import O, Files, block, in_fork
-from test_nav_loop import LIBC, Flip, Land  # coverflow.c's cf_flip_t, fl; coverflow_land.c's land
+from test_nav_loop import LIBC, Clock, Flip, Land  # coverflow.c's cf_flip_t, fl; coverflow_land.c's land
 
 W_X, W_Y, W_W, W_H, W_PARENT = O['W_X'], O['W_Y'], O['W_W'], O['W_H'], O['W_PARENT']
 CANVAS_LCD, LCD_FILL_COLOR = O['CANVAS_LCD'], O['LCD_FILL_COLOR']
@@ -1554,6 +1554,21 @@ def test_the_wheel_or_return_ends_cover_flow_s_landing_and_the_bar_names_now_pla
     land.front, land.ms = LIBC.calloc(4, 1), -1  # clicked, not painted yet
     assert fw.fn('land_key', C.c_int, C.c_uint)(O[key]) == stop
     assert not land.front and world[label].text == 'Now Playing'
+
+
+def test_a_wheel_tick_after_the_landing_s_clock_but_before_its_last_frame_still_names_now_playing(fw, world, st):
+    """coverflow_turning's clock runs out a tick (or a stall) before the motion's last frame, which names the bar:
+    land_key goes by the frame drawn."""
+    label = bar_title(fw, world, st)
+    world.window('playing_page')
+    Clock(fw, 5000)
+    land = fw.var('coverflow_land__land', Land)
+    land.front, land.ms, land.t0, land.len = LIBC.calloc(4, 1), 384, 4000, 400  # a stall: the clock 1000 on
+    assert not fw.fn('coverflow_turning', C.c_int)() and fw.fn('land_key', C.c_int, C.c_uint)(O['KEY_NEXT']) == 0
+    assert not land.front and world[label].text == 'Now Playing'
+    land.front, land.ms = LIBC.calloc(4, 1), 400  # the last frame drawn: the hold's, the key Now Playing's
+    assert fw.fn('land_key', C.c_int, C.c_uint)(O['KEY_NEXT']) == 0 and land.front
+    fw.fn('coverflow_land__land_end', None)()
 
 
 def test_search_is_titled_though_a_dialog(fw, world, st):

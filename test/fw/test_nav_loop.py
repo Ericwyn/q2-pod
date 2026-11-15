@@ -1571,6 +1571,14 @@ def test_cover_flow_s_landing_takes_centre_and_ends_on_the_wheel_or_return(fw, k
         keys(key, 400)
         assert not land.front and len(fw.calls('stock_keyup_trampoline')) == stock + 1  # on, as with no landing
     assert sv.ints[SEL] == 2  # the wheel's tick moved the row
+    C.c_void_p.from_address(ui.wm.p + O['W_KEY_TARGET']).value = None  # Now Playing's open event not yet run
+    latch = C.c_ubyte.from_address(O['RETURN_RELEASE_LATCH'])
+    for held in (0, 1):
+        latch.value, stock = held, len(fw.calls('stock_keyup_trampoline'))
+        land.front, land.ms = LIBC.calloc(4, 1), -1
+        assert (keys(KEY_RETURN, 400) == STOP) == (not held) and not land.front  # ended; dropped, not Cover Flow's
+        assert len(fw.calls('stock_keyup_trampoline')) == stock + held  # a held Return's release: stock consumes its latch
+    latch.value = 0
 
 
 def test_cover_flow_s_flip_takes_centre_and_return_but_not_the_wheel(fw, keys):
