@@ -7860,7 +7860,7 @@ static void land_playlist(void) {
 /* Where it can't run, Now Playing opens as today: at the click, or at the press for the window's cases. */
 static void land_fallbacks(void) {
     land_setup(1);
-    for (int k = 0; k < 16; ++k) {
+    for (int k = 0; k < 19; ++k) {
         widget *panel = land_panel(k == 3 ? "None" : "Folder"), *row = row_under(panel, 0);
         navs = 0, clock_ms = 20000;
         if (k == 0) np_centred = 1;
@@ -7876,6 +7876,9 @@ static void land_fallbacks(void) {
         if (k == 13) calloc_fail = 1;
         if (k == 14) offline_ok = 0;                       /* the capture can't paint the panel */
         if (k == 15) np_art_box[1] = 294 - NP_IPOD_ART;   /* its reflection past the frame */
+        if (k == 16) np_art_box[0] = -1;                   /* left of the frame */
+        if (k == 17) np_art_box[1] = -1;                   /* above it */
+        if (k == 18) np_art_box[0] = CF_VIEW_W - NP_IPOD_ART + 1; /* past its right edge */
         row->click(row->ctx, 0);
         calloc_fail = 0;
         if (k >= 6 && k != 13 && k != 14) {
@@ -7895,7 +7898,7 @@ static void land_fallbacks(void) {
         assert(navs == 1 && !strcmp(nav_to, "playing_page") && !coverflow_landing() && !land_tex && !land_back);
         assert(frames == 1 && panel->visible);
         np_centred = 0, mem_kb = ~0u, frame_fail = 0, classic = 1, timer_fail = 0, np_opens = 1, offline_ok = 1;
-        np_art_box[1] = NP_IPOD_ART_Y, np_art_box[2] = NP_IPOD_ART, np_art_box[3] = NP_IPOD_ART + 40;
+        np_art_box[0] = SPOT_ART_X, np_art_box[1] = NP_IPOD_ART_Y, np_art_box[2] = NP_IPOD_ART, np_art_box[3] = NP_IPOD_ART + 40;
         close_page();
     }
     /* A row's click during the turn back (a finger held on it through Return: stock's grab outlives the hide): it plays

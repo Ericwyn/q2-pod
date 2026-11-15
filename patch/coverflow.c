@@ -3145,7 +3145,7 @@ void play_folder(void *dq, int idx, int cls) {
 }
 
 static unsigned cover_load __attribute__((section(".scratch"))); /* playback_loads at its play */
-/* The panel's row plays its queue (cf.tracks) from there: a playlist's songs as a song list
+/* A track row plays its queue (cf.tracks) from there: a playlist's songs as a song list
  * (0xf001), as 0xff10 would resume the first song's album and its own list's 0xff13 needs stock's
  * playlist set (docs/internals.md, Cover Flow scope), its load marked for Now Playing's More
  * (coverflow_playlist_queue). */
