@@ -1562,6 +1562,7 @@ def test_cover_flow_s_landing_takes_centre_and_ends_on_the_wheel_or_return(fw, k
     ui = Ui(fw)
     sv = list_page(ui)
     select(fw, sv, 1)
+    assert ui.top
     C.c_void_p.from_address(ui.wm.p + O['W_KEY_TARGET']).value = ui.top.p  # opened: its keys' target
     land = fw.var('coverflow_land__land', Land)
     for key in (KEY_NEXT, KEY_RETURN):
