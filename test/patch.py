@@ -8267,12 +8267,13 @@ for mode,line in ((0,'Eject before disconnecting'),(2,'Eject before disconnectin
     assert [ub.nodes[w]['visible'] for w in (bimg,binfo,bret,bcharge,bdac)]==[0,0,1,1,1] and wbox(ub,bret)==(20,0,80,60) and wbox(ub,bcharge)==(247,0,50,50) and wbox(ub,bdac)==(305,0,50,50)
     assert not [b for b in ub.bands if b[2]==375 and b[4]==color_t(0x1c1c1c)] and not msg_track(ub) and not ub.timers  # the real bar's above it; no count
     assert [(t['text'],t['rect']) for t in ub.letters]==[('Connected',(16,229-26,343,32))]+([(line,(16,256-26,343,20))] if line else []) and ub.lcd_colors()==LCD_COLORS; passed()
-# ... under the real bar it has Classic's own bar, with no title (no wordmark) and the clock shown, as every untitled Classic
-# page; a window that covers the bar paints its own, untitled too.
+# ... under the real bar it has Classic's own bar, with no title (no wordmark) and no clock; a window that covers the bar
+# paints its own, untitled too.
 db,dbar,dright,dtitle,dclock,dbt,dwifi,dpct,dslot,dst,dwin,dhome=dark_setup()
-uw=db.node('window','usbmode_page'); db.word(uw+O['W_PARENT'],db.wm); place(db,uw,0,26,375,294); ui_loaded(db,'usbmode_page',uw); db.top=uw; db.nodes[db.wm]={'children':[uw]}
+uw=db.node('window','usbmode_page'); db.word(uw+O['W_PARENT'],db.wm); place(db,uw,0,26,375,294); ui_loaded(db,'usbmode_page',uw); db.top=uw; db.nodes[db.wm]={'children':[uw]}; db.clock_minutes=True
 for _ in range(2): bg(db,uw); bg(db,dbar)
-assert db.nodes[dtitle].get('text','')=='' and db.nodes[dclock]['visible']==1; db.bands=[]; bg(db,dbar); assert [b for b in db.bands if b[2]==375][0][4]==color_t(0xffffff); passed()
+db.advance(61000)  # the clock's minute writes no clock over USB's page
+assert db.nodes[dtitle].get('text','')=='' and db.nodes[dclock].get('text','')==''; db.bands=[]; bg(db,dbar); assert [b for b in db.bands if b[2]==375][0][4]==color_t(0xffffff); passed()
 db.word(uw+O['W_Y'],0); db.letters=[]; bg(db,uw); assert db.letters and not [t for t in db.letters if t['rect'][1]<26]; passed()  # a window over the bar paints no title there
 uc,cwin,*_=usb_page(0,y=0); bare(uc); bg(uc,cwin)
 assert page_fill(uc,26) and uc.image_draws[0][1][:2]==(122,67) and [b for b in uc.bands if b[2]==375 and b[1]==0][0][4]==color_t(0x1c1c1c) and uc.letters[0]['text']=='Connected' and wbox(uc,named(uc,cwin,'msg_heading'))==(16,228,343,32); passed()
