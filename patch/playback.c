@@ -740,6 +740,7 @@ int playback_set(int kind, int value) {
 int playback_groups(void *all, int folder) {
     if (!deque_size(all) || deque_size(all) > QUEUE_LIMIT) return 0;
     if (check_forbid_play_no_headset(0)) return 1;
+    /* After the gates, so a refusal keeps advanced play; before the load, so it groups nothing. */
     playback_clear();
     mclLoadPlayList(all, 0, 0xf001);
     s.folder = folder;
@@ -931,9 +932,7 @@ static void *no_videos(void *q, int *at) {
 /* playback_groups' own start (s.grouping): Now Playing's load of the queue it has just grouped and
  * ordered, at the order's first track. Its tables stand, started as rebuild(0) would start them
  * there (that track leads its group, which comes first), so the library is not grouped again. Any
- * other queue (an entry's path or CUE start, its id, differs), size or position rebuilds.
- * playback_groups ends advanced play before its own load (playback_clear), as shuffle_play does,
- * so that load groups nothing. */
+ * other queue (an entry's path or CUE start, its id, differs), size or position rebuilds. */
 static int keep_drawn(void) {
     unsigned at = (unsigned)M(MCL_POS);
     if (!queue() || deque_size(queue()) != s.n || s.order[0].index != at) return 0;

@@ -14,7 +14,7 @@
   - AirPlay: with **Headphones Required** on, music plays to an AirPlay speaker with no headphones connected ([#388](https://github.com/DiamondBond/q2-pod/issues/388)). The switch is for the Q2's own outputs, and comes back when you pick **This Q2**; with nothing connected then, the music pauses.
   - Quick Settings: holding **Playback** opens the EQ over Now Playing after Return's hold took you there from the EQ ([#397](https://github.com/DiamondBond/q2-pod/issues/397)), and Return goes back to Now Playing. The hold did nothing there, as the EQ was still open underneath; that one now closes first.
   - Library: a shuffle that **Headphones Required** refuses leaves your queue and play mode as they were. With nothing connected, **Shuffle Songs** (and a decade's or the hold menu's **Shuffle**) used to set Play Mode to Shuffle and shuffle the queue you had, and **Shuffle Albums** and **Shuffle Folders** replaced it with the whole library.
-  - Library: **Shuffle Albums** and **Shuffle Folders** over more than 65,536 songs say there are too many songs to shuffle and leave your queue and play mode as they were. They used to replace your queue with the whole library first, whatever was connected.
+  - Library: **Shuffle Albums** and **Shuffle Folders** over more than 65,536 songs say there are too many songs to shuffle and leave your queue and play mode as they were. They used to replace your queue with the whole library first.
   - Library: **Shuffle Albums** and **Shuffle Folders** start sooner on a big library: Now Playing no longer sorts the whole library into albums or folders a second time.
 - **1.8.5**:
   - About: **CFW. Version** shows just the version number, such as 1.8.5, without "Pod" after it.
