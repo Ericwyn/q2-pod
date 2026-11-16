@@ -283,15 +283,6 @@ void *staged_music(int (*query)(void *), void *arg, int *count) {
     library_music = saved;
     return out;
 }
-/* A query that scopes itself (MUSIC_WHERE written in: coverflow.c's artist groupings), not wrapped
- * again, as the wrap's 2 KB would refuse a long one. */
-void *staged_unwrapped(int (*query)(void *), void *arg, int *count) {
-    int saved = library_music;
-    library_music = 0;
-    void *out = staged(query, arg, count);
-    library_music = saved;
-    return out;
-}
 
 extern int album_only(void *, void *, int), coverflow_split(void *), coverflow_split_artist(void *);
 #define SCROLL_MARGIN 12

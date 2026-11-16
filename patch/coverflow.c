@@ -1264,23 +1264,28 @@ static int rank_query(void *sql) {
     return toolsQueryDbTable("/mnt/data/database.db", sql, split_row, 0);
 }
 extern int scan_quote(char *sql, unsigned cap, unsigned *n, const char *s); /* tags.c */
-extern void *staged_unwrapped(int (*query)(void *), void *arg, int *count);
+extern int stock_dbquery_trampoline(const char *, const char *, void *, int);
+/* Straight to stock's query with the scope token expanded, as library_lists.c's songs_by_path:
+ * library_query's 2 KB would hold only 40 to 60 names. No memory to expand it: the token alone is
+ * SQL's 1, the whole library, as library_query. */
+static int names_query(void *sql) {
+    char *e = library_scope_query(sql);
+    int n = stock_dbquery_trampoline("/mnt/data/database.db", e ? e : sql, split_row, 0);
+    free(e);
+    return n;
+}
 /* sql, a grouping of the whole library, over list's album names alone, all an artist page reads of
  * it. Its where (MUSIC_WHERE written in, as library_query's wrap has it, or MUSIC_ALBUM_SQL's own)
  * gains album collate nocase in the names, quoted: an index search (songtable_album), NOCASE as
  * album_cmp's names. ALBUM_GROUP groups by the name first, so its rows are the whole query's of
- * those names, in its order. With unknown, a -1 row in list keeps the untagged songs too,
- * MUSIC_ALBUM_SQL's Unknown row. Unwrapped, as the wrap's 2 KB would hold only 40 to 60 names:
- * library_query then only expands the scope token, MUSIC_WHERE's, ahead of every name. 0 without
- * memory or when the query fails (stock's -1): the whole one, as before. */
-static void *of_names(const char *sql, void *list, int unknown, int *count) {
+ * those names, in its order. 0 when the query returns -1 or there is no memory for the text: the
+ * whole one, as before. */
+static void *of_names(const char *sql, void *list, int *count) {
     static const char in[] = " where " MUSIC_WHERE " and (album collate nocase in (";
     const char *by = strstr(sql, ALBUM_GROUP), *where = strstr(sql, " where "), *end;
     unsigned n = deque_size(list), size = strlen(sql) + sizeof in + 24, at, k = 0;
-    int untagged = 0;
     for (unsigned i = 0; i < n; ++i) {
         const char *s = P(deque_at(list, i), REC_ALBUM);
-        untagged |= unknown && I(deque_at(list, i), REC_ID) == -1;
         for (size += 3; s && *s; ++s) size += 1 + (*s == '\''); /* the quotes and a comma */
     }
     char *q = by ? calloc(size, 1) : 0;
@@ -1295,10 +1300,9 @@ static void *of_names(const char *sql, void *list, int unknown, int *count) {
         if (k++) q[at++] = ',';
         scan_quote(q, size, &at, s); /* fits: sized above */
     }
-    end = !untagged ? "))" : k ? ",'') or album is null)" : "'') or album is null)";
-    memcpy(q + at, end, strlen(end) + 1), at += strlen(end);
+    memcpy(q + at, "))", 3), at += 2;
     memcpy(q + at, by, strlen(by) + 1);
-    void *rows = staged_unwrapped(rank_query, q, count);
+    void *rows = staged(names_query, q, count);
     free(q);
     if (*count >= 0) return rows;
     deque_destroy(rows);
@@ -1306,11 +1310,12 @@ static void *of_names(const char *sql, void *list, int unknown, int *count) {
 }
 
 /* list's albums with music, in a new deque (list goes), using a music track for their art even when
- * tags are shared with an audiobook; with artist, of list's names alone (of_names). The card's
- * files stay untouched. Out of memory, audiobooks stay. */
+ * tags are shared with an audiobook; with artist, of list's names alone (of_names), and its Unknown
+ * row kept as given: artist_albums keeps it only for an untagged music song of the artist's. The
+ * card's files stay untouched. Out of memory, audiobooks stay. */
 static void *music_albums(void *list, int artist) {
     int n;
-    void *rows = artist ? of_names(MUSIC_ALBUM_SQL, list, 1, &n) : 0, *out;
+    void *rows = artist ? of_names(MUSIC_ALBUM_SQL, list, &n) : 0, *out;
     if (!rows) rows = staged(rank_query, MUSIC_ALBUM_SQL, &n);
     unsigned m;
     row_t *v = album_rows(rows, &m, by_album, 0);
@@ -1322,7 +1327,7 @@ static void *music_albums(void *list, int artist) {
         int k = I(r, REC_ID) == -1 ? -1 : album_in(v, m, r);
         if (k >= 0)
             _deque_push_back(out, deque_at(rows, (unsigned)k));
-        else if (I(r, REC_ID) == -1 && m < deque_size(rows))
+        else if (I(r, REC_ID) == -1 && (artist || m < deque_size(rows)))
             _deque_push_back(out, r);
     }
     free(v);
@@ -1338,7 +1343,7 @@ static void *music_albums(void *list, int artist) {
  * squared; fine unless one name has thousands. */
 static void *split(void *stock, int artist) {
     int n;
-    void *rows = artist ? of_names(ALBUM_SQL, stock, 0, &n) : 0, *out;
+    void *rows = artist ? of_names(ALBUM_SQL, stock, &n) : 0, *out;
     if (!rows) rows = staged(rank_query, ALBUM_SQL, &n);
     unsigned m;
     row_t *v = album_rows(rows, &m, by_name, 1);
@@ -1488,7 +1493,7 @@ void coverflow_by_year(void *albums) {
         return;
     }
     const char *sql = ringnav_artist_az() ? SORT_SQL "album COLLATE NOCASE" : year_sql();
-    void *rows = of_names(sql, albums, 0, &found), *out;
+    void *rows = of_names(sql, albums, &found), *out;
     if (!rows) rows = staged(rank_query, (void *)sql, &found);
     out = _create_deque("stSongInfo");
     deque_init(out);
