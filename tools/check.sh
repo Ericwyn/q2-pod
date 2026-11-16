@@ -24,7 +24,9 @@ out=dist/dev-$("$PY" -c 'import sys; sys.path.insert(0, "tools"); import build; 
 # that leaves the build's sources alone reuses it, so the build checked is the one installed.
 # ponytail: every state of the build's sources keeps its own dist/dev-* folder, a failed build's too
 # (build.py writes stock.squashfs before anything compiles, and the next edit gets a new name), and nothing
-# removes them; delete old ones by hand.
+# removes them; delete old ones by hand. A change the source hash leaves out (requirements.txt's pins, such as
+# fonttools, which the build subsets fonts with; the clang or ImageMagick installed) reuses the build too:
+# delete its folder to rebuild.
 [ -e "$out/update.tar" ] || "$PY" tools/build.py "$zip" --dev --out "$out"
 "$PY" -c 'import pathlib, sys; sys.path.insert(0, "tools"); import release; release.suites(pathlib.Path(sys.argv[1]).resolve())' "$out"
 for t in library_scope coverflow_position chapters; do "$PY" "test/$t.py"; done
