@@ -237,7 +237,7 @@ class Library:
     row a CUE track, and toolsQueryDbTable, which runs a query and calls its row callback with each row's text, as
     sqlite3_exec does."""
     COLUMNS = ('id integer primary key, fileurl, filename, title, album, songer, albumsonger, genre, composer, track, '
-               'cd_num, year, cue_start, cue_end, time_create')
+               'cd_num, year, time, time_end, time_create')
 
     def __init__(self, tags):
         self.tags = tags
@@ -252,7 +252,7 @@ class Library:
             t = self.tags.get(path, {})
             for start, end, title in t.get('cue', [(0, 0, t.get('title', ''))]):
                 self.db.execute('insert into songtable (fileurl, filename, title, album, songer, albumsonger, genre, '
-                                'composer, track, cd_num, year, cue_start, cue_end, time_create) values '
+                                'composer, track, cd_num, year, time, time_end, time_create) values '
                                 '(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                                 (path, path.rsplit('/', 1)[1], title, t.get('album', ''), t.get('artist', ''),
                                  t.get('album_artist', ''), '', '', t.get('track', 0), t.get('disc', 0), t.get('year', ''),
@@ -466,7 +466,7 @@ class Q2:
         r = self.memory.record(
             id_=int(row['id']), name=row['filename'], path=row['fileurl'], title=row['title'], album=row['album'],
             artist=row['songer'], album_artist=row['albumsonger'], track=int(row['track'] or 0),
-            disc=int(row['cd_num'] or 0), cue=(int(row['cue_start'] or 0), int(row['cue_end'] or 0)))
+            disc=int(row['cd_num'] or 0), cue=(int(row['time'] or 0), int(row['time_end'] or 0)))
         self.deques[self.directory()].append(r)
         return 0
 

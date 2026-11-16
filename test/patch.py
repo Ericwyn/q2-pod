@@ -3805,13 +3805,15 @@ class QueueMachine(Machine):
     def names(self,h=None): return [self.text(self.get(e+O['REC_NAME'])) for e in self.items(h or self.get(syms['mcl_pdeqplaylist']))]
     def pool(self): return [signed(self.get(e)) for e in self.items(self.get(O['MCL_POOL']))]
     def mcl(self,k): return signed(self.get(O[k]))
-    def songtable(self,sql,rows):
-        """The rows songs_by_path's SQL picks, run by SQLite over rows as songtable's (path, CUE start
-        and end), whose order stands for getAllMusic(3)'s time order."""
-        db=sqlite3.connect(':memory:'); db.execute('create table songtable(id,fileurl,time,time_end,time_create)')
-        db.executemany('insert into songtable values(?,?,?,?,?)',[(i,self.text(self.get(r+O['REC_PATH'])),self.get(r+O['REC_CUE_START']),
-                                                                  self.get(r+O['REC_CUE_END']),-i) for i,r in enumerate(rows)])
-        return [rows[i] for i,*_ in db.execute(sql)]
+    def songtable(self,sql,rows,values=False):
+        """The rows songs_by_path's or songs_by_id's SQL picks (with values, the statement's own rows), run by SQLite
+        over rows as songtable's (path, CUE start and end, album and album artist), each its index as id, whose order
+        stands for getAllMusic(3)'s time order."""
+        text=lambda r,k: self.text(self.get(r+O[k])) if self.get(r+O[k]) else None
+        db=sqlite3.connect(':memory:'); db.execute('create table songtable(id,fileurl,time,time_end,time_create,album,albumsonger)')
+        db.executemany('insert into songtable values(?,?,?,?,?,?,?)',[(i,text(r,'REC_PATH'),self.get(r+O['REC_CUE_START']),
+                                                                      self.get(r+O['REC_CUE_END']),-i,text(r,'REC_ALBUM'),text(r,'REC_ALBUM_ARTIST')) for i,r in enumerate(rows)])
+        return db.execute(sql).fetchall() if values else [rows[i] for i,*_ in db.execute(sql)]
     def dialog(self):
         self.view=self.node('scroll_view','scroll_view',[self.node('list_item') for _ in range(5)])
         self.title=self.node('hscroll_label','scrlabel_title'); self.back=self.node('image','img_return')
@@ -13990,6 +13992,7 @@ def fnv(s,h=2166136261):
 # as it was. Picks leave the page open; an empty library only says so. Most Played plays the
 # counted songs, most played first, and leaves the play mode alone.
 class ShuffleMachine(CoverflowMachine):
+    dbquery=int(manifest['patch_symbols']['stock_dbquery_trampoline'],16)
     def __init__(self):
         super().__init__()
         self.counts=b''; self.queued=None; self.wifi=-1
@@ -14002,6 +14005,7 @@ class ShuffleMachine(CoverflowMachine):
         name=self.handlers.get(address,'')
         if address==syms['navigator_to_with_context'] and self.text(u.reg_read(REGS[0]))=='playing_page':
             self.queued=self.names(self.get(u.reg_read(REGS[1])))
+        if address in (syms['toolsQueryDbTable'],self.dbquery) and self.counted(u,address): return
         if not name.startswith('s:'): return super().hook(u,address,size,unused)
         name=name[2:].split('@')[0]; a,b=u.reg_read(REGS[0]),u.reg_read(REGS[1]); ret=0; self.calls.append((name,a,b))
         if name=='fopen': ret=1 if self.text(a)=='/mnt/data/ringnav-plays' and self.counts else 0
@@ -14019,6 +14023,23 @@ class ShuffleMachine(CoverflowMachine):
         elif name=='widget_restack':
             kids=next(n['children'] for n in self.nodes.values() if a in n['children']); kids.remove(a); kids.insert(b,a)
         self.returns(ret,clobber=True)
+    def counted(self,u,address):
+        """Most Played's reads over found as songtable's rows: its pass (library_lists.c counted_query, on
+        toolsQueryDbTable) hands each row to the payload's own callback, as sqlite3_exec does, and the fetch of those
+        rows by id (path_query, on stock's query) stages the records it picks."""
+        a,b,c,d=[u.reg_read(r) for r in REGS]; sql=self.text(b)
+        if sql.startswith('select id,fileurl,time,'):
+            rows=self.songtable(sql,self.found,values=True)
+            for row in rows:
+                values=self.alloc(4*len(row)); names=self.alloc(4*len(row))
+                for i,v in enumerate(row): self.word(values+4*i,0 if v is None else self.string(str(v)))
+                if self.nested(c,d,len(row),values,names): break
+        elif sql.startswith('select * from songtable not indexed where id in ('):
+            rows=self.songtable(sql,self.found)
+            self.deqs[self.get(syms['tools_pdeq_directory'])][1]+=[self.copy('stSongInfo',e) for e in rows]
+        else: return False
+        self.calls.append(('toolsQueryDbTable' if address==syms['toolsQueryDbTable'] else 'dbquery',a,b,c))
+        self.returns(len(rows),clobber=True); return True
 m=ShuffleMachine(); stock=[m.node('list_item') for _ in range(11)]
 view=m.node('scroll_view','scroll_view_localmusic',stock); m.top=m.node('window','localmusic_page',[view])
 assert m.call(address=HOOKS['localmusic_page_init'][0],args=(m.top,5,0,0),gap=0)==0
@@ -14706,8 +14727,11 @@ slots=[(fnv('/p/T3'),5),(fnv('/p/T1'),2),(fnv('/p/T7'),5)]+[(fnv(f'/p/T{i}'),1) 
 m.counts=b''.join(struct.pack('<2I',*e) for e in slots).ljust(8*O['PLAYS_SLOTS'],b'\0')
 m.calls=[]
 assert m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=50_000_000)==0; m.page=m.top
-# The library is read once, unsorted and uncopied: a copy OOM-killed demo on a 47,000-song library.
-assert [c[1] for c in m.calls if c[0]=='getAllMusic']==[3]
+# Only the counted songs' rows are read, uncopied: a pass over songtable's paths, then those rows by id. A copy of the
+# whole library OOM-killed demo on a 47,000-song library.
+reads=[m.text(c[2]) for c in m.calls if c[0] in ('toolsQueryDbTable','dbquery')]
+assert not called('getAllMusic') and [r[:24] for r in reads]==['select id,fileurl,time,a','select * from songtable ']
+assert sorted(map(int,re.search(r'in \(([\d,]*)\)',reads[1])[1].split(',')))==[1,3,7]+list(range(8,130))
 assert not [c for c in m.calls if c[0] in ('deque_init_copy','deque_assign')]
 assert m.names(m.get(syms['tools_pdeq_directory']))==['staged']
 ranked=['T3','T7','T1']+[f'T{i}' for i in range(8,130)][:O['PLAYS_TOP']-3]
@@ -14729,10 +14753,10 @@ m.press(100); assert m.hold()==11 and m.nodes[m.title]['text']=='T7' and m.relea
 assert m.labels()==['Play Next','Add to Queue','Add to Favourites','Go to Artist']; passed()
 # Opened again, the kept tracks are ranked again without reading the library; a library change reads it again.
 m.close(); m.found=m.found[:8]; m.calls=[]
-assert m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=50_000_000)==0 and not called('getAllMusic')
+assert m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=50_000_000)==0 and not called('toolsQueryDbTable')
 m.page=m.top; assert m.texts()==['Most Played']+[x for p in zip(ranked,details) for x in p]
 m.close(); m.calls=[]; m.rescan(); m.calls=[]
-assert m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=50_000_000)==0 and called('getAllMusic')
+assert m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=50_000_000)==0 and called('toolsQueryDbTable')
 m.page=m.top; assert m.texts()==['Most Played']+[x for p in zip(ranked[:3],details[:3]) for x in p]; passed()
 
 # View Queue on a shuffle (Now Playing's hold menu, Up Next's list): a Play/Pause hold on a row plays its track

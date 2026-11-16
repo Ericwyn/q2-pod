@@ -47,6 +47,23 @@ void *songs_by_path(const char *const *paths, unsigned n) {
     free(sql);
     return out;
 }
+/* The same for the rows of n ids, a rowid lookup each, in getAllMusic(3)'s order: its walk of
+ * songtable_time_create, equal stamps by id. */
+static void *songs_by_id(const unsigned *ids, unsigned n) {
+    static const char head[] = "select * from songtable not indexed where id in (";
+    static const char tail[] = ") order by time_create desc,id";
+    unsigned size = sizeof head + sizeof tail + 11 * n, at = sizeof head - 1;
+    char *sql = calloc(size, 1);
+    if (!sql) return 0;
+    memcpy(sql, head, at);
+    for (unsigned i = 0; i < n; ++i) /* 10 digits and a comma at most */
+        at += (unsigned)tk_snprintf(sql + at, size - at, i ? ",%u" : "%u", ids[i]);
+    memcpy(sql + at, tail, sizeof tail);
+    int count;
+    void *out = staged(path_query, sql, &count);
+    free(sql);
+    return out;
+}
 
 /* Collection Shuffle is Shuffle Songs over the collection. */
 int shuffle_play(void *all) {
@@ -142,22 +159,70 @@ static int mp_rank(void *songs, int *idx, unsigned *score) {
     return top;
 }
 
-/* Coverflow's Most Played order: every counted song's listens added to sum[album_of(song)], the
- * album's index in Coverflow's list (-1 none). One pass over the library. */
-void album_plays(int (*album_of)(void *), unsigned *sum) {
-    int n;
-    void *songs = staged(songs_unsorted, (void *)1, &n);
-    plays_load();
-    for (unsigned i = 0; i < deque_size(songs); i++) {
-        void *r = deque_at(songs, i);
-        unsigned key = listen_key(r), c = 0;
-        for (int j = 0; j < PLAYS_SLOTS && !c; j++)
-            if (st.plays[j].key == key) c = st.plays[j].n;
-        int a = c ? album_of(r) : -1;
-        if (a >= 0) sum[a] += c;
+/* A query's ids: Era Shuffle's decade, Most Played's counted songs. */
+static struct {
+    unsigned *v, n, cap;
+} era_keys __attribute__((section(".scratch")));
+static int era_key_row(void *ctx, int n, char **v, char **c) {
+    if (n != 1 || !v[0]) return 0;
+    if (era_keys.n == era_keys.cap) {
+        unsigned cap = era_keys.cap ? era_keys.cap * 2 : 1024, *p = calloc(cap, sizeof *p);
+        if (!p) return 1;
+        if (era_keys.n) memcpy(p, era_keys.v, era_keys.n * sizeof *p);
+        free(era_keys.v);
+        era_keys.v = p, era_keys.cap = cap;
     }
-    deque_destroy(songs);
+    era_keys.v[era_keys.n++] = (unsigned)atoi(v[0]);
+    return 0;
 }
+
+/* The counted songs among the music getAllMusic(3) reads, from one pass over songtable on stock's
+ * shared connection (rank_query's toolsQueryDbTable): with album_of, each one's listens added to
+ * sum[album_of(song)]; without, its id in era_keys (out of memory, the ids so far). A row's record
+ * holds what listen_key and album_cmp read, as stock's select * fill sets it (ratings.c's rc_row):
+ * the path, CUE start, album and album artist, in ifnull as library_query would take a bare one
+ * for the artist's. */
+static struct {
+    const unsigned *keys;
+    unsigned n, *sum;
+    int (*album_of)(void *);
+} cs __attribute__((section(".scratch")));
+static int counted_row(void *ctx, int n, char **v, char **c) {
+    int rec[REC_CUE_END / 4 + 1] = { 0 };
+    if (n != 5 || !v[1]) return 0;
+    P(rec, REC_PATH) = v[1], P(rec, REC_ALBUM) = v[3], P(rec, REC_ALBUM_ARTIST) = v[4];
+    I(rec, REC_CUE_START) = v[2] ? atoi(v[2]) : 0;
+    unsigned key = listen_key(rec), plays = 0;
+    if (!has_key(cs.keys, cs.n, key)) return 0;
+    if (!cs.album_of) return era_key_row(ctx, 1, v, c);
+    for (int j = 0; j < PLAYS_SLOTS && !plays; j++)
+        if (st.plays[j].key == key) plays = st.plays[j].n;
+    int a = plays ? cs.album_of(rec) : -1;
+    if (a >= 0) cs.sum[a] += plays;
+    return 0;
+}
+static int counted_query(void *unused) {
+    return toolsQueryDbTable("/mnt/data/database.db",
+                             "select id,fileurl,time,album,ifnull(albumsonger,'') from songtable "
+                             "where " MUSIC_WHERE,
+                             (void *)counted_row, 0);
+}
+static void counted(int (*album_of)(void *), unsigned *sum) {
+    unsigned keys[PLAYS_SLOTS], n = 0;
+    int count;
+    plays_load();
+    for (int j = 0; j < PLAYS_SLOTS; j++)
+        if (st.plays[j].key) keys[n++] = st.plays[j].key;
+    if (!n) return;
+    qsort(keys, n, sizeof *keys, key_cmp);
+    cs.keys = keys, cs.n = n, cs.sum = sum, cs.album_of = album_of;
+    deque_destroy(staged(counted_query, 0, &count));
+    cs.keys = 0;
+}
+
+/* Coverflow's Most Played order: every counted song's listens added to sum[album_of(song)], the
+ * album's index in Coverflow's list (-1 none). */
+void album_plays(int (*album_of)(void *), unsigned *sum) { counted(album_of, sum); }
 
 /* Where key is among Most Played's tracks, -1 when not (or none are kept). */
 static int mp_find(unsigned key) {
@@ -169,7 +234,7 @@ static int mp_find(unsigned key) {
 /* navigation.c's play_count: r's play counted (key), taking evicted's slot (0 for none). Most
  * Played's kept tracks take a newly counted song, unless its page shows them (its rows and song
  * menu match the deque); one that loses its count may have hidden the next best, which only the
- * whole library knows. */
+ * library's counted songs show. */
 void mp_counted(void *r, unsigned key, unsigned evicted) {
     if (evicted && mp_find(evicted) >= 0)
         ll.mp_gen = ~library_gen;
@@ -186,9 +251,22 @@ static int mp_closed(void *ctx, void *event) {
     return 0;
 }
 
-/* Most Played: a page of the PLAYS_TOP most played songs of the library. The whole library is read
- * only when nothing is kept; otherwise the kept tracks are ranked again.
- * ponytail: the first open after boot or a library change still reads every song, and a song first
+/* The library's counted songs, the rows getAllMusic(3) gives for them in its order, in a deque of
+ * their own; 0 without memory for the fetch's SQL. */
+static void *mp_library(void) {
+    era_keys.n = 0;
+    counted(0, 0);
+    void *out = songs_by_id(era_keys.v, era_keys.n);
+    free(era_keys.v);
+    era_keys.v = 0, era_keys.n = era_keys.cap = 0;
+    return out;
+}
+
+/* Most Played: a page of the PLAYS_TOP most played songs of the library. The library's counted
+ * songs are read only when nothing is kept; otherwise the kept tracks are ranked again. Without
+ * memory for that read, the whole library is.
+ * ponytail: the first open after boot or a library change still hashes every music song's path
+ * (MUSIC_WHERE on the fetched rows instead would spare the pass its likes), and a song first
  * counted from stock's folder browser shows without its artist until then (no library tags). */
 int most_played(void *ctx, void *event) {
     if (st.mp_page || !(st.mp_page = page_open("mostplayed_page", mp_closed, page_keyup))) return 0;
@@ -196,7 +274,7 @@ int most_played(void *ctx, void *event) {
     unsigned score[PLAYS_TOP], gen = library_gen;
     void *from = st.mp_list;
     if (!from || ll.mp_gen != gen) {
-        from = staged(songs_unsorted, (void *)1, &n);
+        if (!(from = mp_library())) from = staged(songs_unsorted, (void *)1, &n);
         ll.mp_gen = gen;
     }
     int top = mp_rank(from, idx, score);
@@ -505,21 +583,6 @@ static void *era_songs(void) {
 }
 /* Shuffle's songs: one query for the decade's files, then the library filtered by them; its
  * order is about to be shuffled, so era_songs' two queries an album would only cost time. */
-static struct {
-    unsigned *v, n, cap;
-} era_keys __attribute__((section(".scratch")));
-static int era_key_row(void *ctx, int n, char **v, char **c) {
-    if (n != 1 || !v[0]) return 0;
-    if (era_keys.n == era_keys.cap) {
-        unsigned cap = era_keys.cap ? era_keys.cap * 2 : 1024, *p = calloc(cap, sizeof *p);
-        if (!p) return 1;
-        if (era_keys.n) memcpy(p, era_keys.v, era_keys.n * sizeof *p);
-        free(era_keys.v);
-        era_keys.v = p, era_keys.cap = cap;
-    }
-    era_keys.v[era_keys.n++] = (unsigned)atoi(v[0]);
-    return 0;
-}
 static void *era_shuffle_songs(void) { /* 0 if the query failed */
     char sql[2048];
     int from = era.m ? era.v[0].year / 10 * 10 : 0, n;
