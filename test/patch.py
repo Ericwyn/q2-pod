@@ -14905,6 +14905,19 @@ for i,names in want.items():
 m.found=[m.song('Z')]; m.fav_songs=[]; m.calls=[]; row=m.nodes[m.find('scroll_view',menu)]['children'][0]; g,c=m.handler(row,O['EVT_CLICK'])
 m.call(address=g,args=(c,m.event,0,0),gap=0); m.page=m.top
 assert m.texts()==['Top Rated','No songs yet','Hold the heart on Now Playing to rate']; passed()
+# A Ratings list's cost, in payload instructions: each song looks itself up in My Fav's keys and in the kept, each
+# sorted, not in every rated one. 1,000 songs, 250 My Fav rows and 250 kept, 12 of each in the library (so few rows
+# are built), All Rated: 626,420 measured, where walking every rated key took 6,265,139 (12 a song and key).
+names=[f'S{i}' for i in range(1000)]; kept=[*names[500:512],*(f'K{i}' for i in range(238))]
+m=RateMachine(b''.join(struct.pack('<I',(key_of(n)&~7)|1+i%4) for i,n in enumerate(kept)).ljust(4*O['RATE_SLOTS'],b'\0'))
+m.found=[m.song(n) for n in names]; m.fav_songs=[m.song(n) for n in [*names[:12],*(f'F{i}' for i in range(238))]]
+m.call(address=payload_syms['ratings_menu'],args=(0,m.event,0,0),gap=0); menu=m.top
+g,c=m.handler(m.nodes[m.find('scroll_view',menu)]['children'][3],O['EVT_CLICK'])
+cost=[0]; hook=m.u.hook_add(UC_HOOK_CODE,lambda *a: cost.__setitem__(0,cost[0]+1),begin=BASE,end=SCRATCH-1)
+assert m.call(address=g,args=(c,m.event,0,0),gap=0,count=50_000_000)==0; m.u.hook_del(hook); m.page=m.top
+assert m.texts()[:3]==['All Rated','S0','♥♥♥♥♥ · Artist'] and len(m.texts())==1+2*24,m.texts()
+assert cost[0]<1_000_000,cost
+cost_line('ratings list 1000 songs 500 rated',cost[0]); passed()
 
 # Long Songs: over LONG_SONG_S, longest first, whatever Scan Song Durations is. Each file is statted on a worker and
 # one whose signature the cache lacks probed once by TagLib (a CUE track with both ends among them: the file's length

@@ -2065,6 +2065,47 @@ def test_a_full_ratings_table_refuses(fw):
     assert keep(0, 0xfffffff8, 2) == 0 and keep(0, 8, 2) == 1
 
 
+def every_rated_one(songs, favs, table):
+    """The Ratings lists' hearts as rate_all once found them, each song against every rated key: My Fav's (| 7) first,
+    then the table's kept words in slot order, a match on the top 29 bits; a favourite is 5 and ends the walk, else
+    the last kept match's hearts stand."""
+    keys, out = [k | 7 for k in favs] + [w for w in table if w], []
+    for key in songs:
+        h = 0
+        for j, k in enumerate(keys):
+            if h >= 5:
+                break
+            if (k ^ key) < 8:
+                h = 5 if j < len(favs) else k & 7
+        out.append(h)
+    return out
+
+
+@pytest.mark.parametrize('seed', [1, 2, 3])
+def test_each_song_s_hearts_are_those_every_rated_key_gave_it(fw, seed):
+    """rate_all's sorted searches give each song the hearts the walk of every rated key gave it, over a table rate_keep
+    wrote: CUE tracks of one image, a song listed twice, My Fav rows out of the library and one twice, favourites with
+    kept hearts, slots cleared and filled again, keys at both ends."""
+    rnd, keep, deques, files = random.Random(seed), [], Deques(fw), Files(fw)
+    rate = fw.fn('rate_keep', C.c_int, C.c_int, C.c_uint, C.c_int)
+    paths = [b'/m/%d.flac' % i for i in range(300)]
+    rows = [(p, 0) for p in paths] + [(b'/m/image.flac', s) for s in (0, 240, 480)]
+    rows.append(rows[7])
+    keys = [listen_key(p, s) for p, s in rows]
+    favs = rnd.sample(paths, 40) + [b'/x/%d.flac' % i for i in range(20)]
+    favs.append(favs[0])
+    for key in rnd.sample(keys, 150) + [listen_key(b'/y/%d.flac' % i) for i in range(60)] + [0xfffffff9, 1]:
+        assert rate(0, key, rnd.randint(1, 4)) == 1
+    for n in [0] * 40 + [1, 2, 3, 4] * 10:  # cleared, then rated again, into the first free slots
+        assert rate(0, rnd.choice(keys), n) == 1
+    fw.mock('getAllFav', lambda *_: deques[directory(fw)].extend(record(keep, p) for p in favs) or len(favs))
+    hearts = (C.c_ubyte * (len(rows) + 1))()
+    fw.fn('ratings__rate_all', None, C.c_void_p, C.c_void_p)(deques.new(record(keep, p, cue=s) for p, s in rows), hearts)
+    table = struct.unpack('<%dI' % O['RATE_SLOTS'], files.files['/mnt/data/ringnav-ratings'])
+    want = every_rated_one(keys, [listen_key(p) for p in favs], table)
+    assert list(hearts[:len(rows)]) == want and set(want) == {0, 1, 2, 3, 4, 5}
+
+
 # Era's Shuffle.
 def test_era_shuffle_is_the_decades_songs_in_library_order(fw, heap):
     keep, deques = [], Deques(fw)

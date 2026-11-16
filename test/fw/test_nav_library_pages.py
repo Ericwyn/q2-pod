@@ -592,6 +592,18 @@ def test_a_ratings_list_plays_from_its_row(fw, ui, song):
     assert ui.played == [([rated.fav, rated.four, rated.three, rated.one], 2, LIBRARY)]
 
 
+def test_a_favourite_outranks_its_kept_hearts(fw, ui, song):
+    """A song in My Fav has 5 hearts whatever is kept for it: an album's five hearts put its songs in My Fav and
+    leave their kept 1-4 (rate_album_favs)."""
+    a, b = song(b'/m/a.flac', b'A'), song(b'/m/b.flac', b'B')
+    library = Library(fw, ui, [a, b])
+    Files(fw, {RATINGS: ratings((listen_key(b'/m/a.flac'), 2), (listen_key(b'/m/b.flac'), 3))})
+    stock_fav = song(b'/m/a.flac')
+    fw.mock('getAllFav', lambda *_: library.deques[library.directory()].append(stock_fav) or 1)
+    call(fw, 'rated_open', 3)
+    assert ui.rows(ui.top()) == [('A', HEART * 5), ('B', HEART * 3 + NO_HEART * 2)]
+
+
 def test_a_ratings_list_in_library_order_among_equal_hearts(fw, ui, song):
     a, b, c = (song(b'/m/%c.flac' % x, b'%c' % x) for x in b'abc')
     Library(fw, ui, [c, a, b])
