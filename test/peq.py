@@ -5,6 +5,7 @@ import ctypes as C
 import math
 import pathlib
 import re
+import struct
 import subprocess
 import tempfile
 import sys; sys.path.insert(0, sys.path[0] + '/../tools')  # tools/ first
@@ -2952,6 +2953,29 @@ def video_check(tmp):
     assert meta(b'    StreamTitle     : ', b'StreamTitle') == '' and meta(b'StreamTitle=x', b'StreamTitle') == 0
     assert meta(b'  Stream #0:0: Audio: mp3 (mp3float), 44100 Hz', b'Audio') == 'mp3 (mp3float),'
     assert meta(b'StreamTitle: a long title past the buffer', b'StreamTitle', 8) == 'a long '
+    # An Ogg station's: a Vorbis comment's own line (its key in capitals), cut at a whole UTF-8 character.
+    def tag(line, key, n=16):
+        return lib.tag_line(line, key, out, n) and out.value.decode()
+    assert tag(b'      TITLE           : Song', b'TITLE') == 'Song' and tag(b'  TITLE: x', b'TITLE') == 'x'
+    assert tag(b'      SUBTITLE        : Live', b'TITLE') == 0 and tag(b'      title           : x', b'TITLE') == 0
+    assert tag(b'      TITLES          : x', b'TITLE') == 0 and tag(b'      TITLE', b'TITLE') == 0
+    assert tag('      TITLE           : 夜の歌夜'.encode(), b'TITLE', 11) == '夜の歌'  # 10 bytes: not a third of 夜
+    # ... and its later songs' comment headers among the packets, read in any pieces.
+    def header(*comments, magic=b'\x03vorbis'):
+        def string(x):
+            return struct.pack('<I', len(x)) + x
+        return magic + string(b'vendor') + struct.pack('<I', len(comments)) + b''.join(map(string, comments))
+    def feed(*pieces):
+        lib.tags_reset()
+        return [lib.tags_feed(p, len(p)) for p in pieces]
+    lib.tags_feed.argtypes = [C.c_char_p, C.c_int]
+    whole = header(b'TITLE=Song', b'artist=Band')
+    assert feed(b'\xff' * 9 + whole + b'\xff') == [1]
+    bytewise = feed(*[whole[i:i + 1] for i in range(len(whole))])
+    assert bytewise[-1] == 1 and sum(bytewise) == 1  # done at its last byte, not before
+    assert feed(header(b'ALBUM=x')) == [0] and feed(header()) == [0]  # no song named; none at all
+    assert feed(header(b'TITLE=x', magic=b'OpusTag')) == [0] and feed(b'OpusTag' + header(b'TITLE=x', magic=b'OpusTags')) == [1]
+    assert feed(b'\x03vorbis' + b'\xff' * 4 + whole) == [1]  # a vendor past its bound ends that match only
     print('Videos: ffmpeg argv, frame pacing, Bluetooth volume, length, picture size and bar passed; radio tags passed.')
 
 
