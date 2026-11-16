@@ -424,7 +424,7 @@ input_method input_method_request widget_set_name
 canvas_set_fill_color canvas_fill_rect canvas_get_vgcanvas vgcanvas_save vgcanvas_restore vgcanvas_translate
 vgcanvas_begin_path vgcanvas_close_path vgcanvas_move_to vgcanvas_line_to vgcanvas_arc vgcanvas_fill vgcanvas_stroke
 vgcanvas_set_fill_color vgcanvas_set_stroke_color vgcanvas_set_fill_linear_gradient vgcanvas_set_line_width
-widget_to_local on_wm_keyup_fun
+widget_to_local on_wm_keyup_fun window_manager_close_window_force
 """.split() for r, a in [PROTOTYPES[n]]) + r"""
 /* peq_ui.c paints through the stock wrapper, which firmware maps to the real call. */
 #define stock_canvas_set_fill_color canvas_set_fill_color
@@ -675,6 +675,7 @@ void shim_scroll(int y) { offset = y; } /* a touch scroll */
 int shim_parent(int x) { return w[x].parent; }
 int shim_h(int x) { return w[x].h; }
 int widget_invalidate_force(void *x, void *y) { return 0; }
+int window_manager_close_window_force(void *wm, void *w) { return 0; }
 unsigned timer_add(int (*f)(const void *), void *ctx, unsigned ms) { timer_fn = f; return ++timers; }
 int timer_remove(unsigned id) { timer_fn = 0; ++removed; return 0; }
 int navigator_back(void) { return ++backs; }
@@ -715,7 +716,7 @@ int shim_row_y(const char *text) {
     return -1;
 }
 void shim_return(void) { int event[8] = {0}; event[6] = 170; w[1].keyup(0, event); shim_run(); }
-void shim_close(void) { w[1].destroy(0, 0); }
+void shim_close(void) { w[1].destroy((void *)1L, 0); } /* ctx: the page, as widget_on's */
 const char *shim_title(void) { /* past the list, 48 high with one row */
     for (int i = 3; i <= count; ++i) if (w[i].parent == 1 && w[i].h == 48) return w[i].text;
     return "";
@@ -738,7 +739,7 @@ int eq_key(void *top, unsigned key);
 int shim_e3_open(void) { return shim_open(); } /* the EQ page opens on Simple */
 int shim_e3_key(int k) { return eq_key((void *)1, (unsigned[]){KEY_PREV, KEY_NEXT, KEY_CENTER}[k]); }
 void shim_e3_return(void) { int event[8] = {0}; event[EVENT_KEY / 4] = KEY_RETURN; w[1].keyup(0, event); }
-void shim_e3_close(void) { w[1].destroy(0, 0); }
+void shim_e3_close(void) { w[1].destroy((void *)1L, 0); }
 int shim_e3_touch(int type, int x, int y) {
     int event[8] = {0}, view = child(0);
     event[EVENT_TYPE / 4] = type; event[EVENT_X / 4] = x; event[EVENT_Y / 4] = y;
