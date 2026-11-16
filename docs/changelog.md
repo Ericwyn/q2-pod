@@ -4,6 +4,7 @@
   - Now Playing: under **Theme: Classic** with **Light Mode** on, changing the volume shows its percentage where the page dots are, in dark text. It was drawn white on the white page, so it only showed with Light Mode off.
   - Now Playing: it opens on the playing song's album art. After using AirPlay, Now Playing could open with no art, which stayed away until the next song.
   - Internet Radio: stations that stream Ogg Vorbis or Opus, such as LISTEN.moe's, show the song and artist playing, and follow each new song. Only MP3 and AAC stations showed them; these sent theirs in a way the Q2 didn't read.
+  - AirPlay: with **Headphones Required** on, music plays to an AirPlay speaker with no headphones connected ([#388](https://github.com/DiamondBond/q2-pod/issues/388)). The switch is for the Q2's own outputs, and comes back when you pick **This Q2**; with nothing connected then, the music pauses.
 - **1.8.5**:
   - About: **CFW. Version** shows just the version number, such as 1.8.5, without "Pod" after it.
   - Games: under **Theme: Classic**, Vortex's night sky is one flat colour, with no gradient.
