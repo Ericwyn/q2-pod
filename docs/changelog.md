@@ -14,6 +14,7 @@
   - Status bar: USB mode's screen shows no clock, in every theme and **Status Bar** look, with **Time in Title** on or off: only the battery and the icons.
   - Language: a Q2 that an older version left on another language now starts in English. Q2 Pod is English only for now, and those screens were half in that language, with no row to change it back.
   - EQ: when presets go from the card while their list is open on a later page, the list falls back to its last page with the top row lit. The lit row could be one that page doesn't have.
+  - EQ: with **Simple** or **Advanced** on, the EQ needs a third to a half fewer processor instructions while music plays, with exactly the same sound.
 - **1.8.4**:
   - Playback: with **Memory Playback** or **In-Vehicle Mode** on, picking your queue back up at power-on reads only the queue's songs from the library, not the whole library, so it is much quicker and needs far less memory on a big library.
   - Library: **Recent** no longer reads the whole library to find the title of a song played from Folder, only that song, so it opens much faster on a big library.
