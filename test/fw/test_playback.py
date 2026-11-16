@@ -2448,6 +2448,69 @@ def test_a_preload_too_long_is_not_opened(saved, fw, mcl):
     assert fw.fn('ringnav_open_preload', C.c_int)() == 1 and mcl.preload == -1
 
 
+def tables(saved):
+    """Where advanced play's order, groups and ids are: a rebuild takes new ones while the old are held."""
+    return (C.cast(saved.s.order, C.c_void_p).value, C.cast(saved.s.groups, C.c_void_p).value,
+            saved.fw.var('playback__ids', C.c_void_p).value)
+
+
+def shuffle_pick(saved, rows, folder):
+    """playback_groups as the Q2 runs it: its own load, then the one Now Playing's player_start makes (play_folder's
+    playing_page, at the order's first track), both through ringnav_load. Returns the tables that second load found."""
+    fw, found = saved.fw, []
+    load = fw.fn('ringnav_load', C.c_int, C.c_void_p, C.c_int, C.c_int)
+    fw.mock('stock_load_trampoline', saved.stock_load)
+    fw.mock('mclLoadPlayList', lambda q, at, kind, *_: load(q, at, kind))
+
+    def now_playing(name, context, *_):
+        q, at = struct.unpack_from('<Qi', C.string_at(context, 12))
+        found.append(tables(saved))
+        load(q, at, 0xf001)
+    fw.mock('navigator_to_with_context', now_playing)
+    assert fw.fn('playback_groups', C.c_int, C.c_void_p, C.c_int)(saved.deques.new(rows), folder) == 1
+    return found
+
+
+@pytest.mark.parametrize('folder', [0, 1])
+def test_now_playing_s_load_keeps_the_pick_s_tables(saved, folder):
+    """Now Playing's load of the pick's own queue, at the order's first track, keeps the order, groups and ids the
+    pick has just drawn, started there as rebuild(0) would start them: the library is not grouped a second time."""
+    rows = saved.albums(3, 1, 4, 2)
+    found, at = shuffle_pick(saved, rows, folder), saved.mcl.pos
+    assert found == [tables(saved)] and saved.s.active == 1 and saved.s.shuffle == 3 and saved.s.grouping == 0
+    assert saved.order()[0] == at and saved.s.cursor == 0 and saved.seen() == {at} and saved.history() == [at]
+    nexts = saved.up_next()
+    played = saved.run(len(rows))
+    assert played == nexts and sorted([at, *played]) == list(range(len(rows)))  # Up Next plays, each track once
+    albums = [saved.album(i) for i in [at, *played]]
+    assert len([a for i, a in enumerate(albums) if not i or albums[i - 1] != a]) == 4  # each album whole
+
+
+@pytest.mark.parametrize('other', ['song', 'track', 'size'])
+def test_another_queue_loaded_while_grouping_is_grouped_anew(saved, other):
+    """Only the pick's own queue, entry for entry, at the order's first track, keeps its tables. Loaded while
+    s.grouping is set (another start landing during the pick), each of these is grouped anew and started where it
+    is loaded, as rebuild(0) starts it: the rows with one song changed (an album of its own then), the same rows
+    at another track, and the rows with one more song."""
+    rows = saved.albums(3, 3)
+    shuffle_pick(saved, rows, 0)
+    before, at, groups = tables(saved), saved.mcl.pos, [saved.s.groups[i] for i in range(6)]
+    j = max(i for i in range(6) if i != at and groups[i] != i)  # in an album an earlier entry starts
+    queue, start = list(rows), at
+    if other == 'song':
+        queue[j] = saved.song(b'/o/C/01.flac', b'C', track=1)
+    elif other == 'track':
+        start = j
+    else:
+        queue.append(saved.song(b'/o/C/01.flac', b'C', track=1))
+    saved.s.grouping = 1
+    saved.fw.fn('ringnav_load', C.c_int, C.c_void_p, C.c_int, C.c_int)(saved.deques.new(queue), start, 0xf001)
+    saved.s.grouping = 0
+    assert tables(saved) != before and saved.s.active == 1 and saved.s.n == len(queue)
+    assert saved.order()[saved.s.cursor] == start and saved.history() == [start]
+    assert other != 'song' or saved.s.groups[j] == j != groups[j]
+
+
 def test_shuffle_groups_starts_at_an_albums_first_track(saved, fw):
     rows = saved.albums(3, 3)
     saved.deques[saved.handle][:] = rows
