@@ -3778,7 +3778,8 @@ class QueueMachine(Machine):
                   'importPlayList','toolsGetDirectoryM3u8'): self.handlers[syms[n]]='q:'+n
         self.favs=set(); self.open_pages=set(); self.opened=[]
         self.handlers.pop(syms['mclLoadPlayList'])
-        self.mock('strlen@GLIBC_2.0','snprintf@GLIBC_2.0'); self.handlers[syms['strcmp@GLIBC_2.0']]='tk_strcmp'
+        # strstr: an artist page's groupings find ALBUM_GROUP in their SQL (coverflow.c of_names)
+        self.mock('strlen@GLIBC_2.0','snprintf@GLIBC_2.0','strstr@GLIBC_2.0'); self.handlers[syms['strcmp@GLIBC_2.0']]='tk_strcmp'
         self.mock('mclStartPlayer','mclStop','mclSetPause','mclSetResume','mclSetSeek')
         self.status=self.alloc(0x200); self.word(syms['g_class_type'],cls)
         self.surface,_,_=self.table_page(4,page,rebind=True); self.word(self.surface+O['TABLE_ROWS'],rows)

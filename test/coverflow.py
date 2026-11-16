@@ -684,6 +684,20 @@ void *staged_music(int (*query)(void *), void *arg, int *count) {
     music_only = 0;
     return out;
 }
+/* navigation.c's: an artist's groupings scope themselves (of_names); and tags.c's quoting */
+void *staged_unwrapped(int (*query)(void *), void *arg, int *count) { return staged(query, arg, count); }
+int scan_quote(char *sql, unsigned cap, unsigned *n, const char *s) {
+    if (*n + 3 >= cap) return 0;
+    sql[(*n)++] = '\'';
+    for (; s && *s; ++s) {
+        if (*n + 3 >= cap) return 0;
+        if (*s == '\'') sql[(*n)++] = '\'';
+        sql[(*n)++] = *s;
+    }
+    sql[(*n)++] = '\'';
+    sql[*n] = 0;
+    return 1;
+}
 static int spoken_path(const char *path) {
     return !strncasecmp(path, "/mnt/mmc/audiobooks/", 20) ||
            !strncasecmp(path, "/mnt/mmc/podcasts/", 18) ||
