@@ -2466,6 +2466,41 @@ def test_an_empty_list_has_no_groups(fw, player):
     assert fw.fn('playback_groups', C.c_int, C.c_void_p, C.c_int)(player.deques.new(), 0) == 0 and not fw.calls('mclLoadPlayList')
 
 
+def test_more_songs_than_a_queue_takes_leave_the_queue_as_it_was(saved, fw):
+    """A library past QUEUE_LIMIT is refused before the load ("Too many songs to shuffle"): the queue, its position,
+    its order and its snapshot stay. The load used to replace the queue, and rebuild's refusal unlinked the snapshot."""
+    rows = full_queue(saved)
+    saved.save()
+    pos, order, snapshot, asked = saved.mcl.pos, saved.order(), saved.queue_file(), []
+    fw.mock('check_forbid_play_no_headset', lambda quiet, *_: asked.append(quiet) or 1)
+    assert fw.fn('playback_groups', C.c_int, C.c_void_p, C.c_int)(saved.deques.new([0] * 65537), 0) == 0
+    assert not asked  # the size first: no message for a pick that could never start
+    assert not fw.calls('mclLoadPlayList') and list(saved.deques[saved.handle]) == rows and saved.mcl.pos == pos
+    assert saved.s.active == 1 and saved.order() == order and saved.queue_file() == snapshot
+
+
+def test_a_library_of_exactly_the_queue_limit_still_shuffles(saved, fw):
+    """QUEUE_LIMIT songs are not too many, as rebuild takes them: the pick goes on to its load (the list's size
+    reported as the limit, its six rows loaded and grouped)."""
+    all_ = saved.deques.new(saved.albums(3, 3))
+    fw.mock('fw_deque_size', lambda q, *_: 65536 if (q & 0xffffffff) == all_ else len(saved.deques[q]))
+    assert fw.fn('playback_groups', C.c_int, C.c_void_p, C.c_int)(all_, 0) == 1 and fw.calls('mclLoadPlayList')
+
+
+def test_a_start_headphones_required_forbids_leaves_the_queue_as_it_was(saved, fw):
+    """Headphones Required with no output: stock's gate is asked (0: it shows its message) before the load, and its
+    refusal loads, groups and opens nothing, with no toast of ours (1). Now Playing refused only after that load had
+    replaced the queue with the whole library."""
+    rows = full_queue(saved)
+    saved.save()
+    pos, order, snapshot, asked = saved.mcl.pos, saved.order(), saved.queue_file(), []
+    fw.mock('check_forbid_play_no_headset', lambda quiet, *_: asked.append(quiet) or 1)
+    assert fw.fn('playback_groups', C.c_int, C.c_void_p, C.c_int)(saved.deques.new(saved.albums(3, 3)), 0) == 1
+    assert asked == [0] and not fw.calls('mclLoadPlayList') and not fw.calls('navigator_to_with_context')
+    assert list(saved.deques[saved.handle]) == rows and saved.mcl.pos == pos and saved.s.active == 1
+    assert saved.s.shuffle == 1 and saved.order() == order and saved.queue_file() == snapshot
+
+
 def test_back_shifts_with_an_insert_before_it(fw, player, mcl):
     player.load(player.albums(6), 1)
     C.c_uint64.from_address(O['MCL_POOL']).value = player.deques.new()
