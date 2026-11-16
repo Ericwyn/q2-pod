@@ -735,7 +735,8 @@ int playback_set(int kind, int value) {
  * rebuild has memory for; 1 when it starts, or when Headphones Required refuses it with stock's
  * message. The limit and that gate come before the load replaces the queue, where rebuild and Now
  * Playing would refuse only after it. ponytail: an output lost during the load and grouping is
- * still refused by Now Playing after it, as before. */
+ * still refused by Now Playing after it, as before; drawing the order over all before any load, so
+ * Now Playing's own load is the only one, would lift it. */
 int playback_groups(void *all, int folder) {
     if (!deque_size(all) || deque_size(all) > QUEUE_LIMIT) return 0;
     if (check_forbid_play_no_headset(0)) return 1;

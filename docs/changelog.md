@@ -13,6 +13,8 @@
   - Internet Radio: stations that stream Ogg Vorbis or Opus, such as LISTEN.moe's, show the song and artist playing, and follow each new song. Only MP3 and AAC stations showed them; these sent theirs in a way the Q2 didn't read.
   - AirPlay: with **Headphones Required** on, music plays to an AirPlay speaker with no headphones connected ([#388](https://github.com/DiamondBond/q2-pod/issues/388)). The switch is for the Q2's own outputs, and comes back when you pick **This Q2**; with nothing connected then, the music pauses.
   - Quick Settings: holding **Playback** opens the EQ over Now Playing after Return's hold took you there from the EQ ([#397](https://github.com/DiamondBond/q2-pod/issues/397)), and Return goes back to Now Playing. The hold did nothing there, as the EQ was still open underneath; that one now closes first.
+  - Library: a shuffle that **Headphones Required** refuses leaves your queue and play mode as they were. With nothing connected, **Shuffle Songs** (and a decade's or the hold menu's **Shuffle**) used to set Play Mode to Shuffle and shuffle the queue you had, and **Shuffle Albums** and **Shuffle Folders** replaced it with the whole library.
+  - Library: **Shuffle Albums** and **Shuffle Folders** over more than 65,536 songs say there are too many songs to shuffle and leave your queue and play mode as they were. They used to replace your queue with the whole library first, whatever was connected.
 - **1.8.5**:
   - About: **CFW. Version** shows just the version number, such as 1.8.5, without "Pod" after it.
   - Games: under **Theme: Classic**, Vortex's night sky is one flat colour, with no gradient.
@@ -22,7 +24,6 @@
   - Status bar: USB mode's screen shows no clock, in every theme and **Status Bar** look, with **Time in Title** on or off: only the battery and the icons.
   - Language: a Q2 that an older version left on another language now starts in English. Q2 Pod is English only for now, and those screens were half in that language, with no row to change it back.
   - EQ: when presets go from the card while their list is open on a later page, the list falls back to its last page with the top row lit. The lit row could be one that page doesn't have.
-  - Library: a shuffle that **Headphones Required** refuses, or **Shuffle Albums** or **Shuffle Folders** over more than 65,536 songs, leaves your queue and play mode as they were. With nothing connected, **Shuffle Songs** (and a decade's or the hold menu's **Shuffle**) used to set Play Mode to Shuffle and shuffle the queue you had, and Shuffle Albums and Shuffle Folders to replace it with the whole library, which they also did over 65,536 songs, whatever was connected.
 - **1.8.4**:
   - Playback: with **Memory Playback** or **In-Vehicle Mode** on, picking your queue back up at power-on reads only the queue's songs from the library, not the whole library, so it is much quicker and needs far less memory on a big library.
   - Library: **Recent** no longer reads the whole library to find the title of a song played from Folder, only that song, so it opens much faster on a big library.

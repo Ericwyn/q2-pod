@@ -81,7 +81,11 @@ int shuffle_play(void *all) {
             at = (at + 1 + (int)rand_below((unsigned)size - 1)) % size;
         }
         /* Headphones Required: refused with stock's message before the mode or advanced play
-         * changes, where Now Playing would refuse only after both */
+         * changes, where Now Playing would refuse only after both. ponytail: an output lost between
+         * this check and Now Playing's is still refused after Shuffle is saved and advanced play
+         * ended, and the old queue becomes Shuffle Songs, as before; seeing play_folder load
+         * nothing (playback_loads unchanged), then skipping playback_shuffle and restoring mode,
+         * would lift most of it. */
         if (check_forbid_play_no_headset(0)) return size;
         int mode = playback_unshuffle();
         playback_clear(); /* stock Shuffle keeps Shuffle Albums/Folders otherwise */
