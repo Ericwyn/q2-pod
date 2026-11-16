@@ -2454,13 +2454,19 @@ def tables(saved):
             saved.fw.var('playback__ids', C.c_void_p).value)
 
 
-def shuffle_pick(saved, rows, folder):
+def shuffle_pick(saved, rows, folder, own=None):
     """playback_groups as the Q2 runs it: its own load, then the one Now Playing's player_start makes (play_folder's
-    playing_page, at the order's first track), both through ringnav_load. Returns the tables that second load found."""
+    playing_page, at the order's first track), both through ringnav_load. Returns the tables that second load found;
+    own, if given, gets the tables the pick's own load left."""
     fw, found = saved.fw, []
     load = fw.fn('ringnav_load', C.c_int, C.c_void_p, C.c_int, C.c_int)
     fw.mock('stock_load_trampoline', saved.stock_load)
-    fw.mock('mclLoadPlayList', lambda q, at, kind, *_: load(q, at, kind))
+
+    def pick_load(q, at, kind, *_):
+        load(q, at, kind)
+        if own is not None:
+            own.append(tables(saved))
+    fw.mock('mclLoadPlayList', pick_load)
 
     def now_playing(name, context, *_):
         q, at = struct.unpack_from('<Qi', C.string_at(context, 12))
@@ -2471,19 +2477,48 @@ def shuffle_pick(saved, rows, folder):
     return found
 
 
+def folders(saved, *sizes):
+    """Songs of folders /m/A, /m/B... of these sizes whose album tags, X and Y, cross the folders, shuffled together."""
+    rows = [saved.song(b'/m/%c/%02d.flac' % (65 + a, t), b'%c' % (88 + t % 2), track=t + 1)
+            for a, size in enumerate(sizes) for t in range(size)]
+    random.Random(len(rows)).shuffle(rows)
+    return rows
+
+
+def folder_of(saved, i):
+    path = struct.unpack_from('<Q', C.string_at(saved.deques[saved.handle][i], 0x60), O['REC_PATH'])[0]
+    return C.string_at(path).rsplit(b'/', 1)[0]
+
+
 @pytest.mark.parametrize('folder', [0, 1])
 def test_now_playing_s_load_keeps_the_pick_s_tables(saved, folder):
     """Now Playing's load of the pick's own queue, at the order's first track, keeps the order, groups and ids the
-    pick has just drawn, started there as rebuild(0) would start them: the library is not grouped a second time."""
-    rows = saved.albums(3, 1, 4, 2)
+    pick has just drawn, started there as rebuild(0) would start them: the library is not grouped a second time.
+    Folders are tested over rows whose album tags cross them, so grouping by album would show."""
+    rows = folders(saved, 3, 1, 4, 2) if folder else saved.albums(3, 1, 4, 2)
     found, at = shuffle_pick(saved, rows, folder), saved.mcl.pos
     assert found == [tables(saved)] and saved.s.active == 1 and saved.s.shuffle == 3 and saved.s.grouping == 0
     assert saved.order()[0] == at and saved.s.cursor == 0 and saved.seen() == {at} and saved.history() == [at]
+    check_order(saved, 3, at)
     nexts = saved.up_next()
     played = saved.run(len(rows))
     assert played == nexts and sorted([at, *played]) == list(range(len(rows)))  # Up Next plays, each track once
-    albums = [saved.album(i) for i in [at, *played]]
-    assert len([a for i, a in enumerate(albums) if not i or albums[i - 1] != a]) == 4  # each album whole
+    key = (lambda i: folder_of(saved, i)) if folder else saved.album
+    groups = [key(i) for i in [at, *played]]
+    assert len([g for i, g in enumerate(groups) if not i or groups[i - 1] != g]) == 4  # each album or folder whole
+
+
+@pytest.mark.parametrize('shuffle', [0, 1, 2])
+def test_a_pick_over_advanced_play_groups_once(saved, shuffle):
+    """A pick made while advanced play has no group shuffle (a Repeat, All Songs, Songs in Album) ends it before its
+    own load, as shuffle_play does, so that load groups nothing, and ends as a pick from plain play does."""
+    rows = saved.load(saved.albums(3, 1, 4, 2))
+    assert saved.set(1, REPEAT_ALL) == 1 and saved.set(0, shuffle) == 1 and saved.s.active == 1
+    own = []
+    found, at = shuffle_pick(saved, rows, 0, own), saved.mcl.pos
+    assert own == [(None, None, None)]  # the pick's own load left no tables: it grouped nothing
+    assert found == [tables(saved)] and saved.s.active == 1 and saved.s.shuffle == 3 and saved.s.repeat == 2
+    assert saved.s.cursor == 0 and saved.seen() == {at} and saved.history() == [at]
 
 
 @pytest.mark.parametrize('other', ['song', 'track', 'size'])

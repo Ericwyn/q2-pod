@@ -740,6 +740,7 @@ int playback_set(int kind, int value) {
 int playback_groups(void *all, int folder) {
     if (!deque_size(all) || deque_size(all) > QUEUE_LIMIT) return 0;
     if (check_forbid_play_no_headset(0)) return 1;
+    playback_clear();
     mclLoadPlayList(all, 0, 0xf001);
     s.folder = folder;
     s.shuffle = 3;
@@ -931,13 +932,11 @@ static void *no_videos(void *q, int *at) {
  * ordered, at the order's first track. Its tables stand, started as rebuild(0) would start them
  * there (that track leads its group, which comes first), so the library is not grouped again. Any
  * other queue (an entry's path or CUE start, its id, differs), size or position rebuilds.
- * ponytail: a pick over advanced play with no shuffle or a track shuffle still rebuilds that mode
- * over the library at playback_groups' first load; ending advanced play before it would lift it. */
+ * playback_groups ends advanced play before its own load (playback_clear), as shuffle_play does,
+ * so that load groups nothing. */
 static int keep_drawn(void) {
     unsigned at = (unsigned)M(MCL_POS);
-    if (!queue() || !s.order || !ids || deque_size(queue()) != s.n || at >= s.n ||
-        s.order[0].index != at)
-        return 0;
+    if (!queue() || deque_size(queue()) != s.n || s.order[0].index != at) return 0;
     for (unsigned i = 0; i < s.n; ++i)
         if (rec_id(i) != ids[i]) return 0;
     memset(s.seen, 0, s.n * sizeof *s.seen); /* the first rebuild's marks were for position 0 */
