@@ -800,9 +800,12 @@ def test_an_unreadable_box_clears_the_query(editor, ui):
     assert editor.rows()[0] == 'Search' and len(editor.rows()) == 6
 
 
-def test_add_songs_lists_500_songs_then_a_row_that_searches(editor, ui, fw):
+def test_add_songs_lists_500_songs_then_a_row_that_searches(fw, ui, recs, st):
     """Every row is built at once, and the wheel walks at most ringnav's MAX_ENTRIES (512): the first 500 songs,
     then a last row the wheel still reaches, which opens the Search box as row 0 does."""
+    editor = Editor(fw, ui, recs, songs=('b', 'c'))  # without One, the first song not listed
+    use_set(st, MINIMAL)
+    assert editor.open(1, None) == 0
     editor.table.library *= 120  # 600 songs
     editor.pick('Add Songs')
     assert editor.rows() == ['Search', *list(TITLES.values()) * 100, 'Search for more songs']
@@ -812,7 +815,7 @@ def test_add_songs_lists_500_songs_then_a_row_that_searches(editor, ui, fw):
     assert m.n == 502 and m.at[501] == ui.kids(editor.view())[-1]
     editor.pick('Search for more songs')
     assert editor.ple.mode == 4 and ui.lookup(editor.ple.page, 'search_edit', 1)
-    assert editor.table.songs(3) == ['One', 'Two', 'Three']  # it added nothing
+    assert editor.table.songs(3) == ['Two', 'Three']  # it added nothing
 
 
 def test_a_search_with_more_than_500_matches_ends_in_that_row(editor, ui):

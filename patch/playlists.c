@@ -285,8 +285,9 @@ static int ple_pick(void *ctx, void *event) {
     return 0;
 }
 /* ponytail: Add Songs builds every row it lists at once, a list_item and an hscroll_label each, so
- * it lists the first PLE_ROWS matches, under ringnav's MAX_ENTRIES (512) as View Queue's 500, then
- * a row that opens Search for the rest. A table_client page would list every song. */
+ * it lists the first PLE_ROWS matches, under ringnav's MAX_ENTRIES (512) as Books', Photos' and Up
+ * Next's 500, then a row that opens Search for the rest. A table_client page would list every song.
+ * The library is still read and held whole on each entry, as Songs' is. */
 #define PLE_ROWS 500
 /* That row opens the Search box, as row 0 does; picked by its own index, as a song's row is, it
  * would add the first match not listed. */
