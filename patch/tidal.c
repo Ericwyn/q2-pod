@@ -791,7 +791,8 @@ void tidal_all(int press, char *out, unsigned size) {
         if (!td.all) deque_destroy(all), toast("Play a Tidal album or playlist first");
         /* The folder, as tidal_play makes it before its card_space: tidal_poll's statfs of a
          * missing one fails, which reads as a full card and ends the run at once. */
-        if (td.all) mkdir(TIDAL_DIR, 0755);
+        else
+            mkdir(TIDAL_DIR, 0755);
     }
     unsigned n = td.all ? deque_size(td.all) : 0;
     if (n)
