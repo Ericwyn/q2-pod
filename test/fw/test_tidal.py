@@ -1050,6 +1050,18 @@ def test_download_all_ends_on_a_full_card(fw, queue, mcl):
     assert a.toasts == ['Downloaded 0 of 1 song'] and a.posts == []
 
 
+def test_download_all_on_a_card_without_the_cache_folder_makes_it_and_goes_on(fw, queue, mcl):
+    card, made = Card(fw), []  # a new or reformatted card: no .tidal, whose statfs fails until it is made
+    fw.mock('fw_mkdir', lambda path, mode, *_: made.append(C.string_at(path).decode()) or 0)
+    fw.mock('fw_statfs', lambda path, buf, *_: card.statfs(path, buf) if TIDAL in made else -1)
+    a = All(fw, queue, mcl, card, ['11'])
+    a.row(press=1)
+    a.poll()
+    assert made == [TIDAL] and a.asked() == '11'
+    a.poll()
+    assert a.busy() and a.toasts == []
+
+
 def test_the_count_is_told_once_the_screen_is_on(fw, queue, mcl):
     card = Card(fw, {cached('11-0.flac'): b''})
     a = All(fw, queue, mcl, card, ['11'])
