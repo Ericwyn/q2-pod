@@ -2085,7 +2085,7 @@ def every_rated_one(songs, favs, table):
 def test_each_song_s_hearts_are_those_every_rated_key_gave_it(fw, seed):
     """rate_all's sorted searches give each song the hearts the walk of every rated key gave it, over a table rate_keep
     wrote: CUE tracks of one image, a song listed twice, My Fav rows out of the library and one twice, favourites with
-    kept hearts, slots cleared and filled again, keys at both ends."""
+    kept hearts, slots cleared and filled again, words at both ends of the table."""
     rnd, keep, deques, files = random.Random(seed), [], Deques(fw), Files(fw)
     rate = fw.fn('rate_keep', C.c_int, C.c_int, C.c_uint, C.c_int)
     paths = [b'/m/%d.flac' % i for i in range(300)]

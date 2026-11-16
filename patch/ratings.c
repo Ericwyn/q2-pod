@@ -469,6 +469,9 @@ static int rated_open(void *ctx, void *event) {
     static const unsigned char lo[] = { 4, 5, 1, 1 }, hi[] = { 5, 5, 5, 1 };
     int k = (int)(long)ctx - ((int)(long)ctx > RT_ALBUMS), n;
     if (st.rt_page || !(st.rt_page = page_open("rated_page", rt_closed, page_keyup))) return 0;
+    /* ponytail: each open still reads the whole library (getAllMusic(0)), now most of its time; the
+     * tables hold only hashes, so reading only the rated songs needs a pass keying the library's
+     * rows as listen_key does. */
     void *songs = staged(all_songs, 0, &n), *list = _create_deque("stSongInfo");
     unsigned size = deque_size(songs);
     unsigned char *h = calloc(size + 1, 1), *of = calloc(size + 1, 1);

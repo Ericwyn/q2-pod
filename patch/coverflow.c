@@ -209,18 +209,7 @@ static unsigned *art_keys(unsigned *n) {
     return keys;
 }
 
-/* Whether key is in keys[0..n), sorted (library_lists.c's era keys too). */
-int has_key(const unsigned *keys, unsigned n, unsigned key) {
-    unsigned lo = 0, hi = n;
-    while (lo < hi) /* the first key not below this one */
-        if (keys[(lo + hi) / 2] < key)
-            lo = (lo + hi) / 2 + 1;
-        else
-            hi = (lo + hi) / 2;
-    return lo < n && keys[lo] == key;
-}
-/* The first of keys[0..n), sorted, not below key; n when none is (ratings.c's kept hearts). It is
- * has_key's search: has_key keeps its own, so Cover Flow's open and Era make no extra call. */
+/* The first of keys[0..n), sorted, not below key; n when none is (ratings.c's kept hearts). */
 unsigned key_at(const unsigned *keys, unsigned n, unsigned key) {
     unsigned lo = 0, hi = n;
     while (lo < hi)
@@ -229,6 +218,11 @@ unsigned key_at(const unsigned *keys, unsigned n, unsigned key) {
         else
             hi = (lo + hi) / 2;
     return lo;
+}
+/* Whether key is in keys[0..n), sorted (library_lists.c's era keys too). */
+int has_key(const unsigned *keys, unsigned n, unsigned key) {
+    unsigned i = key_at(keys, n, key);
+    return i < n && keys[i] == key;
 }
 
 /* path's size, -1 when it can't be opened */
