@@ -343,7 +343,11 @@ int tidal_play(const char *url, const char *id, const char *reply) {
                 album = P(r, REC_ALBUM), cover = P(r, REC_COVER);
         }
         /* The download writes it as .tmp and the remux as .tmp.tag.tmp beside it, so all three fit
-         * the 255 a name on the card may have (FAT's and exFAT's limit). */
+         * the 255 a name on the card may have (FAT's and exFAT's limit). ponytail: a copy an older
+         * version saved untagged under a longer name (no room for the remux's) is still found by
+         * its <id>-<quality> prefix and stays untagged, and a .tmp it left at a power-off under a
+         * longer name is no longer overwritten (the new name differs; trim skips .tmp names), both
+         * until Clear All Downloads. */
         tidal_name(name, sizeof name - (sizeof ".tmp.tag.tmp" - 1), key, artist, title, ext);
         tk_snprintf(td.tags[0], TIDAL_TAG, "title=%s", title ? title : "");
         tk_snprintf(td.tags[1], TIDAL_TAG, "artist=%s", artist ? artist : "");

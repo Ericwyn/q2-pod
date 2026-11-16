@@ -617,7 +617,7 @@ def test_a_long_label_leaves_room_for_the_copy_s_tmp_and_its_remux_on_the_card(f
     t.run()
     names = card.listing()
     assert len(names) == 1 and len(names[0] + '.tmp.tag.tmp') <= 255 and card.files[cached(names[0])] == b'TAGGED'
-    assert names[0].startswith('123-0 Artist - xxx') and names[0].endswith('.flac')
+    assert names[0].startswith('123-0 Artist - xxx') and names[0].endswith('.flac') and len(names[0]) == 243
 
 
 # Clear All and the cap.
