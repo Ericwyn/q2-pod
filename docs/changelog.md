@@ -1,5 +1,7 @@
 # Changelog
 
+- **1.8.6**:
+  - Now Playing: under **Theme: Classic** with **Light Mode** on, changing the volume shows its percentage where the page dots are, in dark text. It was drawn white on the white page, so it only showed with Light Mode off.
 - **1.8.5**:
   - About: **CFW. Version** shows just the version number, such as 1.8.5, without "Pod" after it.
   - Games: under **Theme: Classic**, Vortex's night sky is one flat colour, with no gradient.
