@@ -407,6 +407,7 @@ steps = [0]
 hook = u.hook_add(UC_HOOK_CODE, lambda *_: steps.__setitem__(0, steps[0] + 1), begin=PLAYER_BASE, end=ps['__end'] - 1)
 u.mem_write(BUF, pcm), call(ps['peq_process'], eq, BUF, 1024)
 u.hook_del(hook)
+assert bytes(u.mem_read(BUF, len(pcm))) != pcm  # the EQ ran: a bypassed block would pass the budget too
 assert steps[0] < 750_000, steps[0]  # 605,226 measured (clang 17), 949,647 with sample() at every sample: losing the fast path fails
 print('Player crossfade (MIPS build): the hold window, half-rate emission in order, the equal-power '
       'mix at the same and another rate and between mono and stereo, after a cold start, through a pause and a skip, '

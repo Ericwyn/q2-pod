@@ -515,7 +515,10 @@ static double sample(peq_engine *e, const int *list, int n, double x, int ch) {
 
 /* A steady block (no ramp, no update waiting): unless a listed band is at identity (draining to
  * rest, or a one-channel band past Nyquist), sample()'s tests answer the same all block, so each
- * channel runs its own bands over the block instead. 0: sample() runs it. */
+ * channel runs its own bands over the block instead. 0: sample() runs it.
+ * ponytail: a one-channel band at or above half the rate (a stream at 40 kHz or less) stays listed
+ * at identity, so its preset takes sample() every block; skipping an identity band with no memory
+ * here, as sample() does, would lift it. */
 static int steady(peq_engine *e, const int *list, int n, float *audio, unsigned frames,
                   int channels) {
     for (int k = 0; k < n; ++k)
