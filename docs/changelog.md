@@ -8,6 +8,8 @@
   - EQ: **Simple** and **Advanced** use less of the processor while music plays, with exactly the same sound.
   - Library: **Most Played** reads only the songs you've played from the library, not the whole library, when it first opens after the Q2 starts or the library changes, so it opens quicker and needs far less memory on a big library. Cover Flow's **Sort: Most Played** does the same.
   - Edit Playlist: **Add Songs** opens much sooner and needs far less memory on a big library: it lists the first 500 songs, A to Z, and when more songs or search results match, its last row, **Search for more songs**, opens the search as its **Search** row does. Search to add a song past the 500th.
+  - Now Playing: under **Theme: Classic** with **Light Mode** on, changing the volume shows its percentage where the page dots are, in dark text. It was drawn white on the white page, so it only showed with Light Mode off.
+  - Now Playing: it opens on the playing song's album art. After using AirPlay, Now Playing could open with no art, which stayed away until the next song.
 - **1.8.5**:
   - About: **CFW. Version** shows just the version number, such as 1.8.5, without "Pod" after it.
   - Games: under **Theme: Classic**, Vortex's night sky is one flat colour, with no gradient.

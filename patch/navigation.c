@@ -4957,7 +4957,9 @@ static int np_gone(void *win, void *event) {
  * stock's placeholder) are compared with the last, with that file's size and time
  * (now_cover_written: a card app's URL queue's songs share both); a change reloads the art as stock
  * does, the cached bitmap dropped first (the player writes every track's cover to the same file).
- * Anything else (parsing, Tidal) keeps stock's image.
+ * The page's opening loads it too (ringnav_playing), whatever stock's init showed: its image could
+ * be none or another song's, and with the key already this song's nothing loaded it until the
+ * next song. Anything else (parsing, Tidal) keeps stock's image.
  * ponytail: one more decode per track change while the page is up, beside stock's own reload. */
 static unsigned np_art(const char **file) {
     unsigned at, n;
@@ -4969,22 +4971,25 @@ static unsigned np_art(const char **file) {
                        written
                  : 0;
 }
-/* The art np_art_poll last loaded is this song's (coverflow_land.c's landing hands over to it). */
+/* The art np_art_load last loaded is this song's (coverflow_land.c's landing hands over to it). */
 int np_art_ready(void) {
     const char *file;
     return st.np_art && st.np_art == np_art(&file);
+}
+/* img_cover takes the player's file of np_art's key, if it has one. */
+static void np_art_load(unsigned key, const char *file) {
+    st.np_art = key;
+    if (!file || !st.np_cover) return;
+    image_manager_unload_bitmap_by_name(image_manager(), file);
+    image_base_set_image(st.np_cover, file);
+    coverflow_slant_close(); /* the same file, another cover: Classic's art drawn again */
+    widget_invalidate_force(st.np_cover, (void *)0);
 }
 static void np_art_poll(void) {
     const char *file;
     if (!st.np_cover || !g_backlight_status) return;
     unsigned key = np_art(&file);
-    if (key == st.np_art) return;
-    st.np_art = key;
-    if (!file) return;
-    image_manager_unload_bitmap_by_name(image_manager(), file);
-    image_base_set_image(st.np_cover, file);
-    coverflow_slant_close(); /* the same file, another cover: Classic's art drawn again */
-    widget_invalidate_force(st.np_cover, (void *)0);
+    if (key != st.np_art) np_art_load(key, file);
 }
 
 /* Classic's Spotify or Internet Radio Now Playing closing: its art's slanted frame goes with it.
@@ -5095,7 +5100,8 @@ int ringnav_playing(void *win, void *ctx) {
         widget_on(lyric, touch[i], np_lyric_touch, (void *)0);
     st.np_hash = 0;
     const char *file;
-    st.np_art = np_art(&file); /* stock's init loaded it */
+    unsigned art = np_art(&file);
+    np_art_load(art, file); /* not left to stock's init, which can show none or another song's */
     st.np_left = -1;
     np_fill(0);
     np_theme();
