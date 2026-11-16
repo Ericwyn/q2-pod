@@ -80,6 +80,9 @@ int shuffle_play(void *all) {
             }
             at = (at + 1 + (int)rand_below((unsigned)size - 1)) % size;
         }
+        /* Headphones Required: refused with stock's message before the mode or advanced play
+         * changes, where Now Playing would refuse only after both */
+        if (check_forbid_play_no_headset(0)) return size;
         int mode = playback_unshuffle();
         playback_clear(); /* stock Shuffle keeps Shuffle Albums/Folders otherwise */
         config_playmode(2, 1);

@@ -731,8 +731,14 @@ int playback_set(int kind, int value) {
     playback_save();
     return s.active;
 }
+/* Shuffle Albums (folder 0) or Folders over all: 0 when it is empty, past QUEUE_LIMIT or more than
+ * rebuild has memory for; 1 when it starts, or when Headphones Required refuses it with stock's
+ * message. The limit and that gate come before the load replaces the queue, where rebuild and Now
+ * Playing would refuse only after it. ponytail: an output lost during the load and grouping is
+ * still refused by Now Playing after it, as before. */
 int playback_groups(void *all, int folder) {
-    if (!deque_size(all)) return 0;
+    if (!deque_size(all) || deque_size(all) > QUEUE_LIMIT) return 0;
+    if (check_forbid_play_no_headset(0)) return 1;
     mclLoadPlayList(all, 0, 0xf001);
     s.folder = folder;
     s.shuffle = 3;

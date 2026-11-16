@@ -480,6 +480,25 @@ def test_shuffle_songs_plays_the_library_from_a_random_song(fw, ui, mcl, song):
     assert ui.windows  # the page stays, as Most Played's rows leave it
 
 
+def test_shuffle_songs_headphones_required_forbids_changes_nothing(fw, ui, mcl, song):
+    """Headphones Required with no output: Shuffle Songs asks stock's gate (0: it shows its message) before it
+    takes the mode to restore, ends advanced play, saves Shuffle or opens Now Playing, and its refusal does none
+    of them, with no toast of ours. Here the queue is an earlier Shuffle Songs, holding mode 3 to restore. Now
+    Playing refused only after Shuffle was saved, and the old queue then became Shuffle Songs anew."""
+    Library(fw, ui, [song(b'/m/%d.flac' % i) for i in range(4)])
+    fw.var('fw_ctx_mcl_pdeqplaylist', C.c_uint).value = ui.deques.new([song(b'/q/%d.flac' % i) for i in range(3)])
+    mcl.type, mcl.pos = LIBRARY, 0
+    assert fw.fn('playback_shuffle', C.c_int, C.c_int)(3) == 1  # advanced Shuffle Songs, mode 3 to restore
+    asked = []
+    fw.mock('check_forbid_play_no_headset', lambda quiet, *_: asked.append(quiet) or 1)
+    call(fw, 'shuffle_menu')
+    fw.var('fw_log_n', C.c_int).value = 0
+    ui.click(ui.top(), 0)
+    assert asked == [0] and not ui.played and not ui.toasts and not fw.calls('config_playmode')
+    assert not fw.calls('fw_unlink') and fw.fn('playback_option', C.c_int, C.c_int)(0) == 1  # still advanced
+    assert fw.fn('playback_unshuffle', C.c_int)() == 3
+
+
 @pytest.mark.parametrize('row, folders', [(1, 0), (2, 1)])
 def test_shuffle_albums_and_folders_with_no_library(fw, ui, mcl, row, folders):
     Library(fw, ui)
