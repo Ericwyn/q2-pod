@@ -171,7 +171,7 @@ static int art_name(const char *name, unsigned *key) {
     }
     return !strcmp(name + 8, ".jpg");
 }
-/* qsort's order of unsigned keys (library_lists.c's id lists and ratings.c's keys too) */
+/* qsort's order of unsigned keys (library_lists.c's and ratings.c's too) */
 int key_cmp(const void *a, const void *b) {
     unsigned x = *(const unsigned *)a, y = *(const unsigned *)b;
     return x < y ? -1 : x > y;
@@ -219,7 +219,7 @@ unsigned key_at(const unsigned *keys, unsigned n, unsigned key) {
             hi = (lo + hi) / 2;
     return lo;
 }
-/* Whether key is in keys[0..n), sorted (library_lists.c's id lists and ratings.c's keys too). */
+/* Whether key is in keys[0..n), sorted (library_lists.c's and ratings.c's too). */
 int has_key(const unsigned *keys, unsigned n, unsigned key) {
     unsigned i = key_at(keys, n, key);
     return i < n && keys[i] == key;
