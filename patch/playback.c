@@ -927,6 +927,27 @@ static void *no_videos(void *q, int *at) {
         *at = (int)(before < keep ? before : keep - 1);
     return out;
 }
+/* playback_groups' own start (s.grouping): Now Playing's load of the queue it has just grouped and
+ * ordered, at the order's first track. Its tables stand, started as rebuild(0) would start them
+ * there (that track leads its group, which comes first), so the library is not grouped again. Any
+ * other queue (an entry's path or CUE start, its id, differs), size or position rebuilds.
+ * ponytail: a pick over advanced play with no shuffle or a track shuffle still rebuilds that mode
+ * over the library at playback_groups' first load; ending advanced play before it would lift it. */
+static int keep_drawn(void) {
+    unsigned at = (unsigned)M(MCL_POS);
+    if (!queue() || !s.order || !ids || deque_size(queue()) != s.n || at >= s.n ||
+        s.order[0].index != at)
+        return 0;
+    for (unsigned i = 0; i < s.n; ++i)
+        if (rec_id(i) != ids[i]) return 0;
+    memset(s.seen, 0, s.n * sizeof *s.seen); /* the first rebuild's marks were for position 0 */
+    s.seen[at] = 1;
+    s.cursor = s.hn = 0;
+    history(at);
+    s.next_valid = 0;
+    s.dirty = 1;
+    return 1;
+}
 int ringnav_load(void *q, int at, int type) {
     ++playback_loads;
     app_fav_load(); /* tidal.c: an app song's heart isn't the new queue's */
@@ -947,7 +968,7 @@ int ringnav_load(void *q, int at, int type) {
         /* Shuffle Albums/Folders end with any other queue; a repeat or Shuffle track mode carries
          * on */
         if (s.active && (type == 1 || (type & 0xf000) == 0xf000) && (s.shuffle < 3 || s.grouping))
-            s.active = rebuild(0);
+            s.active = (s.grouping && keep_drawn()) || rebuild(0);
         else {
             s.active = 0;
             release();
