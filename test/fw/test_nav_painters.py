@@ -2222,6 +2222,25 @@ def test_an_open_eq_page_is_already_the_goal(fw, st):
     assert fw.calls('dialog_quit') and not fw.calls('navigator_to')
 
 
+def test_pages_opened_over_the_eq_page_close_so_the_hold_shows_it(fw, st):
+    """#397: Quick Settings' hold opened the EQ, Return's hold opened Now Playing over it, and the next hold showed
+    nothing: the EQ page was open, so none was opened."""
+    quick = Quick(fw, st)
+    wm, ui = quick.ui.wm, quick.ui
+    under = ui.window('home_page', top=False)
+    eq = ui.window('equalizer_page', top=False)
+    np_ = ui.window('playing_page', top=False)
+    ui.add('system_bar', wm, name='system_bar')
+    lyrics = ui.window('lyrics_page', top=False)
+    wm.children.remove(quick.win)
+    wm.children.append(quick.win)  # Quick Settings over them all
+    fw.mock('navigator_window_is_exist', lambda name, *_: C.string_at(name) == b'equalizer_page')
+    quick.press('img_playset')
+    quick.hold()
+    assert [a[1] for _, a in fw.calls('window_manager_close_window_force')] == [lyrics.addr, np_.addr]  # top first
+    assert not fw.calls('navigator_to') and under in wm.children and eq in wm.children
+
+
 def test_a_tap_on_the_lock_steps_through_its_choices(fw, st):
     quick = Quick(fw, st)
     first = quick.ui.text(quick.win.child('label_lock'))
