@@ -602,6 +602,24 @@ def test_a_signal_while_waiting_for_ffmpeg_waits_again(fw, queue, errno, tagged)
     assert card.files[cached('123-0 Artist - Song.flac')] == (b'TAGGED' if tagged else b'fLaC')
 
 
+# A card's file system (FAT32, exFAT) refuses a name over 255 characters: the copy's .tmp couldn't be made at all
+# for the longer title, and for the shorter its remux's .tmp.tag.tmp would have been over.
+@pytest.mark.parametrize('length', [300, 228])
+def test_a_long_label_leaves_room_for_the_copy_s_tmp_and_its_remux_on_the_card(fw, queue, length):
+    card = Card(fw)
+    Cdn(fw, {URL: b'fLaC'})
+    queue.row('123', 'x' * length, 'Artist', 'Album', '')
+    Ffmpeg(fw, card)
+    fat = card.fopen
+    fw.mock('fw_fopen', lambda path, mode, *_: 0 if len(C.string_at(path).rsplit(b'/', 1)[-1]) > 255 else fat(path, mode))
+    t = Tidal(fw, card)
+    t.play(URL, '123')
+    t.run()
+    names = card.listing()
+    assert len(names) == 1 and len(names[0] + '.tmp.tag.tmp') <= 255 and card.files[cached(names[0])] == b'TAGGED'
+    assert names[0].startswith('123-0 Artist - xxx') and names[0].endswith('.flac')
+
+
 # Clear All and the cap.
 
 def test_clear_all_while_a_finished_download_is_tagged_leaves_nothing_behind(fw, queue):
