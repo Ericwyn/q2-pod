@@ -427,8 +427,13 @@ class Library:
         return 0
 
     def passes(self):
-        """The counted songs' passes over songtable (library_lists.c counted_query)."""
-        return [sql for sql in self.sql if sql.startswith('select id,fileurl,time,')]
+        """The counted songs' passes over songtable (library_lists.c counted_query): every song's id, path and CUE
+        start, unscoped, the hook leaving it as it is."""
+        return [sql for sql in self.sql if sql == 'select id,fileurl,time from songtable']
+
+    def fetches(self):
+        """The counted songs' fetches by id (songs_by_id), scoped to the Library's music there."""
+        return [sql for sql in self.sql if sql.startswith('select * from songtable not indexed where id in (')]
 
     def directory(self):
         return self.fw.var('fw_ctx_tools_pdeq_directory', C.c_uint).value
@@ -585,8 +590,8 @@ def test_album_plays_sums_each_album_s_listens(fw, ui, song):
     a1, a2, b1, other = (song(b'/m/%s.flac' % n) for n in (b'a1', b'a2', b'b1', b'x'))
     Files(fw, {PLAYS_FILE: plays((b'/m/a1.flac', 3), (b'/m/b1.flac', 2), (b'/m/a2.flac', 4))})
     Library(fw, ui, [a1, a2, b1, other])
-    album = {b'/m/a1.flac': 0, b'/m/a2.flac': 0, b'/m/b1.flac': 1, b'/m/x.flac': -1}
-    of = C.CFUNCTYPE(C.c_int, C.c_void_p)(lambda r: album[field(r, 'path')])
+    album = {a1: 0, a2: 0, b1: 1, other: -1}
+    of = C.CFUNCTYPE(C.c_int, C.c_void_p)(lambda r: album[r])
     sums = (C.c_uint * 2)()
     fw.fn('album_plays', None, C.c_void_p, C.c_void_p)(C.cast(of, C.c_void_p), sums)
     assert list(sums) == [7, 2]
@@ -620,9 +625,10 @@ def counted_library(fw, ui, song):
 
 
 def test_most_played_reads_only_the_counted_songs_as_the_library_gives_them(fw, ui, song):
-    """Most Played's first open: one pass over songtable's music for the counted keys, then those rows alone by id,
-    in getAllMusic(3)'s order (newest first, a second's songs by id), ranked as the whole library was: a CUE image's
-    tracks apart, a song in songtable twice listed twice, counted spoken and hidden songs left out."""
+    """Most Played's first open: one pass over every song in songtable for the counted keys, then those rows alone by
+    id, scoped to the Library's music there, in getAllMusic(3)'s order (newest first, a second's songs by id), ranked
+    as the whole library was: a CUE image's tracks apart, a song in songtable twice listed twice, counted spoken and
+    hidden songs found by the pass and left out by the fetch."""
     library, table, rows = counted_library(fw, ui, song)
     call(fw, 'most_played')
     slot = {key: j for j, (key, _) in reversed(list(enumerate(table)))}  # a key's first slot, as the C's scan
@@ -635,36 +641,38 @@ def test_most_played_reads_only_the_counted_songs_as_the_library_gives_them(fw, 
     assert ui.rows(ui.top()) == [(rows[i][2].decode(), f'Ar {DOT} {n} play' + 's' * (n != 1)) for i, n in zip(ranked, plays)]
     ui.click(ui.top(), 0)
     assert ui.played[0][0] == [library.songs[i] for i in ranked]
-    (fetch,) = [sql for sql in library.sql if sql.startswith('select * from songtable not indexed where id in (')]
+    (fetch,) = library.fetches()
     ids = host.tools_build.need(re.search(r'in \(([\d,]*)\)', fetch), 'no id list')[1]
-    assert sorted(map(int, ids.split(','))) == sorted(i + 1 for i in counted)
+    assert sorted(map(int, ids.split(','))) == [i + 1 for i in range(len(rows)) if listen_key(*rows[i][:2]) in slot]
+    assert "fileurl not like '%.m4b'" in fetch  # MUSIC_WHERE, and the scope's marker expanded:
+    assert "when substr(fileurl,1,16)='/mnt/mmc/Hidden/' collate nocase then 0" in fetch
     assert len(library.passes()) == 1 and not fw.calls('getAllMusic')
 
 
-def test_album_plays_sums_the_counted_songs_from_their_own_rows(fw, ui, song):
-    """Cover Flow's Most Played order: each album's listens from the counted songs' rows alone, a CUE image's tracks
-    and a song in songtable twice as before, spoken and hidden songs left out; album_of reads the row's own path,
-    CUE start, album and album artist (none: empty, as album_cmp takes a NULL)."""
+def test_album_plays_sums_the_counted_songs_as_the_whole_library_did(fw, ui, song):
+    """Cover Flow's Most Played order: each album's listens, as main summed them over every record getAllMusic(3)
+    gave, now over the counted songs' rows alone: one pass over songtable's ids and paths, then those rows by id,
+    scoped to music there (a CUE image's tracks and a song in songtable twice as before, spoken and hidden songs left
+    out), and the whole library never read. album_of sees the library's own records, each counted one once."""
     library, table, rows = counted_library(fw, ui, song)
     albums = sorted({row[3] for row in rows if row[3]})
     seen = []
 
     def album_of(r):
-        artist = C.c_void_p.from_address(r + O['REC_ALBUM_ARTIST']).value
-        seen.append((field(r, 'path'), C.c_int.from_address(r + REC_CUE_START).value, field(r, 'album'),
-                     artist and C.string_at(artist)))
-        return albums.index(seen[-1][2]) if seen[-1][2] in albums else -1
+        seen.append(r)
+        return albums.index(field(r, 'album')) if field(r, 'album') in albums else -1
     of = C.CFUNCTYPE(C.c_int, C.c_void_p)(album_of)
     sums = (C.c_uint * len(albums))()
     fw.fn('album_plays', None, C.c_void_p, C.c_void_p)(C.cast(of, C.c_void_p), sums)
-    count = {key: n for key, n in reversed(table)}  # a key's first slot (one count each here)
+    count = {key: n for key, n in reversed(table)}  # a key's first slot, as the C's scan
     want, heard = [0] * len(albums), []
-    for path, cue, title, album, shown in rows:
-        if shown and count.get(listen_key(path, cue)):
-            want[albums.index(album)] += count[listen_key(path, cue)]
-            heard.append((path, cue, album, b''))
+    for r in library.ordered():  # main: getAllMusic(3)'s records, every one
+        c = count.get(listen_key(field(r, 'path'), C.c_int.from_address(r + REC_CUE_START).value))
+        if c:
+            want[albums.index(field(r, 'album'))] += c
+            heard.append(r)
     assert list(sums) == want and sorted(seen) == sorted(heard) and any(want)
-    assert len(library.passes()) == 1 and not fw.calls('getAllMusic')
+    assert len(library.passes()) == 1 and len(library.fetches()) == 1 and not fw.calls('getAllMusic')
 
 
 def test_most_played_lists_a_song_twice_in_the_library_s_order_at_its_last_row(fw, ui, song):

@@ -47,11 +47,12 @@ void *songs_by_path(const char *const *paths, unsigned n) {
     free(sql);
     return out;
 }
-/* The same for the rows of n ids, a rowid lookup each, in getAllMusic(3)'s order: its walk of
- * songtable_time_create, equal stamps by id. */
+/* The same for the rows of n ids that are the Library's music (MUSIC_WHERE, its scope token
+ * expanded here as library_query would, and without memory for that the whole library), a rowid
+ * lookup each, in getAllMusic(3)'s order: its walk of songtable_time_create, equal stamps by id. */
 static void *songs_by_id(const unsigned *ids, unsigned n) {
     static const char head[] = "select * from songtable not indexed where id in (";
-    static const char tail[] = ") order by time_create desc,id";
+    static const char tail[] = ") and " MUSIC_WHERE " order by time_create desc,id";
     unsigned size = sizeof head + sizeof tail + 11 * n, at = sizeof head - 1;
     char *sql = calloc(size, 1);
     if (!sql) return 0;
@@ -59,8 +60,10 @@ static void *songs_by_id(const unsigned *ids, unsigned n) {
     for (unsigned i = 0; i < n; ++i) /* 10 digits and a comma at most */
         at += (unsigned)tk_snprintf(sql + at, size - at, i ? ",%u" : "%u", ids[i]);
     memcpy(sql + at, tail, sizeof tail);
+    char *expanded = library_scope_query(sql);
     int count;
-    void *out = staged(path_query, sql, &count);
+    void *out = staged(path_query, expanded ? expanded : sql, &count);
+    free(expanded);
     free(sql);
     return out;
 }
@@ -180,53 +183,63 @@ static int id_row(void *ctx, int n, char **v, char **c) {
     return n == 1 && v[0] ? ids_add((unsigned)atoi(v[0])) : 0;
 }
 
-/* The counted songs among the music getAllMusic(3) reads, from one pass over songtable on stock's
- * shared connection (rank_query's toolsQueryDbTable): with album_of, each one's listens added to
- * sum[album_of(song)]; without, its id in ids (out of memory, the ids so far). A row's record
- * holds what listen_key and album_cmp read, as stock's select * fill sets it (ratings.c's rc_row):
- * the path, CUE start, album and album artist, in ifnull as library_query would take a bare one
- * for the artist's. */
+/* The counted songs' ids, from one pass over every song's id, path and CUE start on stock's shared
+ * connection (rank_query's toolsQueryDbTable), each row keyed as listen_key keys a record
+ * (ratings.c's rc_row) and looked up among the table's keys (out of memory, the ids so far). */
 static struct {
     const unsigned *keys;
-    unsigned n, *sum;
-    int (*album_of)(void *);
+    unsigned n;
 } cs __attribute__((section(".scratch")));
 static int counted_row(void *ctx, int n, char **v, char **c) {
     int rec[REC_CUE_END / 4 + 1] = { 0 };
-    if (n != 5 || !v[1]) return 0;
-    P(rec, REC_PATH) = v[1], P(rec, REC_ALBUM) = v[3], P(rec, REC_ALBUM_ARTIST) = v[4];
+    if (n != 3 || !v[0] || !v[1]) return 0;
+    P(rec, REC_PATH) = v[1];
     I(rec, REC_CUE_START) = v[2] ? atoi(v[2]) : 0;
-    unsigned key = listen_key(rec), plays = 0;
-    if (!has_key(cs.keys, cs.n, key)) return 0;
-    if (!cs.album_of) return v[0] ? ids_add((unsigned)atoi(v[0])) : 0;
-    for (int j = 0; j < PLAYS_SLOTS && !plays; j++)
-        if (st.plays[j].key == key) plays = st.plays[j].n;
-    int a = plays ? cs.album_of(rec) : -1;
-    if (a >= 0) cs.sum[a] += plays;
-    return 0;
+    return has_key(cs.keys, cs.n, listen_key(rec)) ? ids_add((unsigned)atoi(v[0])) : 0;
 }
 static int counted_query(void *unused) {
-    return toolsQueryDbTable("/mnt/data/database.db",
-                             "select id,fileurl,time,album,ifnull(albumsonger,'') from songtable "
-                             "where " MUSIC_WHERE,
+    return toolsQueryDbTable("/mnt/data/database.db", "select id,fileurl,time from songtable",
                              (void *)counted_row, 0);
 }
-static void counted(int (*album_of)(void *), unsigned *sum) {
+/* The counted songs that are music in the Library's scope, the rows getAllMusic(3) gives for them
+ * in its order, in a deque of their own; 0 without memory for the fetch's SQL. */
+static void *counted_songs(void) {
     unsigned keys[PLAYS_SLOTS], n = 0;
     int count;
     plays_load();
     for (int j = 0; j < PLAYS_SLOTS; j++)
         if (st.plays[j].key) keys[n++] = st.plays[j].key;
-    if (!n) return;
-    qsort(keys, n, sizeof *keys, key_cmp);
-    cs.keys = keys, cs.n = n, cs.sum = sum, cs.album_of = album_of;
-    deque_destroy(staged(counted_query, 0, &count));
-    cs.keys = 0;
+    ids.n = 0;
+    if (n) {
+        qsort(keys, n, sizeof *keys, key_cmp);
+        cs.keys = keys, cs.n = n;
+        deque_destroy(staged(counted_query, 0, &count));
+        cs.keys = 0;
+    }
+    void *out = songs_by_id(ids.v, ids.n);
+    free(ids.v);
+    ids.v = 0, ids.n = ids.cap = 0;
+    return out;
 }
 
 /* Coverflow's Most Played order: every counted song's listens added to sum[album_of(song)], the
- * album's index in Coverflow's list (-1 none). */
-void album_plays(int (*album_of)(void *), unsigned *sum) { counted(album_of, sum); }
+ * album's index in Coverflow's list (-1 none). One pass over the counted songs' rows (without
+ * memory for their fetch, the library's). */
+void album_plays(int (*album_of)(void *), unsigned *sum) {
+    int n;
+    void *songs = counted_songs();
+    if (!songs) songs = staged(songs_unsorted, (void *)1, &n);
+    plays_load();
+    for (unsigned i = 0; i < deque_size(songs); i++) {
+        void *r = deque_at(songs, i);
+        unsigned key = listen_key(r), c = 0;
+        for (int j = 0; j < PLAYS_SLOTS && !c; j++)
+            if (st.plays[j].key == key) c = st.plays[j].n;
+        int a = c ? album_of(r) : -1;
+        if (a >= 0) sum[a] += c;
+    }
+    deque_destroy(songs);
+}
 
 /* Where key is among Most Played's tracks, -1 when not (or none are kept). */
 static int mp_find(unsigned key) {
@@ -255,30 +268,19 @@ static int mp_closed(void *ctx, void *event) {
     return 0;
 }
 
-/* The library's counted songs, the rows getAllMusic(3) gives for them in its order, in a deque of
- * their own; 0 without memory for the fetch's SQL. */
-static void *mp_library(void) {
-    ids.n = 0;
-    counted(0, 0);
-    void *out = songs_by_id(ids.v, ids.n);
-    free(ids.v);
-    ids.v = 0, ids.n = ids.cap = 0;
-    return out;
-}
-
 /* Most Played: a page of the PLAYS_TOP most played songs of the library. The library's counted
  * songs are read only when nothing is kept; otherwise the kept tracks are ranked again. Without
  * memory for that read, the whole library is.
- * ponytail: the first open after boot or a library change still hashes every music song's path
- * (MUSIC_WHERE on the fetched rows instead would spare the pass its likes), and a song first
- * counted from stock's folder browser shows without its artist until then (no library tags). */
+ * ponytail: the first open after boot or a library change still hashes every song's path, and a
+ * song first counted from stock's folder browser shows without its artist until then (no library
+ * tags). */
 int most_played(void *ctx, void *event) {
     if (st.mp_page || !(st.mp_page = page_open("mostplayed_page", mp_closed, page_keyup))) return 0;
     int n, idx[PLAYS_TOP];
     unsigned score[PLAYS_TOP], gen = library_gen;
     void *from = st.mp_list;
     if (!from || ll.mp_gen != gen) {
-        if (!(from = mp_library())) from = staged(songs_unsorted, (void *)1, &n);
+        if (!(from = counted_songs())) from = staged(songs_unsorted, (void *)1, &n);
         ll.mp_gen = gen;
     }
     int top = mp_rank(from, idx, score);

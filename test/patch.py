@@ -88,6 +88,8 @@ for a in ENTRIES: watch(a)
 
 def signed(x): return x if x<0x80000000 else x-0x100000000
 SCOPE_RULES='/mnt/data/q2-library-scope'  # library_scope.c's folder marker rules, written by a library update
+LIBRARY_SCOPE=re.search(r'#define LIBRARY_SCOPE_TOKEN "(.*)"',(ROOT/'patch/library_scope.h').read_text())[1]
+MUSIC_WHERE=re.search(r'#define MUSIC_WHERE "(.*)" LIBRARY_SCOPE_TOKEN',INC)[1]+LIBRARY_SCOPE  # the Library's music
 
 # Q2_TRACE=FILE logs every draw and widget-property call, each hook's return and each passed case, by value.
 TRACE=open(os.environ['Q2_TRACE'],'w') if os.environ.get('Q2_TRACE') else None
@@ -14030,11 +14032,12 @@ class ShuffleMachine(CoverflowMachine):
             kids=next(n['children'] for n in self.nodes.values() if a in n['children']); kids.remove(a); kids.insert(b,a)
         self.returns(ret,clobber=True)
     def counted(self,u,address):
-        """Most Played's reads over found as songtable's rows: its pass (library_lists.c counted_query, on
-        toolsQueryDbTable) hands each row to the payload's own callback, as sqlite3_exec does, and the fetch of those
-        rows by id (path_query, on stock's query) stages the records it picks."""
+        """Most Played's reads over found as songtable's rows: its pass over every song's id, path and CUE start
+        (library_lists.c counted_query, on toolsQueryDbTable) hands each row to the payload's own callback, as
+        sqlite3_exec does, and the fetch of those rows by id, scoped to music (path_query, on stock's query), stages
+        the records it picks."""
         a,b,c,d=[u.reg_read(r) for r in REGS]; sql=self.text(b)
-        if sql.startswith('select id,fileurl,time,'):
+        if sql=='select id,fileurl,time from songtable':
             rows=self.songtable(sql,self.found,values=True)
             for row in rows:
                 values=self.alloc(4*len(row)); names=self.alloc(4*len(row))
@@ -14733,10 +14736,12 @@ slots=[(fnv('/p/T3'),5),(fnv('/p/T1'),2),(fnv('/p/T7'),5)]+[(fnv(f'/p/T{i}'),1) 
 m.counts=b''.join(struct.pack('<2I',*e) for e in slots).ljust(8*O['PLAYS_SLOTS'],b'\0')
 m.calls=[]
 assert m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=50_000_000)==0; m.page=m.top
-# Only the counted songs' rows are read, uncopied: a pass over songtable's paths, then those rows by id. A copy of the
-# whole library OOM-killed demo on a 47,000-song library.
+# Only the counted songs' rows are read, uncopied: a pass over songtable's ids and paths, then those rows by id, scoped
+# to music there. A copy of the whole library OOM-killed demo on a 47,000-song library.
 reads=[m.text(c[2]) for c in m.calls if c[0] in ('toolsQueryDbTable','dbquery')]
-assert not called('getAllMusic') and [r[:24] for r in reads]==['select id,fileurl,time,a','select * from songtable ']
+assert not called('getAllMusic') and len(reads)==2 and reads[0]=='select id,fileurl,time from songtable'
+assert reads[1].startswith('select * from songtable not indexed where id in (')
+assert reads[1].endswith(f") and {MUSIC_WHERE.replace(LIBRARY_SCOPE,'1')} order by time_create desc,id")  # no scope rules
 assert sorted(map(int,re.search(r'in \(([\d,]*)\)',reads[1])[1].split(',')))==[1,3,7]+list(range(8,130))
 assert not [c for c in m.calls if c[0] in ('deque_init_copy','deque_assign')]
 assert m.names(m.get(syms['tools_pdeq_directory']))==['staged']
@@ -14767,7 +14772,7 @@ m.page=m.top; assert m.texts()==['Most Played']+[x for p in zip(ranked[:3],detai
 # Without memory for the fetch's SQL (songs_by_id's calloc refused, as test/playback.py refuses songs_by_path's), the
 # whole library is read once, as getAllMusic(3) gives it, and ranked the same.
 class FetchRefused(ShuffleMachine):
-    fetch=len('select * from songtable not indexed where id in (')+len(') order by time_create desc,id')+2+11*125
+    fetch=len('select * from songtable not indexed where id in (')+len(f') and {MUSIC_WHERE} order by time_create desc,id')+2+11*125
     refused=0
     def hook(self,u,address,size,unused):
         if address==syms['calloc@GLIBC_2.0'] and (u.reg_read(REGS[0]),u.reg_read(REGS[1]))==(self.fetch,1):
