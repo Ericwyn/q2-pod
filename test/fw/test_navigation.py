@@ -2122,7 +2122,7 @@ def test_era_shuffle_is_the_decades_songs_in_library_order(fw, heap):
     fw.mock('sqlite3_exec', run)
     out = fw.fn('library_lists__era_shuffle_songs', C.c_long)()
     assert [struct.unpack_from('<i', C.string_at(r, 8), O['REC_ID'])[0] for r in deques[out]] == [9, 1, 7]
-    assert not fw.var('library_lists__era_keys', EraKeys).v
+    assert not fw.var('library_lists__ids', Ids).v
 
 
 def test_era_shuffle_of_nothing(fw):
@@ -2132,7 +2132,7 @@ def test_era_shuffle_of_nothing(fw):
 
 
 # Era.
-class EraKeys(C.Structure):
+class Ids(C.Structure):
     _fields_ = [('v', C.POINTER(C.c_uint)), ('n', C.c_uint), ('cap', C.c_uint)]
 
 
@@ -2239,18 +2239,18 @@ def test_era_closed(fw, era):
     assert not era.albums and era.cap == 0 and not era.v
 
 
-def test_era_keys_grow_and_keep_their_values(fw):
-    keys = fw.var('library_lists__era_keys', EraKeys)
-    add = fw.fn('library_lists__era_key_row', *ROW)
+def test_ids_grow_and_keep_their_values(fw):
+    keys = fw.var('library_lists__ids', Ids)
+    add = fw.fn('library_lists__id_row', *ROW)
     for i in range(3000):
         assert add(None, 1, row(b'%d' % i), None) == 0
     assert keys.n == 3000 and keys.cap == 4096 and list(keys.v[:3000]) == list(range(3000))
 
 
 @pytest.mark.parametrize('n, values', [(0, ()), (2, (b'1', b'2')), (1, (None,))])
-def test_era_keys_ignore_a_bad_row(fw, n, values):
-    keys = fw.var('library_lists__era_keys', EraKeys)
-    assert fw.fn('library_lists__era_key_row', *ROW)(None, n, row(*values) if values else None, None) == 0 and keys.n == 0
+def test_id_row_ignores_a_bad_row(fw, n, values):
+    keys = fw.var('library_lists__ids', Ids)
+    assert fw.fn('library_lists__id_row', *ROW)(None, n, row(*values) if values else None, None) == 0 and keys.n == 0
 
 
 @pytest.mark.parametrize('a, b, order', [(1, 2, -1), (2, 1, 1), (7, 7, 0), (0xffffffff, 1, 1), (1, 0x80000000, -1)])

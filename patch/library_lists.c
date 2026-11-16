@@ -162,23 +162,27 @@ static int mp_rank(void *songs, int *idx, unsigned *score) {
 /* A query's ids: Era Shuffle's decade, Most Played's counted songs. */
 static struct {
     unsigned *v, n, cap;
-} era_keys __attribute__((section(".scratch")));
-static int era_key_row(void *ctx, int n, char **v, char **c) {
-    if (n != 1 || !v[0]) return 0;
-    if (era_keys.n == era_keys.cap) {
-        unsigned cap = era_keys.cap ? era_keys.cap * 2 : 1024, *p = calloc(cap, sizeof *p);
+} ids __attribute__((section(".scratch")));
+/* id added to ids; 1 (and nothing added) out of memory. */
+static int ids_add(unsigned id) {
+    if (ids.n == ids.cap) {
+        unsigned cap = ids.cap ? ids.cap * 2 : 1024, *p = calloc(cap, sizeof *p);
         if (!p) return 1;
-        if (era_keys.n) memcpy(p, era_keys.v, era_keys.n * sizeof *p);
-        free(era_keys.v);
-        era_keys.v = p, era_keys.cap = cap;
+        if (ids.n) memcpy(p, ids.v, ids.n * sizeof *p);
+        free(ids.v);
+        ids.v = p, ids.cap = cap;
     }
-    era_keys.v[era_keys.n++] = (unsigned)atoi(v[0]);
+    ids.v[ids.n++] = id;
     return 0;
+}
+/* A query row of one id, added to ids. */
+static int id_row(void *ctx, int n, char **v, char **c) {
+    return n == 1 && v[0] ? ids_add((unsigned)atoi(v[0])) : 0;
 }
 
 /* The counted songs among the music getAllMusic(3) reads, from one pass over songtable on stock's
  * shared connection (rank_query's toolsQueryDbTable): with album_of, each one's listens added to
- * sum[album_of(song)]; without, its id in era_keys (out of memory, the ids so far). A row's record
+ * sum[album_of(song)]; without, its id in ids (out of memory, the ids so far). A row's record
  * holds what listen_key and album_cmp read, as stock's select * fill sets it (ratings.c's rc_row):
  * the path, CUE start, album and album artist, in ifnull as library_query would take a bare one
  * for the artist's. */
@@ -194,7 +198,7 @@ static int counted_row(void *ctx, int n, char **v, char **c) {
     I(rec, REC_CUE_START) = v[2] ? atoi(v[2]) : 0;
     unsigned key = listen_key(rec), plays = 0;
     if (!has_key(cs.keys, cs.n, key)) return 0;
-    if (!cs.album_of) return era_key_row(ctx, 1, v, c);
+    if (!cs.album_of) return v[0] ? ids_add((unsigned)atoi(v[0])) : 0;
     for (int j = 0; j < PLAYS_SLOTS && !plays; j++)
         if (st.plays[j].key == key) plays = st.plays[j].n;
     int a = plays ? cs.album_of(rec) : -1;
@@ -254,11 +258,11 @@ static int mp_closed(void *ctx, void *event) {
 /* The library's counted songs, the rows getAllMusic(3) gives for them in its order, in a deque of
  * their own; 0 without memory for the fetch's SQL. */
 static void *mp_library(void) {
-    era_keys.n = 0;
+    ids.n = 0;
     counted(0, 0);
-    void *out = songs_by_id(era_keys.v, era_keys.n);
-    free(era_keys.v);
-    era_keys.v = 0, era_keys.n = era_keys.cap = 0;
+    void *out = songs_by_id(ids.v, ids.n);
+    free(ids.v);
+    ids.v = 0, ids.n = ids.cap = 0;
     return out;
 }
 
@@ -595,21 +599,21 @@ static void *era_shuffle_songs(void) { /* 0 if the query failed */
         "on s.album=g.a COLLATE NOCASE and ifnull(s.albumsonger,'')=g.b COLLATE NOCASE and "
         "(g.d is null or rtrim(s.fileurl,replace(s.fileurl,'/',''))=g.d)",
         "select distinct s.id", ALBUM_YEAR, MUSIC_WHERE, ALBUM_GROUP, from, from + 9);
-    era_keys.n = 0;
+    ids.n = 0;
     void *out = 0;
-    if (!era.m || era_sql(sql, era_key_row, 0)) out = _create_deque("stSongInfo"), deque_init(out);
-    if (out && era_keys.n) {
-        qsort(era_keys.v, era_keys.n, sizeof *era_keys.v, key_cmp);
+    if (!era.m || era_sql(sql, id_row, 0)) out = _create_deque("stSongInfo"), deque_init(out);
+    if (out && ids.n) {
+        qsort(ids.v, ids.n, sizeof *ids.v, key_cmp);
         void *all = staged(songs_unsorted, (void *)1, &n);
         if (n < 0) deque_destroy(out), out = 0; /* the library load failed */
         for (unsigned i = 0; out && i < deque_size(all); ++i) {
-            if (has_key(era_keys.v, era_keys.n, (unsigned)I(deque_at(all, i), REC_ID)))
+            if (has_key(ids.v, ids.n, (unsigned)I(deque_at(all, i), REC_ID)))
                 _deque_push_back(out, deque_at(all, i));
         }
         deque_destroy(all);
     }
-    free(era_keys.v);
-    era_keys.v = 0, era_keys.n = era_keys.cap = 0;
+    free(ids.v);
+    ids.v = 0, ids.n = ids.cap = 0;
     return out;
 }
 /* Play All from the first song as a library queue, as Coverflow's All albums; Shuffle is Shuffle

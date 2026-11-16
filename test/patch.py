@@ -14758,6 +14758,20 @@ m.page=m.top; assert m.texts()==['Most Played']+[x for p in zip(ranked,details) 
 m.close(); m.calls=[]; m.rescan(); m.calls=[]
 assert m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=50_000_000)==0 and called('toolsQueryDbTable')
 m.page=m.top; assert m.texts()==['Most Played']+[x for p in zip(ranked[:3],details[:3]) for x in p]; passed()
+# Without memory for the fetch's SQL (songs_by_id's calloc refused, as test/playback.py refuses songs_by_path's), the
+# whole library is read once, as getAllMusic(3) gives it, and ranked the same.
+class FetchRefused(ShuffleMachine):
+    fetch=len('select * from songtable not indexed where id in (')+len(') order by time_create desc,id')+2+11*125
+    refused=0
+    def hook(self,u,address,size,unused):
+        if address==syms['calloc@GLIBC_2.0'] and (u.reg_read(REGS[0]),u.reg_read(REGS[1]))==(self.fetch,1):
+            self.refused+=1; self.returns(0,clobber=True); return
+        return super().hook(u,address,size,unused)
+m=FetchRefused(); m.found=[m.song(f'T{i}') for i in range(130)]; m.word(m.found[1]+O['REC_ARTIST'],0)
+m.counts=b''.join(struct.pack('<2I',*e) for e in slots).ljust(8*O['PLAYS_SLOTS'],b'\0'); m.calls=[]
+assert m.call(address=f,args=(ctx,m.event,0,0),gap=0,count=50_000_000)==0; m.page=m.top
+assert m.refused==1 and [c[0] for c in called('getAllMusic')]==[3]
+assert m.texts()==['Most Played']+[x for p in zip(ranked,details) for x in p]; passed()
 
 # View Queue on a shuffle (Now Playing's hold menu, Up Next's list): a Play/Pause hold on a row plays its track
 # next, a move, not Play Next's copy, the queue as it was; the rows are taken again with the pick at row 0, the

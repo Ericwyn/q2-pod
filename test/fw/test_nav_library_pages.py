@@ -548,7 +548,7 @@ def test_most_played_ranks_its_kept_songs_again_without_the_library(fw, ui, song
     ui.close(ui.top())
     st('plays', C.c_uint * 4)[:] = [listen_key(b'/m/b.flac'), 3, listen_key(b'/m/a.flac'), 2]  # b heard twice since
     call(fw, 'most_played')
-    assert ui.captions(ui.top()) == ['B', 'A'] and len(library.passes()) == 1
+    assert ui.captions(ui.top()) == ['B', 'A'] and len(library.passes()) == 1 and not library.asked
 
 
 def test_most_played_reads_the_library_again_after_it_changed(fw, ui, song):
