@@ -603,9 +603,10 @@ SCOPE_RULES = '/mnt/data/q2-library-scope'  # library_scope.c's marker rules: a 
 def counted_library(fw, ui, song):
     """A library the first open reads part of: albums of ten, a CUE image's four tracks, a song in songtable twice
     (another scan's stamp), an audiobook, a podcast, an .m4b and a hidden folder's two songs, the stamps shared by a
-    few songs each and in no id order; 40 counted, slot by slot: 29 of the music, the tracks, the twice-listed song,
-    each spoken and hidden one and a file that has gone, one count 0. Returns the library, the table's (key, count)
-    slots, and each row's path, CUE start, album and whether the Library's lists show it (MUSIC_WHERE, scoped)."""
+    few songs each and in no id order; 39 counted, slot by slot: 29 of the music, the image's last three tracks (not its
+    first, so only a pass that keys each track by its CUE start finds them), the twice-listed song, each spoken and
+    hidden one and a file that has gone, one count 0. Returns the library, the table's (key, count) slots, and each
+    row's path, CUE start, album and whether the Library's lists show it (MUSIC_WHERE, scoped)."""
     rng = random.Random(7)
     rows = [(b'/mnt/mmc/M/A%02d/%03d.flac' % (i // 10, i), 0, b'S%03d' % i, b'Al%02d' % (i // 10)) for i in range(180)]
     rows += [(b'/mnt/mmc/M/cue/image.flac', 300 * k, b'C%d' % k, b'Live') for k in range(4)]
@@ -615,7 +616,7 @@ def counted_library(fw, ui, song):
     songs = [song(path, title, b'Ar', album, cue=cue, end=cue and cue + 300) for path, cue, title, album in rows]
     shown = [not re.search(rb'^/mnt/mmc/(audiobooks|podcasts|hidden)/|\.m4b$', path.lower()) for path, *_ in rows]
     library = Library(fw, ui, songs, stamps=[rng.randrange(40) for _ in songs], music=shown)
-    counted = [*rng.sample(range(6, 180), 29), 5, *range(180, 184), *range(185, 190)]
+    counted = [*rng.sample(range(6, 180), 29), 5, *range(181, 184), *range(185, 190)]
     table = [(listen_key(rows[i][0], rows[i][1]), rng.choice((1, 2, 3, 5, 8))) for i in counted]
     table += [(listen_key(b'/mnt/mmc/M/gone.flac'), 4)]
     table[3] = (table[3][0], 0)

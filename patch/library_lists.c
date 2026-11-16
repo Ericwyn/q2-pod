@@ -224,7 +224,9 @@ static void *counted_songs(void) {
 
 /* Coverflow's Most Played order: every counted song's listens added to sum[album_of(song)], the
  * album's index in Coverflow's list (-1 none). One pass over the counted songs' rows (without
- * memory for their fetch, the library's). */
+ * memory for their fetch, the library's).
+ * ponytail: each sort by Most Played still hashes every song's path on the UI thread
+ * (counted_songs' pass), as Most Played's first open does. */
 void album_plays(int (*album_of)(void *), unsigned *sum) {
     int n;
     void *songs = counted_songs();

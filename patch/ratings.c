@@ -471,7 +471,7 @@ static int rated_open(void *ctx, void *event) {
     if (st.rt_page || !(st.rt_page = page_open("rated_page", rt_closed, page_keyup))) return 0;
     /* ponytail: each open still reads the whole library (getAllMusic(0)), now most of its time; the
      * tables hold only hashes, so reading only the rated songs needs a pass keying the library's
-     * rows as listen_key does. */
+     * rows as listen_key does, as Most Played's counted_query does (library_lists.c). */
     void *songs = staged(all_songs, 0, &n), *list = _create_deque("stSongInfo");
     unsigned size = deque_size(songs);
     unsigned char *h = calloc(size + 1, 1), *of = calloc(size + 1, 1);
