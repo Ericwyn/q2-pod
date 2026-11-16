@@ -3157,8 +3157,18 @@ static int quick_long(const void *unused) {
     widget_dispatch_event_to_target_recursive(win, abort_event);
     quick_cancel(0, 0);
     dialog_quit(win, 0);
-    /* An open EQ page is already the goal: a second would share peq_ui.c's one state. */
-    if (page == 3 && navigator_window_is_exist("equalizer_page")) return 0;
+    /* An open EQ page is already the goal: a second would share peq_ui.c's one state. Pages opened
+     * over it (Now Playing, by Return's hold) close, top first, as their Returns would close them:
+     * the hold showed nothing else (#397). Dialogs and the status bar are no windows. */
+    if (page == 3 && navigator_window_is_exist("equalizer_page")) {
+        void *wm = window_manager();
+        for (unsigned i = widget_count_children(wm); i-- > 0;) {
+            void *w = widget_get_child(wm, i);
+            if (!tk_strcmp(widget_get_prop_str(w, "name", ""), "equalizer_page")) break;
+            if (!tk_strcmp(widget_get_type(w), "window")) window_manager_close_window_force(wm, w);
+        }
+        return 0;
+    }
     navigator_to(page == 1   ? "systemset/wifi_page"
                  : page == 2 ? "systemset/bluetooth_page"
                              : "playset/equalizer_page"); /* as Playback's EQ row (0x4bd114) */
