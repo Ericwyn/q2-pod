@@ -399,9 +399,11 @@ int thread_lower(int idle);   /* coverflow_loader.c: a worker's nice 19 and its 
 /* coverflow.c: the o32 statx syscall, as demo imports none */
 int ringnav_statx(int dirfd, const char *path, int flags, unsigned mask, void *buf);
 void *coverflow_album_tracks(void *r);
-/* coverflow.c: qsort's order of unsigned keys; whether key is in keys[0..n), sorted so */
+/* coverflow.c: qsort's order of unsigned keys; whether key is in keys[0..n), sorted so, and the
+ * first there not below it (n for none) */
 int key_cmp(const void *a, const void *b);
 int has_key(const unsigned *keys, unsigned n, unsigned key);
+unsigned key_at(const unsigned *keys, unsigned n, unsigned key);
 unsigned album_id(void *r), album_dir(const char *p, int disc);
 /* navigation.c: Cover Flow's glide and its letter */
 int carousel_glide(void *w, int goal, unsigned ms, int easing);

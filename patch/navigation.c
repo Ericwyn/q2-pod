@@ -284,7 +284,7 @@ void *staged_music(int (*query)(void *), void *arg, int *count) {
     return out;
 }
 
-extern int album_only(void *, void *, int), coverflow_split(void *);
+extern int album_only(void *, void *, int), coverflow_split(void *), coverflow_split_artist(void *);
 #define SCROLL_MARGIN 12
 #define HOME_FAST_WINDOW_MS 200
 #define WHEEL_RUN_MS 140
@@ -8205,7 +8205,8 @@ static int artist_songs(void *unused) {
         g_local_classinfo_save[0xa] ? (const char *)0
                                     : (const char *)g_local_classinfo_save + 0x10d);
 }
-/* Split artwork keys use the whole library; the layout uses only this artist's albums. */
+/* Split artwork keys use every album of the tab's names, other artists' too; the layout uses only
+ * this artist's albums. */
 static void *artist_albums(void *all) {
     int n;
     void *songs = staged_music(artist_songs, 0, &n), *out = _create_deque("stSongInfo");
@@ -8308,7 +8309,7 @@ static int artist_list(int tab) {
     st.art_n = (unsigned)n;
     all = _create_deque("stSongInfo");
     deque_init_copy(all, list);
-    coverflow_split(all);
+    coverflow_split_artist(all);
     /* The artist's albums by year (Playback settings' Year order) or A-Z, the grid's rows in
      * theirs. */
     void *mine = artist_albums(all);
