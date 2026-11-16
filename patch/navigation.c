@@ -3157,17 +3157,23 @@ static int quick_long(const void *unused) {
     widget_dispatch_event_to_target_recursive(win, abort_event);
     quick_cancel(0, 0);
     dialog_quit(win, 0);
-    /* An open EQ page is already the goal: a second would share peq_ui.c's one state. Pages opened
-     * over it (Now Playing, by Return's hold) close, top first, as their Returns would close them:
-     * the hold showed nothing else (#397). Dialogs and the status bar are no windows. */
-    if (page == 3 && navigator_window_is_exist("equalizer_page")) {
-        void *wm = window_manager();
-        for (unsigned i = widget_count_children(wm); i-- > 0;) {
+    /* The EQ page as the top window, under the dialog, is already the goal. One further down
+     * (Return's hold opened Now Playing over it, #397) closes and the new one opens over the page
+     * on top, as from any other page: a second would share peq_ui.c's one state. Dialogs and the
+     * status bar are no windows. */
+    if (page == 3) {
+        void *wm = window_manager(), *eq = 0;
+        int top = 1;
+        for (unsigned i = widget_count_children(wm); !eq && i-- > 0;) {
             void *w = widget_get_child(wm, i);
-            if (!tk_strcmp(widget_get_prop_str(w, "name", ""), "equalizer_page")) break;
-            if (!tk_strcmp(widget_get_type(w), "window")) window_manager_close_window_force(wm, w);
+            if (tk_strcmp(widget_get_type(w), "window")) continue;
+            if (!tk_strcmp(widget_get_prop_str(w, "name", ""), "equalizer_page"))
+                eq = w;
+            else
+                top = 0;
         }
-        return 0;
+        if (eq && top) return 0;
+        if (eq) peq_page_replace(eq);
     }
     navigator_to(page == 1   ? "systemset/wifi_page"
                  : page == 2 ? "systemset/bluetooth_page"

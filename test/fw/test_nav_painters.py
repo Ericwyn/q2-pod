@@ -2214,31 +2214,36 @@ def test_a_release_before_the_hold_is_stocks_tap(fw, st):
     assert not fw.calls('navigator_to') and not fw.calls('dialog_quit')
 
 
-def test_an_open_eq_page_is_already_the_goal(fw, st):
-    quick = Quick(fw, st)
-    fw.mock('navigator_window_is_exist', lambda name, *_: C.string_at(name) == b'equalizer_page')
-    quick.press('img_playset')
-    quick.hold()
-    assert fw.calls('dialog_quit') and not fw.calls('navigator_to')
-
-
-def test_pages_opened_over_the_eq_page_close_so_the_hold_shows_it(fw, st):
-    """#397: Quick Settings' hold opened the EQ, Return's hold opened Now Playing over it, and the next hold showed
-    nothing: the EQ page was open, so none was opened."""
-    quick = Quick(fw, st)
-    wm, ui = quick.ui.wm, quick.ui
-    under = ui.window('home_page', top=False)
+def eq_under(quick, *over):
+    """The EQ page open with the windows named over it, then the status bar, then Quick Settings on top."""
+    ui = quick.ui
     eq = ui.window('equalizer_page', top=False)
-    np_ = ui.window('playing_page', top=False)
-    ui.add('system_bar', wm, name='system_bar')
-    lyrics = ui.window('lyrics_page', top=False)
-    wm.children.remove(quick.win)
-    wm.children.append(quick.win)  # Quick Settings over them all
-    fw.mock('navigator_window_is_exist', lambda name, *_: C.string_at(name) == b'equalizer_page')
+    pages = [ui.window(name, top=False) for name in over]
+    ui.add('system_bar', ui.wm, name='system_bar')
+    ui.wm.children.remove(quick.win)
+    ui.wm.children.append(quick.win)
+    return eq, pages
+
+
+def test_an_open_eq_page_on_top_is_already_the_goal(fw, st):
+    quick = Quick(fw, st)
+    eq_under(quick)
     quick.press('img_playset')
     quick.hold()
-    assert [a[1] for _, a in fw.calls('window_manager_close_window_force')] == [lyrics.addr, np_.addr]  # top first
-    assert not fw.calls('navigator_to') and under in wm.children and eq in wm.children
+    assert fw.calls('dialog_quit') and not fw.calls('navigator_to') and not fw.calls('window_manager_close_window_force')
+
+
+def test_an_eq_page_under_another_closes_and_the_new_one_opens_over_that_page(fw, st):
+    """#397: Quick Settings' hold opened the EQ, Return's hold opened Now Playing over it, and the next hold opened
+    nothing, as the EQ page was open. Its one state is let go and its window closed, then the new one opens over
+    Now Playing, so its Return goes back there."""
+    quick = Quick(fw, st)
+    eq, (np_,) = eq_under(quick, 'playing_page')
+    quick.press('img_playset')
+    quick.hold()
+    assert [a[1] for _, a in fw.calls('window_manager_close_window_force')] == [eq.addr]
+    assert [C.string_at(c[1][0]) for c in fw.calls('navigator_to')] == [b'playset/equalizer_page']
+    assert np_ in quick.ui.wm.children
 
 
 def test_a_tap_on_the_lock_steps_through_its_choices(fw, st):
