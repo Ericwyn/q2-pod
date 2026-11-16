@@ -7121,8 +7121,9 @@ f,ctx=m.handler(win,O['EVT_DESTROY']); m.call(address=f,args=(ctx,m.event,0,0),g
 assert repaint()==[] and shown()[0]==''; passed()
 # Now Playing's art follows the player's cover each lit pass (np_art_poll), whatever stock's
 # one-shot flags did: the playing track's file once g_lastcover_url is its path, its cached
-# bitmap dropped first, or stock's placeholder for a track with none; nothing for the cover init
-# loaded, the same one again, one not yet this track's, or the screen off.
+# bitmap dropped first, or stock's placeholder for a track with none; nothing for the same one
+# again, one not yet this track's, or the screen off. The page's opening loads this track's itself,
+# whatever stock's init showed (here, still the placeholder).
 m=QueueMachine(queue=3,pos=1); m.handlers[playing+12]='stock_playing'; m.handlers[sleep_hook+12]='stock_sleep'
 cover=m.node('image','img_cover',image='play_defaultcover'); win=m.node('window','playing_page',[cover])
 m.word(win+O['W_PARENT'],m.wm); m.top=win
@@ -7131,8 +7132,9 @@ def art_pass():
     m.call(address=sleep_hook,args=(0x1234,0,0,0),gap=0)
     return [c[0] for c in m.calls if c[0] in ('image_manager_unload_bitmap_by_name','image_base_set_image')],m.nodes[cover].get('image')
 reload=['image_manager_unload_bitmap_by_name','image_base_set_image']
-cover_is(b'/p/B',1); m.call(address=playing,args=(win,7,0,0),gap=0); assert art_pass()==([],'play_defaultcover')
-m.word(O['MCL_POS'],2); cover_is(b'/p/B',0); assert art_pass()==([],'play_defaultcover')
+cover_is(b'/p/B',1); m.call(address=playing,args=(win,7,0,0),gap=0)
+assert [c[0] for c in m.calls if c[0] in reload]==reload and art_pass()==([],'file:///tmp/coverpic.jpg')
+m.word(O['MCL_POS'],2); cover_is(b'/p/B',0); assert art_pass()==([],'file:///tmp/coverpic.jpg')
 cover_is(b'/p/C',2); assert art_pass()==(reload,'file:///tmp/externpic.jpg') and art_pass()[0]==[]
 m.word(O['MCL_POS'],1); cover_is(b'/p/B',1); assert art_pass()==(reload,'file:///tmp/coverpic.jpg')
 m.word(O['MCL_POS'],2); cover_is(b'/p/C',3); assert art_pass()==(reload,'play_defaultcover')
