@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """JPEG checks; optionally pass the stock ZIP to test packaging with a custom logo and quoted paths too."""
 import io, math, re, sys; sys.path.insert(0, sys.path[0] + '/../tools')  # tools/ first: test/build.py must import tools/build.py
-from build import jal, j, ICONS, LABELS, relabel, ROOT, STOCK_EQ, STOCK_PAGES, TAG, dev_tag, jpeg_size, FONT, TAG_C, patch_m4b_cover, WEB, patch_web, DEFAULT_CONFIG, default_config
+from build import jal, j, ICONS, LABELS, STRING_LABELS, relabel, ROOT, STOCK_EQ, STOCK_PAGES, TAG, dev_tag, jpeg_size, FONT, TAG_C, patch_m4b_cover, WEB, patch_web, DEFAULT_CONFIG, default_config
 
 logo = (ROOT/'assets/boot-logo.jpg').read_bytes()
 assert jpeg_size(logo) == (320, 375)
@@ -357,7 +357,7 @@ def validate_assets(directory):
     patched_ui = set(UI_ASSETS)
     assert set(changed) == {ui+p for p in patched_ui | chinese} | {
         'release/assets/default/raw/styles/'+p for p in AUDIT['styles']} | {
-        xx+n for n in SETTINGS_ICONS | QUIET_ICONS | STATUS_ICONS | ART_PLACEHOLDERS} | {'release/assets/default/raw/strings/en_US.bin', FONT, TAG_C, *WEB} | {
+        xx+n for n in SETTINGS_ICONS | QUIET_ICONS | STATUS_ICONS | ART_PLACEHOLDERS} | {*('release/assets/default/raw/strings/'+name for name in STRING_LABELS), FONT, TAG_C, *WEB} | {
         'usr/share/web/cgi-bin/%s.cgi' % n for n in ('create', 'delete', 'list', 'download', 'upload')} | {
         xx+n for n in STOCK_NAMED_ICONS}
     master = (ROOT/'assets/icons/default_album_home.png').read_bytes()
@@ -402,13 +402,17 @@ def validate_assets(directory):
         for text,size,room in [('Q2',16,28),('12:59 PM',16,CLOCK_TEXT),('100%',inc('BATT_PCT_PX'),inc('BATT_PCT_W'))]:
             rendered=imagemagick('-font',font.name,'-pointsize',str(size),'label:'+text,'png:-',data=b'')
             assert png_header(rendered)[0]-1<=room,(text,size,room,png_header(rendered))
-    # Now Playing's queue reads "Queue", Idle "Power" and standby/shutdown "Standby" (LABELS); the table's later offsets move with them and nothing else changes.
-    strings = 'release/assets/default/raw/strings/en_US.bin'
-    old, new = read('stock.squashfs', strings), read('rootfs.squashfs', strings)
-    assert new == relabel(old)
-    n = 2 * struct.unpack_from('<H', new, 2)[0]
-    table = dict(zip(*[iter(new[o:new.index(b'\0', o)] for o in struct.unpack_from(f'<{n}I', new, 4))] * 2))
-    assert [table[k] for k, _, _ in LABELS] == [v for _, _, v in LABELS] and table[b'powerm_sleep'] == b'\xe7\x9d\xa1\xe7\x9c\xa0\xe5\xae\x9a\xe6\x97\xb6'
+    # Both language tables receive the same terminology; the active boot language is zh_CN.
+    for name, labels in STRING_LABELS.items():
+        strings = 'release/assets/default/raw/strings/' + name
+        old, new = read('stock.squashfs', strings), read('rootfs.squashfs', strings)
+        assert new == relabel(old, labels)
+        n = 2 * struct.unpack_from('<H', new, 2)[0]
+        table = dict(zip(*[iter(new[o:new.index(b'\0', o)] for o in struct.unpack_from(f'<{n}I', new, 4))] * 2))
+        assert [table[k] for k, _, _ in labels] == [v for _, _, v in labels]
+        assert table[b'powerm_sleep'] == ('睡眠关机' if name == 'zh_CN.bin' else '睡眠定时').encode()
+        if name == 'zh_CN.bin':
+            assert table[b'small_playing'] == '正在播放'.encode()
     # Settings icons: the audited 52px artwork, packaged as SET_ICON RGBA with the same transparency
     # and, on a plain background, the same average colour. Minimal greys them
     # as they load (navigation.c ringnav_image_add: every disc MINIMAL_CHEVRON, glyphs white).

@@ -448,11 +448,11 @@ STANDBY_WAKE = (0x5024b4, 0x0411ff26, 0x24020001)
 # key is written, and stock's two rows are not offered (navigation.c ringnav_display, ringnav_systemset).
 NAV_SHOWN = (0x504b5c, 0xa0620000, 0xa0600000)
 WHEEL_MODE = (0x504ba4, 0x0003100a, 0x24020001)
-# config_init reads SYSSET LANGUAGE (0 when missing, Simplified Chinese) with atoi into g_language, which awtk_configinit
-# hands switch_language at boot. Q2 Pod is English only (its Language row hidden, only en_US.bin rebuilt), so the atoi
-# call becomes li $v0, 2, en_US's index, whatever an older version saved; the key is never written. ponytail: stock's
-# first-boot guide (no LANGUAGE key: a new unit or a reset) still lists languages, and a pick there lasts until the next boot.
-LANGUAGE_EN = (0x50482c, 0x0320f809, 0x24020002)
+# config_init reads SYSSET LANGUAGE (0 when missing, Simplified Chinese) into g_language, which
+# awtk_configinit hands switch_language at boot. This fixed-Chinese fork must also override a saved
+# English setting from upstream: replace atoi with li $v0, 0, without writing the user's config.
+# Language stays hidden because the custom pages are Chinese-only. Stock's first-boot guide is unchanged.
+LANGUAGE_ZH = (0x50482c, 0x0320f809, 0x24020000)
 # V1.36's home_page_init binds a key-up of its own on Home (0x534a74: Return opens Now Playing and stops there; its wheel and
 # Centre act only outside Volume Mode). Home's keys are ringnav's and on_wm_keyup_fun's, as they were: the widget_on call goes.
 HOME_KEYUP = (0x534c28, 0x0320f809, 0)
@@ -711,6 +711,57 @@ LABELS = tuple((k.encode(), o.encode(), n.encode()) for k, o, n in (
     ('msg_importplaylist', 'Import Playlist?', '导入播放列表？'),
     ('scan_startscan', 'Scanning', '扫描'),
 ))
+
+# The active zh_CN table needs the same terminology as the legacy en_US overrides. Keep its
+# stock values explicit: relabel validates the pinned input and updates every shifted offset.
+LABELS_ZH = tuple((k.encode(), o.encode(), dict((k, n) for k, _, n in LABELS)[k.encode()]) for k, o in (
+    ('msg_playlistfull', '歌单已满'),
+    ('player_playlist', '播放列表'),
+    ('system_powermanager', '电源管理'),
+    ('powerm_deep_off', '待机/关机'),
+    ('local_songer', '歌手'),
+    ('local_album', '专辑'),
+    ('local_allsongs', '所有歌曲'),
+    ('local_playlist', '歌单'),
+    ('playset_bootvol', '开机音量'),
+    ('playset_covermode', '歌曲封面模式'),
+    ('playset_filter', '数字滤波器'),
+    ('playset_memplay', '记忆播放'),
+    ('playset_noplay', '未插耳机禁止播放'),
+    ('replaygain_track', '音轨'),
+    ('small_playset', '播放设置'),
+    ('small_sysset', '系统设置'),
+    ('system_wifiset', '无线设置'),
+    ('system_display', '显示'),
+    ('system_netservice', '网络服务'),
+    ('system_time', '日期与时间'),
+    ('netservice_wifitrans', 'Wi-Fi传歌'),
+    ('system_keylock', '按键锁'),
+    ('system_keytone', '按键音'),
+    ('system_carmode', '车载模式'),
+    ('system_reset', '恢复出厂设置'),
+    ('reset_initset', '所有设置初始化'),
+    ('reset_factory', '还原为出厂设置'),
+    ('display_lighttime', '熄屏时间'),
+    ('display_screenlock', '屏保'),
+    ('screenlock_timeshow', '屏保时间显示'),
+    ('screenlock_about', '自定义屏保说明'),
+    ('screenlock_info1', '1.自定义屏保图片存储文件夹为:lockscreenimage，位于TF卡的根目录;'),
+    ('screenlock_info2', '2.图片格式支持PNG、JPG，分辨率为375x320，大小不超过1M;'),
+    ('screenlock_info3', '3.图片数量仅限5张以内.'),
+    ('about_sn', '序列号'),
+    ('about_version', '固件版本号'),
+    ('list_baidu', '百度网盘'),
+    ('msg_poweroff', '确认关机?'),
+    ('system_prove', '技术证明'),
+    ('genre', '风格'),
+    ('player_era', '年代'),
+    ('batch_addplaylist', '添加到歌单'),
+    ('msg_importplaylist', '是否导入歌单?'),
+    ('scan_startscan', '开始扫描'),
+))
+
+STRING_LABELS = {'en_US.bin': LABELS, 'zh_CN.bin': LABELS_ZH}
 
 # Wi-Fi transfer's web page (stock thttpd on :8888): in English, an Upload Folder button, and a folder,
 # picked or dropped, keeps its tree: each file's folders are made with stock's create (a plain mkdir) before
@@ -1017,10 +1068,10 @@ CLASSIC_LIGHT_NOTICE = ('Modified version of TeX Gyre Heros Bold 2.004: cut to p
 def classic_light_font():
     return subset_font(ROOT/'assets/fonts/texgyreheros-bold.otf', 'Q2 Pod Classic Light', 'CLASSIC_LIGHT_RANGES', CLASSIC_LIGHT_NOTICE)
 
-def relabel(data):
+def relabel(data, labels=LABELS):
     """A strings/*.bin value replaced: after a u16 0 and a u16 pair count, a u32 offset to each key and
     value, in file order; the offsets past each change move with it."""
-    for key, old, new in LABELS:
+    for key, old, new in labels:
         at = data.find(b'\0' + key + b'\0' + old + b'\0')
         check(at > 0 and data.count(b'\0' + key + b'\0') == 1, f'Unexpected {key.decode()} label')
         at += len(key) + 2
@@ -1963,7 +2014,7 @@ def build(zip_path, out, logo, dev=False, repo=REPO, aic_idle_wait=False, rotato
     patch_word(patched, *STANDBY_WAKE, 'Standby resume stays dark')
     patch_word(patched, *NAV_SHOWN, "stock's navigation bar stays shown")
     patch_word(patched, *WHEEL_MODE, "stock's wheel stays in Volume Mode")
-    patch_word(patched, *LANGUAGE_EN, 'every unit boots in English')
+    patch_word(patched, *LANGUAGE_ZH, 'every unit boots in Simplified Chinese')
     patch_word(patched, *HOME_KEYUP, 'Home binds no key-up of its own')
     patch_word(patched, *NP_CENTRE, "Now Playing leaves Centre to stock's power-key handling")
     patch_word(patched, *KEYLOCK_LIT, 'Buttons lock acts only with the screen off')
@@ -2283,7 +2334,7 @@ def build(zip_path, out, logo, dev=False, repo=REPO, aic_idle_wait=False, rotato
         p = swap_inode(p, path.encode(), out/'q2cgi')
     patched_ui = list(UI_ASSETS)
     check(chinese, 'No Chinese UI text found')
-    assets = ['ui/'+rel for rel in patched_ui + sorted(chinese - set(patched_ui))] + ['strings/en_US.bin']
+    assets = ['ui/'+rel for rel in patched_ui + sorted(chinese - set(patched_ui))] + ['strings/'+name for name in STRING_LABELS]
     assets += ['styles/'+rel for rel in AUDIT['styles']]
     # images changed in place, so each keeps its inode metadata: settings icons pre-sized to the rows'
     # SET_ICON and the art placeholders
@@ -2292,7 +2343,7 @@ def build(zip_path, out, logo, dev=False, repo=REPO, aic_idle_wait=False, rotato
         kind, name = rel.split('/', 1)
         path = 'release/assets/default/raw/' + ('images/xx/'+name if kind == 'images' else rel)
         original = cat(path)
-        data = (relabel(original) if kind == 'strings' else
+        data = (relabel(original, STRING_LABELS[name]) if kind == 'strings' else
                 patch_style(original, AUDIT['styles'][name]) if kind == 'styles' else
                 (sized_art(art, ART_PLACEHOLDERS[name]) if name in ART_PLACEHOLDERS else
                  status_icon(name, original) if name in STATUS_ICONS else quiet_icon(name, original) if name in QUIET_ICONS else settings_icon(name, original)) if kind == 'images' else

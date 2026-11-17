@@ -19453,8 +19453,8 @@ for held in ({},{'WHEELMODE':'0','NAVHIDE':'1'},{'WHEELMODE':'1','NAVHIDE':'0'},
         assert (c.u.mem_read(syms['g_navhide_flag'],1)[0],c.u.mem_read(syms['g_wheelmode'],1)[0])==((0,1) if patched else stock),(held,patched)
         assert c.config==before
 passed()
-# Every unit boots in English (build.py LANGUAGE_EN): config_init's own code, from its LANGUAGE read to its g_language
-# store, gives en_US's index, 2, whatever an older version saved, missing included (stock's 0, Simplified Chinese). The
+# Every unit boots in Simplified Chinese (build.py LANGUAGE_ZH): config_init's own code, from its LANGUAGE read to its g_language
+# store, gives zh_CN's index, 0, whatever an older version saved, missing included (stock's 0, Simplified Chinese). The
 # key is not written; a missing one still starts stock's first-boot guide (g_guideflag).
 for held in ({},{'LANGUAGE':'0'},{'LANGUAGE':'2'},{'LANGUAGE':'6'}):
     for patched in (True,False):
@@ -19463,7 +19463,7 @@ for held in ({},{'LANGUAGE':'0'},{'LANGUAGE':'2'},{'LANGUAGE':'6'}):
             c.u.reg_write(r,v)
         c.word(0x7000f000+0x18,GP); c.u.emu_start(0x5047dc,0x504854,count=100000)
         assert c.u.reg_read(UC_MIPS_REG_PC)==0x504854 and [r[:3] for r in c.config_reads]==[('/mnt/data/config.ini','SYSSET','LANGUAGE')]
-        assert c.u.mem_read(syms['g_language'],1)[0]==(2 if patched else int(held.get('LANGUAGE','0'))),(held,patched)
+        assert c.u.mem_read(syms['g_language'],1)[0]==(0 if patched else int(held.get('LANGUAGE','0'))),(held,patched)
         assert c.u.mem_read(syms['g_guideflag'],1)[0]==(not held) and c.config==before,(held,patched)
 passed()
 # Home binds no key-up of its own (build.py HOME_KEYUP): stock V1.36's home_page_init gives the page one, whose Return

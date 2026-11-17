@@ -7237,8 +7237,8 @@ int ringnav_systemset(void *win, void *ctx) {
             widget_set_tr_text(list_row_into(view, moved[i][0], to_page, (void *)moved[i][1]),
                                moved[i][0]);
         for (unsigned i = 5; i <= 8; ++i) widget_set_visible(widget_get_child(view, i), 0, 0);
-        /* Language: Q2 Pod's pages and labels are English only, so stock's other languages read
-         * half-blank; hidden until they are translated (docs/internals.md, English). */
+        /* This fork's custom pages are Chinese-only; LANGUAGE_ZH also overrides saved English
+         * at boot. Do not offer a language selector that cannot translate these pages. */
         widget_set_visible(widget_get_child(view, 0), 0, 0);
     }
     reorder(view, sysset_order, sizeof sysset_order);

@@ -656,29 +656,36 @@ def strings_bin(pairs):
     return struct.pack(f'<HH{len(texts)}I', 0, len(pairs), *offsets) + b''.join(t + b'\0' for t in texts)
 
 
-def test_relabel():
+@pytest.mark.parametrize('labels', build.STRING_LABELS.values())
+def test_relabel(labels):
     # in an order of their own, so each change moves offsets past it that later ones have moved too;
     # each label between two others
     pairs = [(b'powerm_sleep', b'Sleep Timer')]
-    for k, old, _ in reversed(build.LABELS):
+    for k, old, _ in reversed(labels):
         pairs += [(k, old), (k + b'_next', b'Kept')]
-    new = {k: n for k, _, n in build.LABELS}
-    out = build.relabel(strings_bin(pairs))
+    new = {k: n for k, _, n in labels}
+    out = build.relabel(strings_bin(pairs), labels)
     assert isinstance(out, bytes) and out == strings_bin([(k, new.get(k, v)) for k, v in pairs])
 
 
 @pytest.mark.parametrize('change', ['renamed', 'missing', 'twice'])
-def test_relabel_wants_each_stock_label(change):
-    pairs = [(b'powerm_sleep', b'Sleep Timer'), *[(k, old) for k, old, _ in build.LABELS]]
-    key = build.LABELS[1][0]
+@pytest.mark.parametrize('labels', build.STRING_LABELS.values())
+def test_relabel_wants_each_stock_label(change, labels):
+    pairs = [(b'powerm_sleep', b'Sleep Timer'), *[(k, old) for k, old, _ in labels]]
+    key = labels[1][0]
     if change == 'renamed':
-        pairs[2] = (key, build.LABELS[1][2])
+        pairs[2] = (key, labels[1][2])
     elif change == 'missing':
         del pairs[2]
     else:
         pairs.append(pairs[2])
     with pytest.raises(ValueError, match=f'^Unexpected {key.decode()} label$'):
-        build.relabel(strings_bin(pairs))
+        build.relabel(strings_bin(pairs), labels)
+
+
+def test_chinese_resource_overrides_match_english_keys_and_terminology():
+    assert {k: n for k, _, n in build.LABELS_ZH} == {k: n for k, _, n in build.LABELS}
+    assert len(build.LABELS_ZH) == len({k for k, _, _ in build.LABELS_ZH})
 
 
 SOI = b'\xff\xd8'
